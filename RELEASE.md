@@ -1,0 +1,28 @@
+# Release v1.1.0 — Conversation ESAA
+
+Primeira versão pública. Pacote **greenfield**: sem histórico de conversas, `activity.jsonl` vazio após bootstrap.
+
+## Escopo
+
+| Área | Entrega |
+|---|---|
+| CLI | `conversation-esaa.ps1` — `init`, `enable-hooks`, `sync`, `project`, `verify`, `context`, `decide`, `task` |
+| Motor | `conv-sync.ps1` — lockfile, `workspace_root`, projeções |
+| Contexto | `--last`, `--before`, `--around`, `--agent`, `--topic`, `--json` |
+| Testes | `conv-test.ps1` (51), `conv-test-battery.ps1` |
+| Docs | `README.md`, `PRIVACY.md`, `paper/`, `.conversation-esaa/plans/` |
+
+## Verificação
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test-battery.ps1 -SkipLab -SkipEsaa
+```
+
+## Privacidade
+
+Leia [PRIVACY.md](PRIVACY.md) antes de publicar seu workspace. Nunca commite `activity.jsonl` ou read models gerados.
+
+## Licença
+
+MIT — veja [LICENSE](LICENSE).

@@ -1,0 +1,2 @@
+{"type":"user","content":[{"type":"text","text":"<user_query>Hello from grok fixture</user_query>"}]}
+{"type":"assistant","content":"Hi from grok fixture"}

@@ -1,0 +1,16 @@
+# Conversation ESAA — dados privados gerados (NAO COMMITAR). Ver PRIVACY.md.
+.conversation-esaa/activity.jsonl
+.conversation-esaa/sync-state.json
+.conversation-esaa/state.md
+.conversation-esaa/handoff.md
+.conversation-esaa/decisions.md
+.conversation-esaa/tasks.json
+.conversation-esaa/codex-watch.log
+.conversation-esaa/run/*.lock
+.conversation-esaa/run/test-battery-report.json
+.grok/
+.codex/
+.claude/settings.json
+.claude/settings.local.json
+Thumbs.db
+.DS_Store
