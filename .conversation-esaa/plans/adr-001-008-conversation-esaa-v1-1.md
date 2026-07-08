@@ -488,6 +488,18 @@ Opcionalmente `--json` retorna JSON.
 - Precisa indice ou leitura eficiente em logs grandes.
 - `--topic` textual pode perder sinonimos.
 
+---
+
+## ADRs Futuros / Em Discussão
+
+- **ADR-009** — Camada de Memória Intermediária por Assuntos (Topic Memory Layer)
+  Proposta detalhada de uma memória de acesso rápido organizada por tópicos/assuntos.
+  Local: `adr-009-memoria-intermediaria-por-assuntos.md`
+  Objetivo: permitir listar assuntos de forma barata antes de expandir para o `activity.jsonl`.
+  Status: Em análise (pronta para revisão por Codex e outros agentes).
+
+Consulte o arquivo dedicado para o texto completo da proposta.
+
 ### Criterios de Aceite
 
 - `context --agent grok --last 20` retorna no maximo 20 eventos do Grok.
@@ -562,4 +574,3 @@ As ADRs devem ser implementadas nesta ordem:
 5. ADR-002: evoluir adaptadores para payload de hook quando disponivel.
 6. ADR-004: preparar snapshot sem tornar requisito.
 7. ADR-003 e ADR-006: manter como limites de v1.1 e ponte para v2.
-

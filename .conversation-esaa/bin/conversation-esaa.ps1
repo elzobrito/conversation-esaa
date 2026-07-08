@@ -30,6 +30,13 @@ param(
     [string]$NextStep,
     [string]$Evidence,
     [string]$Title,
+    [Alias('topic-id')]
+    [string]$TopicId,
+    [Alias('EventId', 'Events')]
+    [string[]]$TopicEventId,
+    [string]$TopicTitle,
+    [Alias('Summary')]
+    [string]$TopicSummary,
     [parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Rest
 )
@@ -74,15 +81,32 @@ Usage:
   conversation-esaa sync --agent <grok|claude|codex> --workspace <path>
   conversation-esaa project --workspace <path>
   conversation-esaa verify --workspace <path>
-  conversation-esaa context --workspace <path> [--agent <id>] [--last N] [--before <event_id>] [--around <event_id>] [--window N] [--topic <text>] [--json]
+  conversation-esaa context --workspace <path> [--agent <id>] [--last N] [--before <event_id>] [--around <event_id>] [--window N] [--topic <text>] [--topic-id TOP-001] [--json]
   conversation-esaa decide "<text>" --workspace <path> [--rationale <text>] [--agent <id>] [--source <event_id>]
   conversation-esaa task create "<title>" --workspace <path>
   conversation-esaa task update <task_id> --workspace <path> [--status <status>] [--next-step <text>]
   conversation-esaa task close <task_id> --workspace <path> [--evidence <text>]
+  conversation-esaa topics create "<title>" --workspace <path> [--summary "..."]
+  conversation-esaa topics list --workspace <path>
+  conversation-esaa topics show TOP-001 --workspace <path>
+  conversation-esaa context --topic-id TOP-001 --workspace <path>
 '@ | Write-Output
 }
 
 $sub = if ($Rest -and $Rest.Count -ge 1) { $Rest[0] } else { $null }
+
+function Get-RestOptionValues {
+    param([string[]]$Names)
+    $values = @()
+    if (-not $Rest) { return $values }
+    for ($i = 0; $i -lt $Rest.Count; $i++) {
+        if ($Rest[$i] -in $Names -and ($i + 1) -lt $Rest.Count) {
+            $values += $Rest[$i + 1]
+            $i++
+        }
+    }
+    return $values
+}
 
 switch ($Command) {
     'help' { Show-Help }
@@ -147,17 +171,21 @@ switch ($Command) {
         if ($Agent -eq 'grok' -and $Trust) {
             $grokHome = if ($env:GROK_HOME) { $env:GROK_HOME } else { Join-Path $HOME '.grok' }
             $trusted = Join-Path $grokHome 'trusted-hook-projects'
-            New-Item -ItemType Directory -Force -Path $grokHome | Out-Null
-            $lines = @()
-            if (Test-Path -LiteralPath $trusted) {
-                $lines = @([System.IO.File]::ReadAllLines($trusted))
-            }
-            if ($lines -notcontains $ws) {
-                $lines += $ws
-                [System.IO.File]::WriteAllLines($trusted, $lines, [System.Text.UTF8Encoding]::new($false))
-                Write-Output "enable-hooks: added trusted project $ws"
-            } else {
-                Write-Output "enable-hooks: trusted project already registered"
+            try {
+                New-Item -ItemType Directory -Force -Path $grokHome | Out-Null
+                $lines = @()
+                if (Test-Path -LiteralPath $trusted) {
+                    $lines = @([System.IO.File]::ReadAllLines($trusted))
+                }
+                if ($lines -notcontains $ws) {
+                    $lines += $ws
+                    [System.IO.File]::WriteAllLines($trusted, $lines, [System.Text.UTF8Encoding]::new($false))
+                    Write-Output "enable-hooks: added trusted project $ws"
+                } else {
+                    Write-Output "enable-hooks: trusted project already registered"
+                }
+            } catch {
+                Write-Output "enable-hooks: trusted project not updated ($($_.Exception.Message))"
             }
         }
         if ($Agent -eq 'claude') {
@@ -174,12 +202,17 @@ switch ($Command) {
     }
     'context' {
         $extra = @()
+        if (-not $TopicId) {
+            $restTopicIds = @(Get-RestOptionValues @('--topic-id', '-topic-id'))
+            if ($restTopicIds.Count -gt 0) { $TopicId = $restTopicIds[0] }
+        }
         if ($Agent) { $extra += '-ContextAgent', $Agent }
         if ($Last -gt 0) { $extra += '-ContextLast', "$Last" }
         if ($Before) { $extra += '-ContextBefore', $Before }
+        if ($TopicId) { $extra += '-ContextTopicId', $TopicId }
+        if ($Topic) { $extra += '-ContextTopic', $Topic }
         if ($Around) { $extra += '-ContextAround', $Around }
         if ($Window -gt 0) { $extra += '-ContextWindow', "$Window" }
-        if ($Topic) { $extra += '-ContextTopic', $Topic }
         if ($Json) { $extra += '-ContextJson' }
         Invoke-ConvSyncCli -SyncCommand 'context' -Extra $extra
     }
@@ -217,6 +250,53 @@ switch ($Command) {
             default { throw "Unknown task action: $sub" }
         }
         Invoke-ConvSyncCli -SyncCommand 'task' -Extra $extra
+    }
+    { $_ -in @('topic', 'topics') } {
+        if (-not $sub) { throw 'topics requires list|show|create|update|link|close' }
+        $extra = @('-TopicAction', $sub)
+        switch ($sub) {
+            'list' {
+                if ($Status) { $extra += '-TopicStatus', $Status }
+                if ($Json) { $extra += '-TopicJson' }
+            }
+            'show' {
+                if (-not $TopicId -and $Rest.Count -ge 2) { $TopicId = $Rest[1] }
+                if (-not $TopicId) { throw 'topics show requires topic id' }
+                $extra += '-TopicId', $TopicId
+                if ($Json) { $extra += '-TopicJson' }
+            }
+            'create' {
+                $text = if ($Rest.Count -ge 2) { ($Rest[1..($Rest.Count-1)] -join ' ') } else { $TopicTitle }
+                if ([string]::IsNullOrWhiteSpace($text)) { throw 'topics create requires title' }
+                $extra += '-TopicTitle', $text
+                if ($TopicSummary) { $extra += '-TopicSummary', $TopicSummary }
+            }
+            'update' {
+                if (-not $TopicId -and $Rest.Count -ge 2) { $TopicId = $Rest[1] }
+                if (-not $TopicId) { throw 'topics update requires topic id' }
+                $extra += '-TopicId', $TopicId
+                if ($TopicTitle) { $extra += '-TopicTitle', $TopicTitle }
+                if ($TopicSummary) { $extra += '-TopicSummary', $TopicSummary }
+            }
+            'link' {
+                if (-not $TopicId -and $Rest.Count -ge 2) { $TopicId = $Rest[1] }
+                if (-not $TopicId) { throw 'topics link requires topic id' }
+                $extra += '-TopicId', $TopicId
+                if (-not $TopicEventId) {
+                    $restEventIds = @(Get-RestOptionValues @('--event-id', '-event-id', '--events', '-events'))
+                    if ($restEventIds.Count -gt 0) { $TopicEventId = $restEventIds }
+                }
+                if ($TopicEventId) { $extra += '-TopicEventIds', ($TopicEventId -join ',') }
+            }
+            'close' {
+                if (-not $TopicId -and $Rest.Count -ge 2) { $TopicId = $Rest[1] }
+                if (-not $TopicId) { throw 'topics close requires topic id' }
+                $extra += '-TopicId', $TopicId
+                if ($Evidence) { $extra += '-TopicEvidence', $Evidence }
+            }
+            default { throw "Unknown topics action: $sub" }
+        }
+        Invoke-ConvSyncCli -SyncCommand 'topic' -Extra $extra
     }
     default { throw "Unknown command: $Command" }
 }

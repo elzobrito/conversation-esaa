@@ -1,6 +1,7 @@
-# Release v1.1.0 — Conversation ESAA
+# Release v1.1.1 — Conversation ESAA
 
-Primeira versão pública. Pacote **greenfield**: sem histórico de conversas, `activity.jsonl` vazio após bootstrap.
+Build de manutenção após ADR-009. Pacote **greenfield**: sem histórico de
+conversas, `activity.jsonl` vazio após bootstrap.
 
 ## Escopo
 
@@ -8,8 +9,9 @@ Primeira versão pública. Pacote **greenfield**: sem histórico de conversas, `
 |---|---|
 | CLI | `conversation-esaa.ps1` — `init`, `enable-hooks`, `sync`, `project`, `verify`, `context`, `decide`, `task` |
 | Motor | `conv-sync.ps1` — lockfile, `workspace_root`, projeções |
-| Contexto | `--last`, `--before`, `--around`, `--agent`, `--topic`, `--json` |
-| Testes | `conv-test.ps1` (51), `conv-test-battery.ps1` |
+| Tópicos | `topics list/show/create/update/link/close`, `topics.json`, `topics.md` |
+| Contexto | `--last`, `--before`, `--around`, `--agent`, `--topic`, `--topic-id`, `--json` |
+| Testes | `conv-test.ps1` (59), `conv-test-battery.ps1` |
 | Docs | `README.md`, `PRIVACY.md`, `paper/`, `.conversation-esaa/plans/` |
 
 ## Verificação

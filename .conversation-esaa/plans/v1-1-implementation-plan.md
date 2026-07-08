@@ -6,6 +6,10 @@
 
 **Architecture:** `activity.jsonl` is the only source of truth. All writes go through `conversation-esaa` commands, acquire a lock, validate inputs, append events, project read models, and run `verify`. `state.md`, `handoff.md`, `decisions.md`, `tasks.json`, `sync-state.json`, and context windows are derived artifacts.
 
+For ADR-009, `topics.json` and `topics.md` join that derived artifact set.
+Topic state must be reconstructible from `topic.*` events in `activity.jsonl`;
+no implementation may treat `topics.json` as writable source state.
+
 **Tech Stack:** PowerShell 7 (`pwsh`), existing `.conversation-esaa/bin/conv-sync.ps1`, existing `.conversation-esaa/bin/conv-bootstrap.ps1`, existing `.conversation-esaa/bin/codex-watch.ps1`, JSONL files, Markdown projections, existing `.conversation-esaa/bin/conv-test.ps1`.
 
 ---
@@ -856,12 +860,394 @@ context window contains only grok events for this workspace
 7. Task 7: tasks projection.
 8. Task 8: topic context.
 9. Task 9: docs and full verification.
+10. Task 10: topics schema and events.
+11. Task 11: topics.json projection.
+12. Task 12: topics.md + state/handoff integration.
+13. Task 13: topics CLI commands.
+14. Task 14: context --topic-id support.
+15. Task 15: verify + tests for topics.
 
 Do not start paper rewriting until Task 5 is demonstrably working. The first visible product proof is:
 
 ```powershell
 conversation-esaa context --agent grok --last 20 --workspace C:\xampp\htdocs\esaa-conversational-lab
 ```
+
+After Task 9, the next visible proof for ADR-009 is:
+
+```powershell
+conversation-esaa topics list --workspace <temp>
+conversation-esaa topics create "Test topic" --summary "..." --workspace <temp>
+conversation-esaa context --topic-id TOP-001 --workspace <temp>
+```
+
+---
+
+## Task 10: Define topics schema and first-class topic events (ADR-009)
+
+**Reference:** `.conversation-esaa/plans/adr-009-memoria-intermediaria-por-assuntos.md` (especially Codex review in 17.1 and MVP items 1-2)
+
+**Goal:** Establish the canonical schema and event vocabulary so that topics are first-class citizens in the event store (reconstructible, auditable).
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conv-sync.ps1` (add event templates + schema constants)
+- Modify: `.conversation-esaa/bin/conv-test.ps1` (schema validation tests)
+- Create: `.conversation-esaa/tests/fixtures/topics/topic-events.jsonl` (minimal deterministic topic event fixture)
+- Update: `README.md` (brief schema mention)
+
+- [ ] **Step 1: Define schema `conversation-esaa.topics.v0.1`**
+
+Document in code and this plan:
+
+```json
+{
+  "schema_version": "conversation-esaa.topics.v0.1",
+  "updated": "...",
+  "workspace_root": "...",
+  "topics": [
+    {
+      "id": "TOP-001",
+      "title": "...",
+      "summary": "...",
+      "status": "active|paused|completed|archived",
+      "created_ts": "...",
+      "last_ts": "...",
+      "keywords": ["..."],
+      "key_event_ids": ["evt-1", "evt-2"],
+      "event_count": 12,
+      "first_event_id": "...",
+      "last_event_id": "...",
+      "related_decisions": ["DEC-xxx"],
+      "related_tasks": ["CONV-xxx"],
+      "source": "curated"
+    }
+  ]
+}
+```
+
+- [ ] **Step 2: Define topic events in conv-sync.ps1**
+
+Add support for emitting:
+
+- `topic.created`
+- `topic.updated`
+- `topic.closed`
+- `topic.event.linked`
+
+Canonical event shapes:
+
+```json
+{
+  "event": "topic.created",
+  "workspace_root": "...",
+  "topic_id": "TOP-001",
+  "title": "...",
+  "summary": "...",
+  "status": "active",
+  "keywords": ["..."],
+  "event_ids": ["evt-1"]
+}
+```
+
+```json
+{
+  "event": "topic.updated",
+  "workspace_root": "...",
+  "topic_id": "TOP-001",
+  "title": "...",
+  "summary": "...",
+  "status": "paused",
+  "keywords": ["..."]
+}
+```
+
+```json
+{
+  "event": "topic.event.linked",
+  "workspace_root": "...",
+  "topic_id": "TOP-001",
+  "event_ids": ["evt-1", "evt-2"],
+  "reason": "..."
+}
+```
+
+```json
+{
+  "event": "topic.closed",
+  "workspace_root": "...",
+  "topic_id": "TOP-001",
+  "status": "completed",
+  "evidence": "..."
+}
+```
+
+Every topic event must also include the standard event envelope already used by
+modern Conversation ESAA events: `event_id`, `ts`, `actor`, `agent_id`,
+`source`, and `workspace_root`.
+
+Allowed topic statuses are `active`, `paused`, `completed`, and `archived`.
+Closing normally uses `completed`; `archived` is for intentionally retired or
+obsolete topics.
+
+Follow the same pattern as `decision.recorded` and `task.*`.
+
+- [ ] **Step 3: Add schema + event tests**
+
+In `conv-test.ps1` and fixture:
+
+- Validate event shape
+- Validate TOP-NNN ID format (deterministic allocation)
+- Validate that a single source event can be linked to more than one topic by
+  separate `topic.event.linked` events
+
+**Verification:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test.ps1
+```
+
+Expected: new topic event schema tests pass.
+
+---
+
+## Task 11: Implement projection of `topics.json` (ADR-009)
+
+**Reference:** ADR-009 sections 5.1, 8, 17.1 (items 3, 7)
+
+**Goal:** Make `topics.json` a deterministic, reconstructible projection from topic events (plus links to decisions/tasks).
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conv-sync.ps1`
+- Modify: `.conversation-esaa/bin/conv-test.ps1`
+- Use fixture from Task 10
+
+- [ ] **Step 1: Implement `Project-TopicsFromEvents`**
+
+Function that:
+- Collects all `topic.*` events
+- Builds the topics array
+- Enriches with related decisions/tasks from event fields when available
+  (`topic_id` or `topic_ids` on future decision/task events), without depending
+  on generated projections as source input
+- Computes `event_count`, `first/last_event_id`
+- Limits `key_event_ids` to 20 + metadata
+- Applies updates deterministically by event order; duplicate links are
+  de-duplicated while preserving first-seen order
+
+Must be pure projection (no side effects).
+
+- [ ] **Step 2: Wire into `Invoke-Project`**
+
+Always produce `.conversation-esaa/topics.json` (even if empty array).
+
+Update `Get-ConvPaths` to include the new path.
+
+- [ ] **Step 3: Add reconstruction test**
+
+Given a fixture of topic events → `topics.json` matches expected shape and can be re-projected identically.
+
+**Verification:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test.ps1
+# Then manually:
+pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conversation-esaa.ps1 project --workspace <temp-ws>
+cat .conversation-esaa/topics.json | jq .
+```
+
+Expected: projection is deterministic and passes verify later.
+
+---
+
+## Task 12: Generate `topics.md` and integrate into state.md + handoff.md (ADR-009)
+
+**Reference:** ADR-009 sections 5.2, 5.3, 6, 12
+
+**Goal:** Provide human/agent-readable view and update the standard handoff order.
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conv-sync.ps1` (Invoke-Project and Project helpers)
+- Modify: `.conversation-esaa/bin/conv-test.ps1`
+
+- [ ] **Step 1: Implement `Project-TopicsMarkdown`**
+
+Simple Markdown:
+
+```markdown
+# Topics
+
+## Active
+- **TOP-001** — Title (summary excerpt)
+  key decisions: ...
+```
+
+- [ ] **Step 2: Update `state.md` generation**
+
+Add section:
+
+```markdown
+## Tópicos / Assuntos Ativos
+
+- **TOP-001** — ...
+```
+
+- [ ] **Step 3: Update `handoff.md`**
+
+Change recommended reading order to include:
+
+1. state.md
+2. topics.json / topics.md
+3. ...
+
+- [ ] **Step 4: Test full project output**
+
+Run project and assert that handoff and state contain the topics section.
+
+**Verification:**
+
+```powershell
+pwsh ... project --workspace <temp>
+grep -A5 "Tópicos" .conversation-esaa/state.md
+grep -A3 "topics.md" .conversation-esaa/handoff.md
+```
+
+---
+
+## Task 13: Implement topics CLI commands (ADR-009)
+
+**Reference:** ADR-009 section 7 and Codex MVP item 7
+
+**Goal:** Provide `topics list | show | create | update | link | close`
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conversation-esaa.ps1` (dispatcher)
+- Modify: `.conversation-esaa/bin/conv-sync.ps1` (new Invoke-Topics* functions)
+- Modify: `.conversation-esaa/bin/conv-test.ps1`
+
+- [ ] **Step 1: Add command dispatch**
+
+In `conversation-esaa.ps1`:
+
+- `topics` subcommand
+- Route to conv-sync with appropriate params
+
+- [ ] **Step 2: Implement curated write commands**
+
+`topics create`, `update`, `link`, `close` must:
+- Acquire pipeline lock
+- Append proper `topic.*` event
+- Call project and the currently available `verify`
+
+Until Task 15 lands, `verify` may only enforce the pre-existing v1.1 contract.
+Do not make Task 13 depend on the full topic-aware verifier.
+
+- [ ] **Step 3: Implement read commands**
+
+`topics list [--status active|...]` and `topics show TOP-xxx` read from the projected `topics.json`.
+
+`topics link TOP-001 --events "id1,id2"` must validate that `TOP-001` exists in
+the current projection before appending the link event. Missing event IDs should
+fail closed for modern events when the activity log can prove absence; legacy
+logs may use a warning only if the rest of the runtime already tolerates legacy
+events.
+
+- [ ] **Step 4: CLI tests**
+
+Test create → list → show flow using temp workspace.
+
+**Verification:**
+
+```powershell
+pwsh ... topics create "Test" --summary "..." --workspace $tmp
+pwsh ... topics list --workspace $tmp
+pwsh ... topics show TOP-001 --workspace $tmp
+```
+
+Expected: events appear in activity.jsonl, projection reflects changes.
+
+---
+
+## Task 14: Extend `context` with `--topic-id` support (ADR-009)
+
+**Reference:** ADR-009 section 6, 17.1 item 6
+
+**Goal:** `--topic-id TOP-001` resolves via links in `topics.json` (not text search).
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conv-sync.ps1` (Invoke-Context)
+- Modify: `.conversation-esaa/bin/conversation-esaa.ps1`
+- Modify: `.conversation-esaa/bin/conv-test.ps1`
+
+- [ ] **Step 1: Add parameter handling**
+
+Support `--topic-id` (distinct from legacy `--topic`).
+
+- [ ] **Step 2: Implement resolution**
+
+In `Invoke-Context`:
+- Load `topics.json`
+- Resolve `TOP-001` to the projected ordered event id set
+- Read `activity.jsonl` once and select matching events by id
+- Apply `--last` after topic filtering
+- If expansion is implemented, name the flag `--expand-topic` and expand around
+  selected event ids using the existing `--window` behavior
+
+- [ ] **Step 3: Keep legacy `--topic` behavior**
+
+Textual search remains for backward compat.
+
+- [ ] **Step 4: Add tests**
+
+Use topic fixture + context fixture to assert correct event subset is returned.
+
+**Verification:**
+
+```powershell
+pwsh ... context --topic-id TOP-001 --last 5 --workspace <tmp>
+```
+
+Only events linked to that topic are shown (in order).
+
+---
+
+## Task 15: Update `verify` and add comprehensive tests for topics (ADR-009)
+
+**Reference:** ADR-009 17.1 item 7, 17.3
+
+**Goal:** Make `verify` enforce the new contract. Add solid test coverage.
+
+**Files:**
+- Modify: `.conversation-esaa/bin/conv-sync.ps1` (Invoke-Verify)
+- Modify: `.conversation-esaa/bin/conv-test.ps1`
+- Modify: `.conversation-esaa/tests/fixtures/...`
+
+- [ ] **Step 1: Extend `Invoke-Verify`**
+
+Add checks:
+- `topics.json` exists and has correct schema_version
+- Topic IDs are unique and well-formed (TOP-NNN)
+- Status values are valid
+- `workspace_root` matches
+- Referenced events/decisions/tasks exist (best effort)
+- Projection is consistent with activity (re-play test)
+- `topics.md`, when present, is generated from the same projected topic set
+- No topic references a workspace outside the requested workspace root
+
+- [ ] **Step 2: Add end-to-end tests**
+
+Cover full lifecycle:
+- create topic → link events → project → verify → context --topic-id → close
+
+- [ ] **Step 3: Run battery**
+
+```powershell
+pwsh ... conv-test.ps1
+pwsh ... conversation-esaa.ps1 verify --workspace <test-ws>
+```
+
+**Verification:**
+
+All new topic tests + verify pass. No regression on existing behavior.
 
 ---
 
@@ -877,4 +1263,3 @@ session layout (`chat_history.jsonl` under `~/.grok/sessions/<encoded-cwd>/<id>/
 `CE-V11-001` remains `done` with its historical `task.create` targets unchanged
 (esaa-core has no `task.update`; done tasks are immutable). This plan is the
 canonical reference for the correct Grok fixture filename.
-

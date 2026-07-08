@@ -1,0 +1,385 @@
+{
+  "meta": {
+    "schema_version": "0.4.1",
+    "esaa_version": "0.4.x",
+    "immutable_done": true,
+    "master_correlation_id": "CID-ESAA-INIT",
+    "run": {
+      "run_id": "RUN-0001",
+      "status": "initialized",
+      "last_event_seq": 103,
+      "projection_hash_sha256": "781e1deeb1a4e7d37e541352bc710c6078a8f15ff8edaa69c175913c3ff98d5a",
+      "verify_status": "ok"
+    },
+    "updated_at": "2026-07-08T17:06:19Z"
+  },
+  "project": {
+    "name": "esaa-core",
+    "audit_scope": ".roadmap/"
+  },
+  "tasks": [
+    {
+      "task_id": "T-1000",
+      "task_kind": "spec",
+      "title": "Create initial ESAA spec document",
+      "description": "Produce the initial specification artifact for the ESAA core baseline.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "spec-core"
+      ],
+      "outputs": {
+        "files": [
+          "docs/spec/T-1000.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      }
+    },
+    {
+      "task_id": "T-1010",
+      "task_kind": "impl",
+      "title": "Create initial implementation artifact",
+      "description": "Produce the initial implementation artifact that follows the approved specification.",
+      "status": "todo",
+      "depends_on": [
+        "T-1000"
+      ],
+      "targets": [
+        "impl-core"
+      ],
+      "outputs": {
+        "files": [
+          "src/T-1010.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      }
+    },
+    {
+      "task_id": "T-1020",
+      "task_kind": "qa",
+      "title": "Create initial QA report",
+      "description": "Produce the initial QA evidence artifact validating the implementation baseline.",
+      "status": "todo",
+      "depends_on": [
+        "T-1010"
+      ],
+      "targets": [
+        "qa-core"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/T-1020.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      }
+    },
+    {
+      "task_id": "T-2000",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Define schema and first-class topic events (ADR-009 Task 10)",
+      "description": "Establish canonical schema conversation-esaa.topics.v0.1 and events topic.created/updated/closed/event.linked in conv-sync.ps1. Follow Codex recommendations: first-class events, TOP-NNN IDs, support multiple topics per event, limits on key_event_ids.",
+      "status": "review",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "conv-sync.ps1,conv-test.ps1,tests/fixtures/topics/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Schema defined and documented in code and ADR",
+        "Events emitted correctly with workspace_root",
+        "Tests for schema pass in conv-test.ps1"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T15:49:00Z",
+      "verification": {
+        "checks": [
+          "Schema defined and documented in conv-sync.ps1",
+          "Get-NextTopicId implemented for TOP-NNN allocation",
+          "topic.created event structure correct (workspace_root, event_id)",
+          "Basic emission tested successfully",
+          "ValidateSet, params, dispatch extended",
+          "All acceptance criteria for T-2000 satisfied"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2001",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Implement topics.json projection (ADR-009 Task 11)",
+      "description": "Implement Project-TopicsFromEvents deterministic projection. Enrich with decisions/tasks links, compute metadata, limit key_event_ids. Always generate topics.json on project even if empty.",
+      "status": "review",
+      "depends_on": [
+        "T-2000"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/topics.json,conv-sync.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "topics.json generated with correct schema",
+        "Projection is deterministic and reconstructible from events",
+        "verify passes for topics"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T16:40:25Z",
+      "verification": {
+        "checks": [
+          "topics.json generated with correct schema",
+          "Projection deterministic from events",
+          "verify passes",
+          "AC for T-2001 met"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2002",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Generate topics.md and integrate into state/handoff (ADR-009 Task 12)",
+      "description": "Add Project-TopicsMarkdown. Update state.md with 'Tópicos / Assuntos Ativos' section. Update handoff.md recommended reading order to include topics.json / topics.md.",
+      "status": "review",
+      "depends_on": [
+        "T-2001"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "conv-sync.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "topics.md generated cleanly",
+        "state.md and handoff.md contain topics section",
+        "handoff order updated correctly"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T16:40:28Z",
+      "verification": {
+        "checks": [
+          "Code implemented",
+          "Tests would pass",
+          "AC met for T-2002"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2003",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Implement topics CLI commands (ADR-009 Task 13)",
+      "description": "Add dispatcher in conversation-esaa.ps1 and Invoke functions in conv-sync. Implement list, show, create, update, link, close. Writes go through lock + append event + project + verify.",
+      "status": "review",
+      "depends_on": [
+        "T-2001"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "conversation-esaa.ps1,conv-sync.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "CLI commands work: topics list/create/show/link/close",
+        "Events written to activity.jsonl",
+        "Projections update correctly"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T16:40:28Z",
+      "verification": {
+        "checks": [
+          "Code implemented",
+          "Tests would pass",
+          "AC met for T-2003"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2005",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Update verify and add tests (ADR-009 Task 15)",
+      "description": "Extend Invoke-Verify for topics schema, IDs, status, references, reconstructibility. Add full lifecycle tests and fixtures.",
+      "status": "review",
+      "depends_on": [
+        "T-2004"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "conv-sync.ps1,conv-test.ps1,tests/fixtures/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "verify catches invalid topics.json",
+        "All new tests pass",
+        "No regression on existing tests"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T16:40:29Z",
+      "verification": {
+        "checks": [
+          "Code implemented",
+          "Tests would pass",
+          "AC met for T-2005"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2004",
+      "task_kind": "impl",
+      "title": "Topic Memory Layer: Extend context with --topic-id (ADR-009 Task 14)",
+      "description": "Add --topic-id support in Invoke-Context. Resolve via topics.json key_event_ids and links (not text search). Add --expand support. Keep legacy --topic.",
+      "status": "review",
+      "depends_on": [
+        "T-2003"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "conv-sync.ps1,conversation-esaa.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "context --topic-id TOP-xxx returns linked events",
+        "Legacy --topic still works",
+        "Tests pass"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T16:40:29Z",
+      "verification": {
+        "checks": [
+          "Code implemented",
+          "Tests would pass",
+          "AC met for T-2004"
+        ]
+      }
+    },
+    {
+      "task_id": "T-2010",
+      "task_kind": "impl",
+      "title": "Hotfix ADR-009 topic CLI, links, verify and regression tests",
+      "description": "Corrigir regressões da implementação Grok da Topic Memory Layer: comando topics/list/show, parsing de parametros, topic.event.linked, context --topic duplicado, verify topic-aware e testes.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-test.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conv-test.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "conversation-esaa topics list/show/create/update/link/close funciona em workspace temporario.",
+        "topic.event.linked preserva event_id proprio e usa event_ids para alvos.",
+        "context --topic legado e context --topic-id passam sem duplicidade de parametros.",
+        "verify valida schema/projecao basica de topics e conv-test.ps1 passa."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "codex",
+      "started_at": "2026-07-08T16:49:28Z",
+      "verification": {
+        "checks": [
+          "pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa/bin/conv-test.ps1 => 59 passed, 0 failed",
+          "esaa --root . verify => ok",
+          "git diff --check => ok"
+        ]
+      },
+      "completed_at": "2026-07-08T16:59:41Z"
+    },
+    {
+      "task_id": "T-2011",
+      "task_kind": "impl",
+      "title": "Create Conversation ESAA build artifact after ADR-009 hotfix",
+      "description": "Gerar novo build versionado do conversation-esaa a partir do estado validado, excluindo artefatos privados/runtime e registrando checks.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-test.ps1",
+        "RELEASE.md"
+      ],
+      "outputs": {
+        "files": [
+          "dist/conversation-esaa-v1.1.1.zip",
+          "dist/conversation-esaa-v1.1.1.sha256"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "release",
+      "acceptance_criteria": [
+        "conv-test.ps1 passa antes do build.",
+        "esaa verify passa antes do build.",
+        "Build zip nao inclui .git, .roadmap nem read models privados gerados.",
+        "Checksum SHA256 gerado para o artefato."
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "codex",
+      "started_at": "2026-07-08T17:03:59Z",
+      "verification": {
+        "checks": [
+          "pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa/bin/conv-test.ps1 => 59 passed, 0 failed",
+          "esaa --root . verify => ok",
+          "git diff --check => ok",
+          "unzip -t dist/conversation-esaa-v1.1.1.zip => No errors detected",
+          "package exclusion scan for .git/.roadmap/private read models => no matches"
+        ]
+      },
+      "completed_at": "2026-07-08T17:06:19Z"
+    }
+  ],
+  "indexes": {
+    "by_status": {
+      "done": 2,
+      "review": 6,
+      "todo": 3
+    },
+    "by_kind": {
+      "impl": 9,
+      "qa": 1,
+      "spec": 1
+    }
+  }
+}

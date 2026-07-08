@@ -330,6 +330,42 @@ try {
     $closed = @($tasksJson.tasks | Where-Object { $_.id -eq $createdId })
     Assert-True (($closed.Count -eq 1) -and ($closed[0].status -eq 'completed')) 'tasks_json_projected_from_events'
 
+    # ADR-009 topic memory layer
+    $topicCreate = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('create', 'Assunto de teste') -Params @{
+        Summary = 'Resumo do assunto de teste'
+    }
+    Assert-True ($topicCreate.Output -match 'topic: created TOP-001') 'topic_create_event' $topicCreate.Output
+    $topicsPath = Join-Path $ws '.conversation-esaa\topics.json'
+    $topicsJson = Get-Content -LiteralPath $topicsPath -Raw | ConvertFrom-Json
+    $createdTopic = @($topicsJson.topics | Where-Object { $_.id -eq 'TOP-001' })
+    Assert-True (($createdTopic.Count -eq 1) -and ($createdTopic[0].title -eq 'Assunto de teste')) 'topics_json_projected_from_events'
+
+    $topicList = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('list')
+    Assert-True ($topicList.Output -match 'TOP-001') 'topics_list_outputs_topic' $topicList.Output
+    $topicShow = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('show', 'TOP-001')
+    Assert-True ($topicShow.Output -match 'Resumo do assunto de teste') 'topics_show_outputs_summary' $topicShow.Output
+
+    $topicEventId = ($topicCreate.Output | Select-String -Pattern 'topic: created TOP-001') | Out-Null
+    $topicCreatedEvent = Get-Content -LiteralPath $activity -Raw |
+        ForEach-Object { $_ -split "`n" } |
+        Where-Object { $_ -match '"event":"topic.created"' } |
+        Select-Object -First 1 |
+        ConvertFrom-Json
+    $topicLink = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('link', 'TOP-001') -Params @{
+        EventId = $topicCreatedEvent.event_id
+    }
+    Assert-True ($topicLink.Output -match 'topic: linked event to TOP-001') 'topic_link_event' $topicLink.Output
+    $topicContext = Invoke-ConvCli -Workspace $ws -Command 'context' -Params @{ TopicId = 'TOP-001' }
+    Assert-True (($topicContext.Output -match 'topic_id=TOP-001') -and ($topicContext.Output -match $topicCreatedEvent.event_id)) 'context_topic_id_returns_linked_event' $topicContext.Output
+
+    $topicClose = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('close', 'TOP-001') -Params @{
+        Evidence = 'done'
+    }
+    Assert-True ($topicClose.Output -match 'topic: closed TOP-001') 'topic_close_event' $topicClose.Output
+    $topicsJsonAfterClose = Get-Content -LiteralPath $topicsPath -Raw | ConvertFrom-Json
+    $closedTopic = @($topicsJsonAfterClose.topics | Where-Object { $_.id -eq 'TOP-001' })
+    Assert-True ($closedTopic[0].status -eq 'completed') 'topic_close_projects_completed'
+
     # verify rejects duplicate event_id
     $lines = [System.IO.File]::ReadAllLines($activity)
     $dupWs = New-TestWorkspace

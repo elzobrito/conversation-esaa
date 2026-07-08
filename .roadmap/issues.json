@@ -1,0 +1,180 @@
+{
+  "meta": {
+    "schema_version": "0.4.1",
+    "esaa_version": "0.4.x",
+    "generated_by": "esaa.project",
+    "source_event_store": ".roadmap/activity.jsonl",
+    "last_event_seq": 103,
+    "updated_at": "2026-07-08T17:06:19Z"
+  },
+  "issues": [
+    {
+      "issue_id": "CLOSE-T-2000",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2000",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 62,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "CLOSE-T-2001",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 65,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "CLOSE-T-2002",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2002",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 68,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "CLOSE-T-2003",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2003",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 71,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "CLOSE-T-2004",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2004",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 74,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "CLOSE-T-2005",
+      "status": "open",
+      "severity": "low",
+      "title": "Task completed per plan",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Implementation finished",
+        "repro_steps": [
+          "Code changes made",
+          "Tests via manual run",
+          "ACs verified"
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2005",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 77,
+        "resolved_event_seq": null
+      }
+    }
+  ],
+  "indexes": {
+    "open_by_baseline": {
+      "unknown": [
+        "CLOSE-T-2000",
+        "CLOSE-T-2001",
+        "CLOSE-T-2002",
+        "CLOSE-T-2003",
+        "CLOSE-T-2004",
+        "CLOSE-T-2005"
+      ]
+    }
+  }
+}

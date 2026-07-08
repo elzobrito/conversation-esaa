@@ -1,7 +1,7 @@
 #requires -Version 7.0
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'project', 'verify', 'context', 'decide', 'task')]
+    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'project', 'verify', 'context', 'decide', 'task', 'topic')]
     [string]$Command,
 
     [string]$WorkspaceRoot,
@@ -19,6 +19,7 @@ param(
     [string]$ContextAround,
     [int]$ContextWindow = 1,
     [string]$ContextTopic,
+    [string]$ContextTopicId,
     [switch]$ContextJson,
 
     [string]$DecisionText,
@@ -32,7 +33,18 @@ param(
     [string]$TaskTitle,
     [string]$TaskStatus,
     [string]$TaskNextStep,
-    [string]$TaskEvidence
+    [string]$TaskEvidence,
+
+    # Topic params for ADR-009 (schema/events support)
+    [ValidateSet('list', 'show', 'create', 'update', 'link', 'close')]
+    [string]$TopicAction,
+    [string]$TopicId,
+    [string]$TopicTitle,
+    [string]$TopicSummary,
+    [string]$TopicEventIds,
+    [string]$TopicEvidence,
+    [string]$TopicStatus,
+    [switch]$TopicJson
 )
 
 Set-StrictMode -Version Latest
@@ -153,6 +165,7 @@ function Get-ConvPaths {
         Handoff = Join-Path $Root '.conversation-esaa\handoff.md'
         Tasks = Join-Path $Root '.conversation-esaa\tasks.json'
         Decisions = Join-Path $Root '.conversation-esaa\decisions.md'
+        Topics = Join-Path $Root '.conversation-esaa\topics.json'
     }
 }
 
@@ -178,10 +191,14 @@ function Encode-ClaudeCwd {
 }
 
 function Get-IsoTimestamp {
-    param([Nullable[datetimeoffset]]$SourceOffset = $null)
+    param($SourceOffset = $null)
     $offset = [TimeSpan]::FromHours(-3)
-    $dto = if ($SourceOffset) {
-        $SourceOffset.Value.ToOffset($offset)
+    $dto = if ($null -ne $SourceOffset) {
+        if ($SourceOffset -is [datetimeoffset]) {
+            $SourceOffset.ToOffset($offset)
+        } else {
+            ([datetimeoffset]$SourceOffset).ToOffset($offset)
+        }
     } else {
         [DateTimeOffset]::new((Get-Date), $offset)
     }
@@ -815,10 +832,47 @@ function Get-NextConversationTaskId {
     return ('CONV-{0:D3}' -f ($max + 1))
 }
 
+function Get-NextTopicId {
+    param($Topics)
+    $max = 0
+    try {
+        $t = if ($Topics) { $Topics } else { $null }
+        if ($t -and $t.topics) {
+            foreach ($item in $t.topics) {
+                if ($item.id -match '^TOP-(\d+)$') {
+                    $n = [int]$Matches[1]
+                    if ($n -gt $max) { $max = $n }
+                }
+            }
+        }
+    } catch {}
+    return ('TOP-{0:D3}' -f ($max + 1))
+}
+
+# conversation-esaa.topics.v0.1 schema (see ADR-009)
+# {
+#   "schema_version": "conversation-esaa.topics.v0.1",
+#   "updated": "...",
+#   "workspace_root": "...",
+#   "topics": [ { "id": "TOP-001", "title": "...", "summary": "...", "status": "active|paused|completed|archived", "created_ts": "...", "last_ts": "...", "keywords": [], "key_event_ids": [], "event_count": 0, "first_event_id": null, "last_event_id": null, "related_decisions": [], "related_tasks": [], "source": "curated" } ]
+# }
+
 function Get-EventField {
     param($Event, [string]$Name)
     if ($Name -in $Event.PSObject.Properties.Name) { return $Event.$Name }
     return $null
+}
+
+function Split-TopicEventIds {
+    param([string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value)) { return @() }
+    return @($Value -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+
+function Test-TopicExists {
+    param($TopicsPayload, [string]$Id)
+    if (-not $TopicsPayload -or -not $TopicsPayload.topics) { return $false }
+    return [bool](@($TopicsPayload.topics | Where-Object { $_.id -eq $Id } | Select-Object -First 1).Count)
 }
 
 function Project-TasksFromEvents {
@@ -948,6 +1002,13 @@ function Invoke-Context {
             Sort-Object -Property @{ Expression = 'MatchCount'; Descending = $true }, @{ Expression = { $_.Event.ts }; Descending = $true }, @{ Expression = { Get-ContextEventId $_.Event } } |
             ForEach-Object { $_.Event })
     }
+    if ($ContextTopicId) {
+        $topics = Get-Content $Paths.Topics -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue
+        $t = if ($topics -and $topics.topics) { $topics.topics | Where-Object { $_.id -eq $ContextTopicId } | Select-Object -First 1 } else { $null }
+        if (-not $t) { throw "Unknown topic_id '$ContextTopicId'" }
+        $linked = @($t.key_event_ids)
+        $events = @($events | Where-Object { (Get-ContextEventId $_) -in $linked })
+    }
     if ($ContextBefore) {
         $idx = [array]::IndexOf(@($events | ForEach-Object { Get-ContextEventId $_ }), $ContextBefore)
         if ($idx -lt 0) { throw "Context target event not found: $ContextBefore" }
@@ -970,6 +1031,7 @@ function Invoke-Context {
     $filter = @()
     if ($ContextAgent) { $filter += "agent=$ContextAgent" }
     if ($ContextTopic) { $filter += "topic=$ContextTopic" }
+    if ($ContextTopicId) { $filter += "topic_id=$ContextTopicId" }
     if ($ContextBefore) { $filter += "before=$ContextBefore" }
     if ($ContextAround) { $filter += "around=$ContextAround" }
     if ($ContextLast -gt 0 -and -not $ContextBefore) { $filter += "last=$ContextLast" }
@@ -1082,6 +1144,301 @@ function Invoke-TaskCommand {
     }
 }
 
+function Invoke-TopicCommand {
+    param($Paths)
+    if (-not $TopicAction) { $TopicAction = 'create' }
+    switch ($TopicAction) {
+        'list' {
+            $topicsPayload = if (Test-Path -LiteralPath $Paths.Topics) {
+                Get-Content -LiteralPath $Paths.Topics -Raw -Encoding UTF8 | ConvertFrom-Json
+            } else {
+                Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
+            }
+            $items = @($topicsPayload.topics)
+            if ($TopicStatus -and $TopicStatus -ne 'all') {
+                $items = @($items | Where-Object { $_.status -eq $TopicStatus })
+            }
+            if ($TopicJson) {
+                $items | ConvertTo-Json -Depth 8
+                return
+            }
+            if ($items.Count -eq 0) {
+                Write-Output 'topics: none'
+                return
+            }
+            foreach ($topic in $items) {
+                Write-Output "$($topic.id) [$($topic.status)] $($topic.title)"
+            }
+            return
+        }
+        'show' {
+            if ([string]::IsNullOrWhiteSpace($TopicId)) { throw 'topics show requires --topic-id' }
+            $topicsPayload = if (Test-Path -LiteralPath $Paths.Topics) {
+                Get-Content -LiteralPath $Paths.Topics -Raw -Encoding UTF8 | ConvertFrom-Json
+            } else {
+                Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
+            }
+            $topic = @($topicsPayload.topics | Where-Object { $_.id -eq $TopicId } | Select-Object -First 1)
+            if ($topic.Count -eq 0) { throw "Unknown topic_id '$TopicId'" }
+            if ($TopicJson) {
+                $topic[0] | ConvertTo-Json -Depth 8
+                return
+            }
+            Write-Output "$($topic[0].id) [$($topic[0].status)] $($topic[0].title)"
+            if ($topic[0].summary) { Write-Output $topic[0].summary }
+            if ($topic[0].key_event_ids -and $topic[0].key_event_ids.Count -gt 0) {
+                Write-Output "key_event_ids: $($topic[0].key_event_ids -join ', ')"
+            }
+            return
+        }
+        'create' {
+            if ([string]::IsNullOrWhiteSpace($TopicTitle)) { throw 'topic create requires --title' }
+            $topicId = if ($TopicId) { $TopicId } else { Get-NextTopicId (Get-Content $Paths.Topics -Raw -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue) }
+            if ($topicId -notmatch '^TOP-\d{3,}$') { throw "Invalid topic_id '$topicId'" }
+            $record = [ordered]@{
+                ts = Get-IsoTimestamp
+                event = 'topic.created'
+                actor = 'assistant'
+                agent_id = 'grok'
+                workspace_root = $Paths.Root
+                topic_id = $topicId
+                title = $TopicTitle
+                summary = if ($TopicSummary) { $TopicSummary } else { $TopicTitle }
+                status = 'active'
+                keywords = @()
+                event_ids = @()
+                source = 'curated'
+                text = if ($TopicSummary) { $TopicSummary } else { $TopicTitle }
+            }
+            Append-CuratedEvent -Paths $Paths -Record $record
+            Write-Output "topic: created $topicId"
+        }
+        'update' {
+            if ([string]::IsNullOrWhiteSpace($TopicId)) { throw 'topic update requires --topic-id' }
+            $current = Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
+            if (-not (Test-TopicExists $current $TopicId)) { throw "Unknown topic_id '$TopicId'" }
+            $record = [ordered]@{
+                ts = Get-IsoTimestamp
+                event = 'topic.updated'
+                actor = 'assistant'
+                agent_id = 'grok'
+                workspace_root = $Paths.Root
+                topic_id = $TopicId
+            }
+            if ($TopicTitle) { $record.title = $TopicTitle }
+            if ($TopicSummary) { $record.summary = $TopicSummary }
+            if ($TopicStatus) { $record.status = $TopicStatus }
+            $record.summary = if ($record.Contains('summary')) { $record.summary } else { "topic.updated $TopicId" }
+            $record.text = $record.summary
+            Append-CuratedEvent -Paths $Paths -Record $record
+            Write-Output "topic: updated $TopicId"
+        }
+        'link' {
+            if ([string]::IsNullOrWhiteSpace($TopicId)) { throw 'topic link requires --topic-id' }
+            $current = Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
+            if (-not (Test-TopicExists $current $TopicId)) { throw "Unknown topic_id '$TopicId'" }
+            $ids = @(Split-TopicEventIds $TopicEventIds)
+            if ($ids.Count -eq 0) { throw 'topic link requires --event-id/--events' }
+            $known = @{}
+            foreach ($event in @(Get-WorkspaceEvents $Paths)) {
+                $eventId = Get-ContextEventId $event
+                if ($eventId) { $known[$eventId] = $true }
+            }
+            foreach ($id in $ids) {
+                if (-not $known.ContainsKey($id)) { throw "Unknown event_id '$id'" }
+            }
+            $record = [ordered]@{
+                ts = Get-IsoTimestamp
+                event = 'topic.event.linked'
+                actor = 'assistant'
+                agent_id = 'grok'
+                workspace_root = $Paths.Root
+                topic_id = $TopicId
+                event_ids = $ids
+                summary = "topic.event.linked $TopicId"
+                text = "topic.event.linked $TopicId"
+            }
+            Append-CuratedEvent -Paths $Paths -Record $record
+            Write-Output "topic: linked event to $TopicId"
+        }
+        'close' {
+            if ([string]::IsNullOrWhiteSpace($TopicId)) { throw 'topic close requires --topic-id' }
+            $current = Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
+            if (-not (Test-TopicExists $current $TopicId)) { throw "Unknown topic_id '$TopicId'" }
+            $record = [ordered]@{
+                ts = Get-IsoTimestamp
+                event = 'topic.closed'
+                actor = 'assistant'
+                agent_id = 'grok'
+                workspace_root = $Paths.Root
+                topic_id = $TopicId
+                status = 'completed'
+                evidence = if ($TopicEvidence) { $TopicEvidence } else { '' }
+                summary = if ($TopicEvidence) { $TopicEvidence } else { "topic.closed $TopicId" }
+                text = if ($TopicEvidence) { $TopicEvidence } else { "topic.closed $TopicId" }
+            }
+            Append-CuratedEvent -Paths $Paths -Record $record
+            Write-Output "topic: closed $TopicId"
+        }
+        default { throw "Unknown topic action: $TopicAction" }
+    }
+}
+
+function Project-TopicsFromEvents {
+    param($Events)
+    $topicMap = @{}
+    $order = [System.Collections.Generic.List[string]]::new()
+    foreach ($e in $Events) {
+        switch ($e.event) {
+            'topic.created' {
+                $tid = Get-EventField $e 'topic_id'
+                if (-not $tid) { continue }
+                $initialIds = @()
+                $createdEventIds = Get-EventField $e 'event_ids'
+                if ($createdEventIds) { $initialIds = @($createdEventIds) }
+                $topicMap[$tid] = [ordered]@{
+                    id = $tid
+                    title = Get-EventField $e 'title'
+                    summary = Get-EventField $e 'summary'
+                    status = if (Get-EventField $e 'status') { Get-EventField $e 'status' } else { 'active' }
+                    created_ts = $e.ts
+                    last_ts = $e.ts
+                    keywords = @()
+                    key_event_ids = @($initialIds)
+                    event_count = $initialIds.Count
+                    first_event_id = if ($initialIds.Count -gt 0) { $initialIds[0] } else { $null }
+                    last_event_id = if ($initialIds.Count -gt 0) { $initialIds[-1] } else { $null }
+                    related_decisions = @()
+                    related_tasks = @()
+                    source = 'curated'
+                }
+                if ($order -notcontains $tid) { $order.Add($tid) }
+            }
+            'topic.updated' {
+                $tid = Get-EventField $e 'topic_id'
+                if (-not $tid -or -not $topicMap.ContainsKey($tid)) { continue }
+                if (Get-EventField $e 'title') { $topicMap[$tid].title = Get-EventField $e 'title' }
+                if (Get-EventField $e 'summary') { $topicMap[$tid].summary = Get-EventField $e 'summary' }
+                if (Get-EventField $e 'status') { $topicMap[$tid].status = Get-EventField $e 'status' }
+                $topicMap[$tid].last_ts = $e.ts
+            }
+            'topic.closed' {
+                $tid = Get-EventField $e 'topic_id'
+                if (-not $tid -or -not $topicMap.ContainsKey($tid)) { continue }
+                $topicMap[$tid].status = 'completed'
+                $topicMap[$tid].last_ts = $e.ts
+            }
+            'topic.event.linked' {
+                $tid = Get-EventField $e 'topic_id'
+                if (-not $tid -or -not $topicMap.ContainsKey($tid)) { continue }
+                $eventIds = @(Get-EventField $e 'event_ids')
+                if ($eventIds.Count -eq 0) {
+                    $legacyLinkedId = Get-EventField $e 'linked_event_id'
+                    if ($legacyLinkedId) { $eventIds = @($legacyLinkedId) }
+                }
+                foreach ($ev in $eventIds) {
+                    if ($ev -and -not ($topicMap[$tid].key_event_ids -contains $ev)) {
+                        $topicMap[$tid].key_event_ids += $ev
+                        if (-not $topicMap[$tid].first_event_id) { $topicMap[$tid].first_event_id = $ev }
+                        $topicMap[$tid].last_event_id = $ev
+                    }
+                }
+                $topicMap[$tid].event_count = ($topicMap[$tid].key_event_ids).Count
+                $topicMap[$tid].last_ts = $e.ts
+            }
+            default {
+                $eventTopicIds = @()
+                $singleTopic = Get-EventField $e 'topic_id'
+                if ($singleTopic) { $eventTopicIds += $singleTopic }
+                if ('topic_ids' -in $e.PSObject.Properties.Name -and $e.topic_ids) {
+                    $eventTopicIds += @($e.topic_ids)
+                }
+                foreach ($tid in $eventTopicIds) {
+                    if (-not $topicMap.ContainsKey($tid)) { continue }
+                    if ($e.event -eq 'decision.recorded') {
+                        $decisionId = Get-ContextEventId $e
+                        if ($decisionId -and -not ($topicMap[$tid].related_decisions -contains $decisionId)) {
+                            $topicMap[$tid].related_decisions += $decisionId
+                        }
+                    }
+                    if ($e.event -in @('task.created', 'task.updated', 'task.closed')) {
+                        $taskId = Get-EventField $e 'task_id'
+                        if ($taskId -and -not ($topicMap[$tid].related_tasks -contains $taskId)) {
+                            $topicMap[$tid].related_tasks += $taskId
+                        }
+                    }
+                }
+                # For regular events, if they have topic_ids, link them
+                if ('topic_ids' -in $e.PSObject.Properties.Name -and $e.topic_ids) {
+                    foreach ($tid in $e.topic_ids) {
+                        if ($topicMap.ContainsKey($tid)) {
+                            $eid = Get-ContextEventId $e
+                            if ($eid -and -not ($topicMap[$tid].key_event_ids -contains $eid)) {
+                                $topicMap[$tid].key_event_ids += $eid
+                            }
+                            $topicMap[$tid].event_count = ($topicMap[$tid].key_event_ids).Count
+                            if (-not $topicMap[$tid].first_event_id) { $topicMap[$tid].first_event_id = $eid }
+                            $topicMap[$tid].last_event_id = $eid
+                            $topicMap[$tid].last_ts = $e.ts
+                        }
+                    }
+                }
+            }
+        }
+    }
+    # Limit key_event_ids to 20 per Codex rec
+    foreach ($tid in $topicMap.Keys) {
+        if ($topicMap[$tid].key_event_ids.Count -gt 20) {
+            $topicMap[$tid].key_event_ids = $topicMap[$tid].key_event_ids[0..19]
+        }
+        $topicMap[$tid].event_count = $topicMap[$tid].key_event_ids.Count
+        if ($topicMap[$tid].event_count -gt 0) {
+            $topicMap[$tid].first_event_id = $topicMap[$tid].key_event_ids[0]
+            $topicMap[$tid].last_event_id = $topicMap[$tid].key_event_ids[-1]
+        }
+    }
+    $topics = @($order | ForEach-Object { $topicMap[$_] })
+    return [ordered]@{
+        schema_version = 'conversation-esaa.topics.v0.1'
+        updated = Get-IsoTimestamp
+        workspace_root = $null
+        topics = $topics
+    }
+}
+
+function Project-TopicsMarkdown {
+    param($TopicsPayload)
+    $lines = [System.Collections.Generic.List[string]]::new()
+    $lines.Add('# Topics')
+    $lines.Add('')
+    $lines.Add('> Generated by conversation-esaa project. Do not edit manually.')
+    $lines.Add('')
+    if (-not $TopicsPayload.topics -or $TopicsPayload.topics.Count -eq 0) {
+        $lines.Add('_No topics yet._')
+        return ($lines -join [Environment]::NewLine)
+    }
+    $active = @($TopicsPayload.topics | Where-Object { $_.status -eq 'active' })
+    if ($active.Count -gt 0) {
+        $lines.Add('## Active')
+        foreach ($t in $active) {
+            $lines.Add("- **$($t.id)** — $($t.title)")
+            if ($t.summary) { $lines.Add("  $($t.summary)") }
+            if ($t.key_event_ids -and $t.key_event_ids.Count -gt 0) {
+                $lines.Add("  key events: $($t.key_event_ids -join ', ')")
+            }
+        }
+    }
+    $other = @($TopicsPayload.topics | Where-Object { $_.status -ne 'active' })
+    if ($other.Count -gt 0) {
+        $lines.Add('')
+        $lines.Add('## Other')
+        foreach ($t in $other) {
+            $lines.Add("- **$($t.id)** [ $($t.status) ] — $($t.title)")
+        }
+    }
+    return ($lines -join [Environment]::NewLine)
+}
+
 function Invoke-Project {
     param($Paths)
 
@@ -1097,6 +1454,19 @@ function Invoke-Project {
     $decisionsMd = Project-DecisionsMarkdown $events
     [System.IO.File]::WriteAllText($Paths.Decisions, $decisionsMd, [System.Text.UTF8Encoding]::new($false))
 
+    # Topics projection (ADR-009)
+    $topicsPayload = Project-TopicsFromEvents $events
+    $topicsPayload.workspace_root = $Paths.Root
+    [System.IO.File]::WriteAllText(
+        $Paths.Topics,
+        (($topicsPayload | ConvertTo-Json -Depth 8) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $topicsMd = Project-TopicsMarkdown $topicsPayload
+    $topicsMdPath = Join-Path $Paths.Esaa 'topics.md'
+    [System.IO.File]::WriteAllText($topicsMdPath, $topicsMd, [System.Text.UTF8Encoding]::new($false))
+
     $objective = 'Evoluir o ESAA conversacional para gravacao automatica e handoff entre agentes sem gastar tokens na sincronizacao mecanica.'
     $recordedDecisions = @($events | Where-Object { $_.event -eq 'decision.recorded' } | Select-Object -Last 5)
     $decisions = @($recordedDecisions | ForEach-Object { $_.decision })
@@ -1109,7 +1479,7 @@ function Invoke-Project {
     }
 
     $recent = $events |
-        Where-Object { $_.summary } |
+        Where-Object { ('summary' -in $_.PSObject.Properties.Name) -and $_.summary } |
         Select-Object -Last 5
 
     $openTasks = @()
@@ -1143,6 +1513,10 @@ function Invoke-Project {
     $recentBlock = $recentLines -join [Environment]::NewLine
     $openBlock = $openLines -join [Environment]::NewLine
 
+    $topicsBlock = if ($topicsPayload -and $topicsPayload.topics -and $topicsPayload.topics.Count -gt 0) {
+        ($topicsPayload.topics | ForEach-Object { "- **$($_.id)** [$($_.status)] — $($_.title)" }) -join [Environment]::NewLine
+    } else { '- Nenhum tópico ativo.' }
+
     $state = @(
         '# Estado da Conversa'
         ''
@@ -1163,6 +1537,10 @@ function Invoke-Project {
         "- Tarefas concluidas: $($doneTasks.Count)"
         '- Sync v1 ativo via conv-sync.ps1'
         ''
+        '## Tópicos / Assuntos Ativos'
+        ''
+        $topicsBlock
+        ''
         '## Ultimos Eventos'
         ''
         $recentBlock
@@ -1181,10 +1559,11 @@ function Invoke-Project {
         ''
         '## Ordem de leitura'
         ''
-        '1. state.md — objetivo, decisoes e estado atual (projetado).'
-        '2. tasks.json — tarefas abertas, concluidas e bloqueadas.'
-        '3. activity.jsonl — historico cronologico com event_id e source.'
-        '4. plans/v1-conversation-esaa-sync.md — plano de implementacao da sync v1.'
+        '1. state.md — objetivo, decisoes, tópicos e estado atual (projetado).'
+        '2. topics.json / topics.md — memória intermediária por assuntos.'
+        '3. tasks.json — tarefas abertas, concluidas e bloqueadas.'
+        '4. activity.jsonl — historico cronologico com event_id e source.'
+        '5. plans/v1-conversation-esaa-sync.md — plano de implementacao da sync v1.'
         ''
         '## Contrato operacional'
         ''
@@ -1238,6 +1617,8 @@ function Invoke-Verify {
 
     $expectedRoot = (Resolve-Path -LiteralPath $Paths.Root).Path
     $seen = @{}
+    $allSeen = @{}
+    $allEvents = [System.Collections.Generic.List[object]]::new()
     $lineNo = 0
     foreach ($line in [System.IO.File]::ReadLines($Paths.Activity)) {
         $lineNo++
@@ -1246,6 +1627,13 @@ function Invoke-Verify {
             $event = $line | ConvertFrom-Json
         } catch {
             throw "Invalid JSON at activity.jsonl line $lineNo"
+        }
+        $allEvents.Add($event)
+        if ('event_id' -in $event.PSObject.Properties.Name -and $event.event_id) {
+            if ($allSeen.ContainsKey($event.event_id)) {
+                throw "Duplicate event_id '$($event.event_id)' at line $lineNo"
+            }
+            $allSeen[$event.event_id] = $true
         }
 
         if ('source' -in $event.PSObject.Properties.Name -and $event.source) {
@@ -1333,6 +1721,82 @@ function Invoke-Verify {
             }
             $seen[$event.event_id] = $true
         }
+
+        if ($event.event -in @('topic.created', 'topic.updated', 'topic.closed', 'topic.event.linked')) {
+            foreach ($field in @('event_id', 'ts', 'event', 'actor', 'agent_id', 'workspace_root', 'topic_id')) {
+                if ($field -notin $event.PSObject.Properties.Name -or [string]::IsNullOrWhiteSpace([string]$event.$field)) {
+                    throw "Topic event missing '$field' at line $lineNo"
+                }
+            }
+            if ($event.topic_id -notmatch '^TOP-\d{3,}$') {
+                throw "Invalid topic_id '$($event.topic_id)' at line $lineNo"
+            }
+            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            if ($eventRoot -ne $expectedRoot) {
+                throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
+            }
+            if ($event.event -eq 'topic.created') {
+                foreach ($field in @('title', 'summary', 'status')) {
+                    if ($field -notin $event.PSObject.Properties.Name -or [string]::IsNullOrWhiteSpace([string]$event.$field)) {
+                        throw "Topic created event missing '$field' at line $lineNo"
+                    }
+                }
+            }
+            if ($event.event -eq 'topic.event.linked') {
+                if ('event_ids' -notin $event.PSObject.Properties.Name -or @($event.event_ids).Count -eq 0) {
+                    throw "Topic link event missing 'event_ids' at line $lineNo"
+                }
+            }
+            if (-not $seen.ContainsKey($event.event_id)) {
+                $seen[$event.event_id] = $true
+            }
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $Paths.Topics)) {
+        throw 'topics.json not found'
+    }
+    $topicsPayload = Get-Content -LiteralPath $Paths.Topics -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($topicsPayload.schema_version -ne 'conversation-esaa.topics.v0.1') {
+        throw 'topics.json has invalid schema_version'
+    }
+    if ((Resolve-Path -LiteralPath $topicsPayload.workspace_root).Path -ne $expectedRoot) {
+        throw 'topics.json workspace_root mismatch'
+    }
+    if (-not ($topicsPayload.PSObject.Properties.Name -contains 'topics')) {
+        throw 'topics.json has no topics array'
+    }
+
+    $topicIds = @{}
+    $activityEventIds = @{}
+    foreach ($event in $allEvents) {
+        $eid = Get-ContextEventId $event
+        if ($eid) { $activityEventIds[$eid] = $true }
+    }
+    foreach ($topic in @($topicsPayload.topics)) {
+        if (-not $topic.id -or $topic.id -notmatch '^TOP-\d{3,}$') {
+            throw "topics.json has invalid topic id '$($topic.id)'"
+        }
+        if ($topicIds.ContainsKey($topic.id)) {
+            throw "topics.json has duplicate topic id '$($topic.id)'"
+        }
+        $topicIds[$topic.id] = $true
+        if ($topic.status -notin @('active', 'paused', 'completed', 'archived')) {
+            throw "topics.json has invalid status '$($topic.status)' for $($topic.id)"
+        }
+        foreach ($eventId in @($topic.key_event_ids)) {
+            if (-not $activityEventIds.ContainsKey($eventId)) {
+                throw "topics.json references unknown event_id '$eventId'"
+            }
+        }
+    }
+
+    $projectedTopics = Project-TopicsFromEvents @($allEvents)
+    $projectedTopics.workspace_root = $Paths.Root
+    $actualComparable = @($topicsPayload.topics | Sort-Object id | ConvertTo-Json -Depth 8 -Compress)
+    $projectedComparable = @($projectedTopics.topics | Sort-Object id | ConvertTo-Json -Depth 8 -Compress)
+    if (($actualComparable -join "`n") -ne ($projectedComparable -join "`n")) {
+        throw 'topics.json is not consistent with activity.jsonl'
     }
 
     Write-Output 'verify: ok'
@@ -1381,7 +1845,6 @@ switch ($Command) {
         }
     }
     'verify' {
-        Repair-ActivityContract $paths.Activity
         Invoke-Verify -Paths $paths
     }
     'context' {
@@ -1399,6 +1862,17 @@ switch ($Command) {
             Invoke-TaskCommand -Paths $paths
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
+        }
+    }
+    'topic' {
+        if ($TopicAction -in @('list', 'show')) {
+            Invoke-TopicCommand -Paths $paths
+        } else {
+            Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+                Invoke-TopicCommand -Paths $paths
+                Invoke-Project -Paths $paths
+                Invoke-Verify -Paths $paths
+            }
         }
     }
 }
