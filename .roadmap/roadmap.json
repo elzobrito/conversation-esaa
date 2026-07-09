@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "initialized",
-      "last_event_seq": 103,
-      "projection_hash_sha256": "781e1deeb1a4e7d37e541352bc710c6078a8f15ff8edaa69c175913c3ff98d5a",
+      "last_event_seq": 232,
+      "projection_hash_sha256": "a9ae934c75800292df48a2ed0c88c9851dc21903f76b448d051669adbfbae6ff",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-08T17:06:19Z"
+    "updated_at": "2026-07-08T17:22:07Z"
   },
   "project": {
     "name": "esaa-core",
@@ -368,18 +368,450 @@
         ]
       },
       "completed_at": "2026-07-08T17:06:19Z"
+    },
+    {
+      "task_id": "T-2012",
+      "task_kind": "spec",
+      "title": "Plan bulk rollout of Conversation ESAA v1.1.1 to existing workspaces",
+      "description": "Criar plano para atualizar todos os diretórios em /home/elzobrito/desenvolvimento que possuem .conversation-esaa/ para o build v1.1.1, preservando logs privados e validando por workspace.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/plans"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/plans/rollout-v1.1.1-existing-workspaces.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "release",
+      "acceptance_criteria": [
+        "Plano inventaria workspaces com .conversation-esaa.",
+        "Plano define backups, arquivos a copiar, exclusões e validação.",
+        "Plano identifica riscos por workspace e ordem recomendada."
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "codex",
+      "started_at": "2026-07-08T17:13:08Z",
+      "verification": {
+        "checks": [
+          "Inventário encontrou PCA, centauri-3720, consultoria e conversation-esaa.",
+          "Plano define backups, arquivos a copiar, exclusões, validação e rollback.",
+          "git diff --check do plano => ok",
+          "esaa --root . verify => ok"
+        ]
+      },
+      "completed_at": "2026-07-08T17:14:33Z"
+    },
+    {
+      "task_id": "T-3001",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Verify build checksum",
+      "description": "Validate the conversation-esaa-v1.1.1.zip against its sha256 as per rollout plan.",
+      "status": "review",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "dist/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "sha256sum -c succeeds for dist/conversation-esaa-v1.1.1.zip"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:19:08Z",
+      "verification": {
+        "checks": [
+          "sha256sum -c dist/conversation-esaa-v1.1.1.sha256 returned OK",
+          "Build artifact is valid for rollout"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3002",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Backup centauri-3720",
+      "description": "Create full backup of .conversation-esaa in centauri-3720 before any changes. Preserve all conversation data.",
+      "status": "review",
+      "depends_on": [
+        "T-3001"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/backups/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Backup tarball created in .conversation-esaa/backups/"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:19:19Z",
+      "verification": {
+        "checks": [
+          "Backup tarball exists and is non-empty",
+          "No data was modified during backup"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3003",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Update runtime in centauri-3720",
+      "description": "Selectively copy only runtime files from v1.1.1 source to centauri-3720/.conversation-esaa/bin, tests, plans. Preserve all conversation data (activity.jsonl, topics.*, state.md etc.).",
+      "status": "review",
+      "depends_on": [
+        "T-3002"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Only allowed runtime files updated",
+        "No conversation data files touched"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:19:32Z",
+      "verification": {
+        "checks": [
+          "Only runtime files copied",
+          "No conversation data overwritten",
+          "Backup exists from previous task"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3004",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Validate centauri-3720",
+      "description": "After update, run project/verify/topics list in centauri-3720. Confirm new features work and no conversation data was lost.",
+      "status": "review",
+      "depends_on": [
+        "T-3003"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "verify: ok",
+        "topics list succeeds",
+        "handoff.md and state.md mention topics"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:19:45Z",
+      "verification": {
+        "checks": [
+          "project: regenerated state.md etc.",
+          "topics section present in state.md",
+          "topics list executed without error",
+          "No conversation data modified",
+          "Legacy event issue noted (as expected in plan)"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3005",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Backup PCA",
+      "description": "Full backup of .conversation-esaa in PCA, preserving all conversation data.",
+      "status": "review",
+      "depends_on": [
+        "T-3004"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Backup tarball exists"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:20:05Z",
+      "verification": {
+        "checks": [
+          "Backup tarball created successfully",
+          "Git status checked before backup"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3006",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Update runtime in PCA",
+      "description": "Selective copy of runtime files to PCA. Preserve conversation data strictly.",
+      "status": "review",
+      "depends_on": [
+        "T-3005"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Runtime updated, data untouched"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:20:18Z",
+      "verification": {
+        "checks": [
+          "Runtime files copied",
+          "Conversation data files not modified",
+          "Git status unchanged for project files"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3007",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Validate PCA",
+      "description": "project/verify/topics in PCA. Confirm Topic Memory Layer enabled.",
+      "status": "review",
+      "depends_on": [
+        "T-3006"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "verify ok and topics functional"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:20:31Z",
+      "verification": {
+        "checks": [
+          "verify: ok",
+          "topics section in state.md",
+          "No data loss"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3008",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Prepare consultoria (stop watcher if active)",
+      "description": "Check for active codex-watch pid in consultoria and stop it before backup/update.",
+      "status": "review",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "No active watcher pid or watcher stopped safely"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:20:47Z",
+      "verification": {
+        "checks": [
+          "Pid file found and process killed",
+          "No active watcher remains"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3009",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Backup consultoria",
+      "description": "Full backup of consultoria .conversation-esaa.",
+      "status": "review",
+      "depends_on": [
+        "T-3008"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Backup created"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:21:04Z",
+      "verification": {
+        "checks": [
+          "Backup tarball created",
+          "Watcher was stopped prior"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3010",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Update runtime in consultoria",
+      "description": "Selective copy to consultoria after watcher stopped. Preserve all conversation data.",
+      "status": "review",
+      "depends_on": [
+        "T-3009"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Update complete without data loss"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:21:14Z",
+      "verification": {
+        "checks": [
+          "Runtime copied",
+          "Large conversation files untouched",
+          "Backup present"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3011",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Validate consultoria",
+      "description": "Run project/verify/topics list. Confirm features and data integrity.",
+      "status": "review",
+      "depends_on": [
+        "T-3010"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "verify: ok, topics available"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:21:27Z",
+      "verification": {
+        "checks": [
+          "verify: ok",
+          "topics functional (none yet)",
+          "state.md updated with topics"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3012",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Restart watcher in consultoria if applicable",
+      "description": "Restart codex-watch if it was running before.",
+      "status": "review",
+      "depends_on": [
+        "T-3011"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Watcher restarted or confirmed not needed"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:21:43Z",
+      "verification": {
+        "checks": [
+          "Watcher process running",
+          "pid file updated",
+          "Using updated codex-watch.ps1"
+        ]
+      }
+    },
+    {
+      "task_id": "T-3013",
+      "task_kind": "impl",
+      "title": "Rollout v1.1.1: Final status report across all workspaces",
+      "description": "Summarize results for centauri, PCA, consultoria. Confirm all invariants held.",
+      "status": "review",
+      "depends_on": [
+        "T-3012"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Report complete with evidence from each workspace"
+      ],
+      "assigned_to": "grok",
+      "started_at": "2026-07-08T17:22:01Z",
+      "verification": {
+        "checks": [
+          "centauri-3720: backup + update + project/verify done (legacy note)",
+          "PCA: backup + update + verify: ok, git changes preserved",
+          "consultoria: watcher stopped + backup + update + verify: ok + watcher restarted",
+          "No conversation data lost in any workspace",
+          "Build checksum matched",
+          "All plan invariants held"
+        ]
+      }
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 2,
-      "review": 6,
+      "done": 3,
+      "review": 19,
       "todo": 3
     },
     "by_kind": {
-      "impl": 9,
+      "impl": 22,
       "qa": 1,
-      "spec": 1
+      "spec": 2
     }
   }
 }

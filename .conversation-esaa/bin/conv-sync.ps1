@@ -1668,10 +1668,13 @@ function Invoke-Verify {
         }
 
         if ($event.event -eq 'decision.recorded') {
-            foreach ($field in @('event_id', 'ts', 'event', 'actor', 'agent_id', 'workspace_root', 'decision', 'rationale')) {
+            foreach ($field in @('event_id', 'ts', 'event', 'actor', 'agent_id', 'workspace_root', 'decision')) {
                 if ($field -notin $event.PSObject.Properties.Name -or [string]::IsNullOrWhiteSpace([string]$event.$field)) {
                     throw "Decision event missing '$field' at line $lineNo"
                 }
+            }
+            if ('rationale' -notin $event.PSObject.Properties.Name) {
+                throw "Decision event missing 'rationale' at line $lineNo"
             }
             $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
             if ($eventRoot -ne $expectedRoot) {
