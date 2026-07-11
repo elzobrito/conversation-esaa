@@ -150,6 +150,28 @@ try {
     $hookCmd = ($grokHook | ConvertFrom-Json).hooks.UserPromptSubmit[0].hooks[0].command
     Assert-True ($hookCmd.Contains($ws)) 'bootstrap_hooks_use_target_workspace'
 
+    $antigravityHooksPath = Join-Path $ws '.agents\hooks.json'
+    $antigravityHooks = Get-Content -LiteralPath $antigravityHooksPath -Raw | ConvertFrom-Json -AsHashtable
+    Assert-True ($antigravityHooks.ContainsKey('conversation-esaa')) 'bootstrap_creates_antigravity_hook'
+    $antigravityCommand = $antigravityHooks['conversation-esaa'].Stop[0].command
+    Assert-True ($antigravityCommand.Contains($ws) -and $antigravityCommand.Contains('antigravity-hook-sync.ps1')) `
+        'bootstrap_antigravity_hook_uses_target_workspace'
+    Assert-True (-not $antigravityHooks['conversation-esaa'].ContainsKey('PostInvocation')) `
+        'bootstrap_antigravity_hook_avoids_synchronous_post_invocation'
+    Assert-True ($antigravityHooks['conversation-esaa'].Stop[0].timeout -eq 60) `
+        'bootstrap_antigravity_stop_timeout_60'
+
+    $antigravityHooks['custom-preserved'] = @{ enabled = $false; Stop = @() }
+    [System.IO.File]::WriteAllText(
+        $antigravityHooksPath,
+        (($antigravityHooks | ConvertTo-Json -Depth 10) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $enableAntigravity = Invoke-ConvCli -Workspace $ws -Command 'enable-hooks' -Params @{ Agent = 'antigravity' }
+    $mergedAntigravityHooks = Get-Content -LiteralPath $antigravityHooksPath -Raw | ConvertFrom-Json -AsHashtable
+    Assert-True ($enableAntigravity.ExitCode -eq 0) 'enable_hooks_antigravity_ok' $enableAntigravity.Output
+    Assert-True ($mergedAntigravityHooks.ContainsKey('custom-preserved')) 'enable_hooks_antigravity_preserves_existing'
+
     $boot2 = & pwsh -NoProfile -ExecutionPolicy Bypass -File $bootstrap -WorkspaceRoot $ws 2>&1 | Out-String
     Assert-True ($boot2 -match 'skip \(existe') 'bootstrap_idempotent_without_force'
 
@@ -185,6 +207,62 @@ try {
     Assert-True (($count3 - $beforeClaude) -eq 2) 'sync_claude_parses_fixture' "delta=$($count3 - $beforeClaude)"
     Assert-True ($count3 -eq 4) 'sync_claude_skips_thinking_and_sidechain' "count=$count3"
 
+    # Google Antigravity parsing, filtering, context and idempotency
+    $antigravityFixture = Join-Path $fixtureRoot 'antigravity\transcript.jsonl'
+    $beforeAntigravity = Count-ActivityEvents $activity
+    $syncAntigravity = Invoke-ConvSync -Workspace $ws -Command 'sync-antigravity' -Extra @(
+        '-AntigravityTranscriptPath', $antigravityFixture,
+        '-AntigravityConversationId', 'fixture-antigravity'
+    )
+    $countAntigravity = Count-ActivityEvents $activity
+    Assert-True ($syncAntigravity.Output -match 'verify: ok') 'sync_antigravity_pipeline_ok' $syncAntigravity.Output
+    Assert-True (($countAntigravity - $beforeAntigravity) -eq 2) `
+        'sync_antigravity_imports_only_visible_turns' "delta=$($countAntigravity - $beforeAntigravity)"
+    $antigravityEvents = @(Get-SyncedActivityEvents $activity | Where-Object { $_.source -eq 'antigravity' })
+    Assert-True ($antigravityEvents.Count -eq 2) 'sync_antigravity_event_count' "count=$($antigravityEvents.Count)"
+    $antigravityUser = @($antigravityEvents | Where-Object { $_.actor -eq 'user' })
+    $antigravityAssistant = @($antigravityEvents | Where-Object { $_.actor -eq 'assistant' })
+    Assert-True ($antigravityUser.Count -eq 1 -and $null -eq $antigravityUser[0].agent_id) `
+        'sync_antigravity_user_agent_null'
+    Assert-True ($antigravityUser.Count -eq 1 -and $antigravityUser[0].text -eq 'Pergunta sintética do usuário') `
+        'sync_antigravity_extracts_user_request'
+    Assert-True ($antigravityAssistant.Count -eq 1 -and $antigravityAssistant[0].agent_id -eq 'antigravity') `
+        'sync_antigravity_assistant_agent_id'
+    Assert-True ($antigravityAssistant.Count -eq 1 -and $antigravityAssistant[0].source_index -eq 5) `
+        'sync_antigravity_uses_step_index'
+
+    $syncAntigravityAgain = Invoke-ConvSync -Workspace $ws -Command 'sync-antigravity' -Extra @(
+        '-AntigravityTranscriptPath', $antigravityFixture,
+        '-AntigravityConversationId', 'fixture-antigravity'
+    )
+    Assert-True ((Count-ActivityEvents $activity) -eq $countAntigravity) 'sync_antigravity_idempotent'
+
+    $contextAntigravity = Invoke-ConvCli -Workspace $ws -Command 'context' -Params @{ Agent = 'antigravity'; Last = 10 }
+    Assert-True ($contextAntigravity.Output -match 'Resposta sintética visível') `
+        'context_filters_antigravity' $contextAntigravity.Output
+
+    # Hook contract: valid JSON on stdout and fail-open on missing transcript.
+    $hookWrapper = Join-Path $ws '.conversation-esaa\bin\antigravity-hook-sync.ps1'
+    $hookPayload = [ordered]@{
+        conversationId = 'fixture-antigravity'
+        workspacePaths = @($ws)
+        transcriptPath = $antigravityFixture
+        modelName = 'auto'
+    } | ConvertTo-Json -Compress
+    $hookOutput = $hookPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $hookWrapper -WorkspaceRoot $ws
+    Assert-True ($LASTEXITCODE -eq 0 -and ($hookOutput | ConvertFrom-Json) -ne $null) `
+        'antigravity_hook_returns_json_on_success' ($hookOutput | Out-String)
+    $badHookPayload = [ordered]@{
+        conversationId = 'missing-conversation'
+        workspacePaths = @($ws)
+        transcriptPath = '/definitely/missing/transcript.jsonl'
+    } | ConvertTo-Json -Compress
+    $badHookOutput = $badHookPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $hookWrapper -WorkspaceRoot $ws
+    Assert-True ($LASTEXITCODE -eq 0 -and ($badHookOutput | ConvertFrom-Json) -ne $null) `
+        'antigravity_hook_fail_open_returns_json' ($badHookOutput | Out-String)
+    $hookLog = Join-Path $ws '.conversation-esaa\antigravity-hook.log'
+    Assert-True ((Get-Content -LiteralPath $hookLog -Raw) -match 'fail_open') 'antigravity_hook_logs_failure'
+
     # Grok parsing via GROK_HOME
     $grokHome = Join-Path $ws 'grok-home'
     $sessionId = Install-GrokFixture -Workspace $ws -GrokHome $grokHome
@@ -195,7 +273,7 @@ try {
         $syncGrok = Invoke-ConvSync -Workspace $ws -Command 'sync-grok' -Extra @('-GrokSessionId', $sessionId)
         $count4 = Count-ActivityEvents $activity
         Assert-True (($count4 - $beforeGrok) -eq 2) 'sync_grok_parses_fixture' "delta=$($count4 - $beforeGrok)"
-        Assert-True ($count4 -eq 6) 'sync_grok_event_count' "count=$count4"
+    Assert-True ($count4 -eq 8) 'sync_grok_event_count' "count=$count4"
     } finally {
         if ($null -eq $prevGrokHome) { Remove-Item Env:GROK_HOME -ErrorAction SilentlyContinue }
         else { $env:GROK_HOME = $prevGrokHome }
@@ -208,7 +286,7 @@ try {
     $syncRebuild = Invoke-ConvSync -Workspace $ws -Command 'sync-codex' -Extra @('-CodexSessionPath', $codexFixture)
     $count5 = Count-ActivityEvents $activity
     Assert-True ($count5 -eq $beforeRebuild) 'dedup_rebuilds_from_activity_jsonl' "count=$count5"
-    Assert-True ($count5 -eq 6) 'dedup_no_extra_after_state_loss' "count=$count5"
+    Assert-True ($count5 -eq 8) 'dedup_no_extra_after_state_loss' "count=$count5"
 
     # Pipeline lockfile (ADR-001)
     $lockPath = Join-Path $ws '.conversation-esaa\run\conversation-esaa.lock'

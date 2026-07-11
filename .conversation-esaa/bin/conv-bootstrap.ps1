@@ -55,12 +55,13 @@ $binDir   = Join-Path $esaaDir 'bin'
 $plansDir = Join-Path $esaaDir 'plans'
 $grokDir  = Join-Path $WorkspaceRoot '.grok\hooks'
 $claudeDir = Join-Path $WorkspaceRoot '.claude'
+$agentsDir = Join-Path $WorkspaceRoot '.agents'
 
 $runDir = Join-Path $esaaDir 'run'
-foreach ($d in @($esaaDir, $binDir, $plansDir, $runDir, $grokDir, $claudeDir)) { New-Dir $d }
+foreach ($d in @($esaaDir, $binDir, $plansDir, $runDir, $grokDir, $claudeDir, $agentsDir)) { New-Dir $d }
 
 # --- Copiar o motor (conv-sync.ps1 e codex-watch.ps1) --------------------
-foreach ($engine in @('conv-sync.ps1', 'conversation-esaa.ps1', 'codex-watch.ps1')) {
+foreach ($engine in @('conv-sync.ps1', 'conversation-esaa.ps1', 'codex-watch.ps1', 'antigravity-hook-sync.ps1')) {
     $from = Join-Path $srcBin $engine
     $to   = Join-Path $binDir $engine
     if (Test-Path -LiteralPath $from) {
@@ -135,6 +136,25 @@ if (Test-ShouldWrite $claudeSettings) {
     Write-Output "hook: .claude/settings.json"
 } else { Write-Output "skip (existe, use -Force): .claude/settings.json" }
 
+# Google Antigravity: mesclar hook nomeado sem apagar customizações existentes.
+$antigravityHooks = Join-Path $agentsDir 'hooks.json'
+$hooksConfig = [ordered]@{}
+if (Test-Path -LiteralPath $antigravityHooks) {
+    try {
+        $existingHooks = Get-Content -LiteralPath $antigravityHooks -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+        foreach ($key in $existingHooks.Keys) { $hooksConfig[$key] = $existingHooks[$key] }
+    } catch {
+        throw "Invalid existing Antigravity hooks file: $antigravityHooks"
+    }
+}
+$hookWrapper = Join-Path $binDir 'antigravity-hook-sync.ps1'
+$hookCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$hookWrapper`" -WorkspaceRoot `"$WorkspaceRoot`""
+$hooksConfig['conversation-esaa'] = [ordered]@{
+    Stop = @(@{ type = 'command'; command = $hookCommand; timeout = 60 })
+}
+Write-Utf8 $antigravityHooks (($hooksConfig | ConvertTo-Json -Depth 10) + "`n")
+Write-Output 'hook: .agents/hooks.json (conversation-esaa merged)'
+
 # --- .gitignore (protege os dados privados gerados) ----------------------
 $gitignore = Join-Path $WorkspaceRoot '.gitignore'
 if (Test-ShouldWrite $gitignore) {
@@ -147,6 +167,7 @@ if (Test-ShouldWrite $gitignore) {
         '.conversation-esaa/run/*.lock'
         '.claude/settings.json'
         '.claude/settings.local.json'
+        '.agents/hooks.json'
     ) -join [Environment]::NewLine
     Write-Utf8 $gitignore ($gi + [Environment]::NewLine)
     Write-Output ".gitignore"
@@ -162,3 +183,4 @@ Write-Output 'Proximos passos:'
 Write-Output '  - Grok:   confie no projeto em ~/.grok/trusted-hook-projects e recarregue (/hooks -> r).'
 Write-Output '  - Claude: reinicie a sessao para carregar/aprovar .claude/settings.json.'
 Write-Output '  - Codex:  rode bin/codex-watch.ps1 para auto-sync (sem hook nativo).'
+Write-Output '  - Antigravity: reinicie a CLI/IDE para recarregar .agents/hooks.json.'

@@ -1,0 +1,13 @@
+{
+  "after_sha256": "bac3461f5faee1ed31feffc2e2dfe8ece3b6c2e28940eef13e7df6864e7f237d",
+  "artifact_id": "ART-bac3461f5faee1ed31feffc2e2dfe8ece3b6c2e28940eef13e7df6864e7f237d",
+  "artifact_sha256": "f0b54751e49a04c135e3ab3ea738b0a3faa1e567ef38d45368a0d6ffca996984",
+  "before_sha256": "bac3461f5faee1ed31feffc2e2dfe8ece3b6c2e28940eef13e7df6864e7f237d",
+  "bytes": 1184,
+  "content": "{\"step_index\":0,\"source\":\"USER_EXPLICIT\",\"type\":\"USER_INPUT\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:39Z\",\"content\":\"<USER_REQUEST> Pergunta sintética do usuário </USER_REQUEST> <ADDITIONAL_METADATA>ignorar</ADDITIONAL_METADATA>\"}\n{\"step_index\":1,\"source\":\"SYSTEM\",\"type\":\"CONVERSATION_HISTORY\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:39Z\",\"content\":\"histórico interno\"}\n{\"step_index\":2,\"source\":\"MODEL\",\"type\":\"PLANNER_RESPONSE\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:40Z\",\"tool_calls\":[{\"name\":\"list_dir\",\"args\":{\"DirectoryPath\":\"/tmp\"}}]}\n{\"step_index\":3,\"source\":\"MODEL\",\"type\":\"LIST_DIRECTORY\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:41Z\",\"content\":\"resultado de ferramenta\"}\n{\"step_index\":4,\"source\":\"MODEL\",\"type\":\"PLANNER_RESPONSE\",\"status\":\"RUNNING\",\"created_at\":\"2026-07-11T21:00:42Z\",\"content\":\"resposta incompleta\"}\n{\"step_index\":5,\"source\":\"MODEL\",\"type\":\"PLANNER_RESPONSE\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:43Z\",\"thinking\":\"raciocínio privado\",\"content\":\"Resposta sintética visível\"}\n{\"step_index\":6,\"source\":\"SYSTEM\",\"type\":\"CHECKPOINT\",\"status\":\"DONE\",\"created_at\":\"2026-07-11T21:00:44Z\",\"content\":\"checkpoint interno\"}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".conversation-esaa/tests/fixtures/antigravity/transcript.jsonl",
+  "source_path": ".conversation-esaa/tests/fixtures/antigravity/transcript.jsonl",
+  "ts": "2026-07-11T21:36:05Z"
+}

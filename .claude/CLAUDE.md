@@ -71,6 +71,7 @@ $pwsh = if (Test-Path "$HOME/.local/bin/pwsh") { "$HOME/.local/bin/pwsh" } else 
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent grok  -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent codex -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent claude -Workspace $root
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent antigravity -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli project -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli context --last 20 -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli decide  "..." -Workspace $root
@@ -87,6 +88,7 @@ Detalhes de install/hooks: [README.md](README.md).
 | Grok | hooks + projeto em trusted-hook-projects; recarregar hooks após mudar trust |
 | Claude | hooks em `.claude/settings.json` (aprovação no projeto) |
 | Codex | `codex-watch.ps1` (poll) e/ou unit systemd user — sem hook nativo |
+| Google Antigravity | `.agents/hooks.json` (`Stop`, timeout 60s) com wrapper fail-open |
 
 ## 8. Topics (ADR-009)
 

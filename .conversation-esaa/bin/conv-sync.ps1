@@ -1,13 +1,15 @@
 #requires -Version 7.0
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'project', 'verify', 'context', 'decide', 'task', 'topic')]
+    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'project', 'verify', 'context', 'decide', 'task', 'topic')]
     [string]$Command,
 
     [string]$WorkspaceRoot,
     [string]$GrokSessionId,
     [string]$CodexSessionPath,
     [string]$ClaudeSessionPath,
+    [string]$AntigravityTranscriptPath,
+    [string]$AntigravityConversationId,
     [ValidateSet('normal', 'compact')]
     [string]$Mode = 'normal',
 
@@ -490,6 +492,32 @@ function Get-ClaudeTextFromEntry {
     return $null
 }
 
+function Get-AntigravityTextFromEntry {
+    param($Entry)
+    if (-not $Entry) { return $null }
+    if ('status' -notin $Entry.PSObject.Properties.Name) { return $null }
+    if ('type' -notin $Entry.PSObject.Properties.Name) { return $null }
+    if ($Entry.status -ne 'DONE') { return $null }
+    if ($Entry.type -notin @('USER_INPUT', 'PLANNER_RESPONSE')) { return $null }
+    if ('content' -notin $Entry.PSObject.Properties.Name) { return $null }
+    if ($Entry.content -isnot [string]) { return $null }
+
+    $text = $Entry.content.Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+    $timestamp = if ($Entry.PSObject.Properties.Name -contains 'created_at') {
+        [string]$Entry.created_at
+    } else { $null }
+
+    if ($Entry.type -eq 'USER_INPUT') {
+        $identityText = $text
+        if ($text -match '(?s)<USER_REQUEST>\s*(.*?)\s*</USER_REQUEST>') {
+            $text = $Matches[1].Trim()
+        }
+        return @{ Actor = 'user'; Text = $text; IdentityText = $identityText; AgentId = $null; Timestamp = $timestamp }
+    }
+    return @{ Actor = 'assistant'; Text = $text; AgentId = 'antigravity'; Timestamp = $timestamp }
+}
+
 function Import-Message {
     param(
         $Paths,
@@ -500,12 +528,14 @@ function Import-Message {
         [int]$SourceIndex,
         [string]$Actor,
         [string]$Text,
+        [string]$EventIdText = $null,
         [string]$AgentId = $null,
         [string]$SourceTimestamp = $null,
         [string]$EventName = 'conversation_turn'
     )
 
-    $eventId = Compute-EventId $Source $SessionId $SourceIndex $Actor $Text
+    $identityText = if (-not [string]::IsNullOrEmpty($EventIdText)) { $EventIdText } else { $Text }
+    $eventId = Compute-EventId $Source $SessionId $SourceIndex $Actor $identityText
     if ($SyncState.processed_event_ids -contains $eventId) {
         return $false
     }
@@ -770,6 +800,72 @@ function Invoke-SyncClaude {
     return $imported
 }
 
+function Find-AntigravityTranscript {
+    $brain = Join-Path $HOME '.gemini\antigravity-cli\brain'
+    if (-not (Test-Path -LiteralPath $brain)) { return $null }
+    $latest = Get-ChildItem -Path $brain -Recurse -Filter 'transcript.jsonl' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -match '[\\/]\.system_generated[\\/]logs[\\/]transcript\.jsonl$' } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+    if ($latest) { return $latest.FullName }
+    return $null
+}
+
+function Get-AntigravityConversationIdFromPath {
+    param([string]$TranscriptPath)
+    $logsDir = Split-Path -Parent $TranscriptPath
+    $systemDir = Split-Path -Parent $logsDir
+    $conversationDir = Split-Path -Parent $systemDir
+    return Split-Path -Leaf $conversationDir
+}
+
+function Invoke-SyncAntigravity {
+    param($Paths, $SyncState)
+
+    $transcript = $AntigravityTranscriptPath
+    if (-not $transcript) { $transcript = Find-AntigravityTranscript }
+    if (-not $transcript -or -not (Test-Path -LiteralPath $transcript)) {
+        throw 'Antigravity transcript JSONL not found. Pass -AntigravityTranscriptPath or run inside an Antigravity hook.'
+    }
+    $transcript = (Resolve-Path -LiteralPath $transcript).Path
+    $sessionId = if ($AntigravityConversationId) {
+        $AntigravityConversationId
+    } else {
+        Get-AntigravityConversationIdFromPath $transcript
+    }
+
+    $imported = 0
+    $lineIndex = 0
+    foreach ($line in (Read-JsonlLines $transcript)) {
+        if ([string]::IsNullOrWhiteSpace($line)) { $lineIndex++; continue }
+        try { $entry = $line | ConvertFrom-Json } catch { $lineIndex++; continue }
+        $parsed = Get-AntigravityTextFromEntry $entry
+        if ($parsed) {
+            $sourceIndex = if (($entry.PSObject.Properties.Name -contains 'step_index') -and ($null -ne $entry.step_index)) {
+                [int]$entry.step_index
+            } else { $lineIndex }
+            $added = Import-Message `
+                -Paths $Paths `
+                -SyncState $SyncState `
+                -Source 'antigravity' `
+                -SessionId $sessionId `
+                -SourcePath $transcript `
+                -SourceIndex $sourceIndex `
+                -Actor $parsed.Actor `
+                -Text $parsed.Text `
+                -EventIdText $(if ($parsed.ContainsKey('IdentityText')) { $parsed.IdentityText } else { $null }) `
+                -AgentId $parsed.AgentId `
+                -SourceTimestamp $parsed.Timestamp `
+                -EventName $(if ($Mode -eq 'compact') { 'pre_compact_sync' } else { 'conversation_turn' })
+            if ($added) { $imported++ }
+        }
+        $lineIndex++
+    }
+
+    Write-Output "sync-antigravity: imported $imported new event(s) from $sessionId"
+    return $imported
+}
+
 function Read-ActivityEvents {
     param([string]$Path)
     $events = @()
@@ -785,7 +881,7 @@ function Get-WorkspaceEvents {
     param($Paths)
     $expectedRoot = (Resolve-Path -LiteralPath $Paths.Root).Path
     $events = @(Read-ActivityEvents $Paths.Activity)
-    return @($events | Where-Object {
+    $workspaceEvents = @($events | Where-Object {
         if (('workspace_root' -in $_.PSObject.Properties.Name) -and $_.workspace_root) {
             try {
                 return ((Resolve-Path -LiteralPath $_.workspace_root).Path -eq $expectedRoot)
@@ -796,6 +892,25 @@ function Get-WorkspaceEvents {
         # Legacy events without workspace_root belong to the lab workspace only.
         return $true
     })
+
+    # Keep the append-only log intact while making read models resilient to
+    # repeated imports of the same native transcript step.
+    $seenSourceTurns = @{}
+    $deduped = [System.Collections.Generic.List[object]]::new()
+    foreach ($event in $workspaceEvents) {
+        $hasSourceIdentity =
+            ('source' -in $event.PSObject.Properties.Name) -and $event.source -and
+            ('source_session_id' -in $event.PSObject.Properties.Name) -and $event.source_session_id -and
+            ('source_index' -in $event.PSObject.Properties.Name) -and ($null -ne $event.source_index) -and
+            ('actor' -in $event.PSObject.Properties.Name) -and $event.actor
+        if ($hasSourceIdentity) {
+            $key = "$($event.source)|$($event.source_session_id)|$($event.source_index)|$($event.actor)"
+            if ($seenSourceTurns.ContainsKey($key)) { continue }
+            $seenSourceTurns[$key] = $true
+        }
+        $deduped.Add($event)
+    }
+    return @($deduped)
 }
 
 function New-CuratedEventId {
@@ -1473,7 +1588,7 @@ function Invoke-Project {
     if ($decisions.Count -eq 0) {
         $decisions = @(
             'Usar estrutura separada do ESAA formal para nao poluir .roadmap.',
-            'Incluir agent_id nos eventos sincronizados (grok, codex, claude em assistant; null em user).',
+            'Incluir agent_id nos eventos sincronizados (grok, codex, claude, antigravity em assistant; null em user).',
             'activity.jsonl e fonte de verdade; read models sao projetados via conversation-esaa.'
         )
     }
@@ -1571,7 +1686,7 @@ function Invoke-Project {
         '- Grok: hooks em .grok/hooks/conversation-esaa.json disparam sync-grok automaticamente.'
         '- Codex: rode bin/codex-watch.ps1 (auto-sync) ou sync-codex manualmente apos cada sessao.'
         '- Claude Code: hooks em .claude/settings.json disparam sync-claude automaticamente.'
-        '- Eventos sincronizados incluem agent_id em assistant (grok/codex/claude) e agent_id null em user.'
+        '- Eventos sincronizados incluem agent_id em assistant (grok/codex/claude/antigravity) e agent_id null em user.'
         '- Nao trate .conversation-esaa como .roadmap.'
         '- PRIVACIDADE: activity.jsonl/state.md/handoff.md contem texto bruto das conversas. Nao commite dados reais em repo publico. Ver PRIVACY.md e .gitignore.'
         ''
@@ -1645,7 +1760,7 @@ function Invoke-Verify {
             if ('agent_id' -notin $event.PSObject.Properties.Name) {
                 throw "Synced event missing agent_id property at line $lineNo"
             }
-            if ($event.actor -eq 'assistant' -and $event.source -in @('grok', 'codex', 'claude')) {
+            if ($event.actor -eq 'assistant' -and $event.source -in @('grok', 'codex', 'claude', 'antigravity')) {
                 if (-not $event.agent_id) {
                     throw "Assistant synced event missing agent_id at line $lineNo"
                 }
@@ -1837,6 +1952,16 @@ switch ($Command) {
             Repair-ActivityContract $paths.Activity
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncClaude -Paths $paths -SyncState $state
+            Invoke-Project -Paths $paths
+            Invoke-Verify -Paths $paths
+            Save-SyncState $state $paths.SyncState
+        }
+    }
+    'sync-antigravity' {
+        Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            Repair-ActivityContract $paths.Activity
+            $state = Load-SyncState $paths.SyncState $paths.Activity
+            $null = Invoke-SyncAntigravity -Paths $paths -SyncState $state
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
             Save-SyncState $state $paths.SyncState

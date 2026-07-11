@@ -1,0 +1,13 @@
+{
+  "after_sha256": "353b4289cf0c4e5ed8581102e4d8cc24cdcbae63338f482f7abd8caa2623a85d",
+  "artifact_id": "ART-353b4289cf0c4e5ed8581102e4d8cc24cdcbae63338f482f7abd8caa2623a85d",
+  "artifact_sha256": "3a0603aae56c6371fc3051ec686b3b5c9a80f8df01765126948ce0f72cfe1a7e",
+  "before_sha256": "353b4289cf0c4e5ed8581102e4d8cc24cdcbae63338f482f7abd8caa2623a85d",
+  "bytes": 280,
+  "content": "ESAA Core Initial Implementation Baseline\nTask ID: T-1010\nStatus: Implemented\n\nThis file represents the initial implementation artifact verifying the basic setup of the Event Sourced Agent Architecture Core.\nIt implements the baseline structures specified in docs/spec/T-1000.md.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/T-1010.txt",
+  "source_path": "src/T-1010.txt",
+  "ts": "2026-07-11T22:14:54Z"
+}

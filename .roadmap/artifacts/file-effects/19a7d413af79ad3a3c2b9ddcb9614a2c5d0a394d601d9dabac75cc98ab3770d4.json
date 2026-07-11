@@ -1,0 +1,13 @@
+{
+  "after_sha256": "10ee0e4367cb14b66c1683573d9721c1e2b5734207dcaf7db5e99b9fc4795cc8",
+  "artifact_id": "ART-10ee0e4367cb14b66c1683573d9721c1e2b5734207dcaf7db5e99b9fc4795cc8",
+  "artifact_sha256": "19a7d413af79ad3a3c2b9ddcb9614a2c5d0a394d601d9dabac75cc98ab3770d4",
+  "before_sha256": "10ee0e4367cb14b66c1683573d9721c1e2b5734207dcaf7db5e99b9fc4795cc8",
+  "bytes": 1530,
+  "content": "# Plano — integração Google Antigravity\n\n## Objetivo\n\nAdicionar `antigravity` como fonte oficial do Conversation ESAA sem misturar\nresultados de ferramentas, raciocínio interno ou conversas de outros workspaces.\n\n## Contrato de captura\n\n- Fonte: `~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl`.\n- `USER_INPUT`, `status=DONE`, `content` textual: `actor=user`, `agent_id=null`.\n- `PLANNER_RESPONSE`, `status=DONE`, `content` textual: `actor=assistant`, `agent_id=antigravity`.\n- Ignorar entradas sem texto, tool calls, thinking, resultados de ferramentas,\n  checkpoints e histórico injetado.\n- Usar `created_at` como timestamp e `step_index` como índice estável.\n\n## Sequência\n\n1. Estender motor e CLI com `sync-antigravity` e `--agent antigravity`.\n2. Criar wrapper fail-open que consome o payload JSON do hook via stdin.\n3. Mesclar hook nomeado `conversation-esaa` em `.agents/hooks.json`.\n4. Adicionar fixture sintética e testes de parsing, dedupe, contexto e falha.\n5. Atualizar documentação e manter `AGENTS.md` igual a `.claude/CLAUDE.md`.\n6. Validar em workspace temporário.\n7. Fazer backup dos motores instalados e copiar apenas `bin/` e hooks públicos;\n   nunca substituir `activity.jsonl`, `sync-state.json` ou projeções privadas.\n8. Sincronizar uma conversa real, projetar e executar `verify`.\n\n## Rollback\n\nRestaurar os arquivos públicos a partir do backup do rollout. Os dados privados\nnão entram no conjunto copiado e, portanto, não precisam de rollback.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".conversation-esaa/plans/antigravity-integration-rollout.md",
+  "source_path": ".conversation-esaa/plans/antigravity-integration-rollout.md",
+  "ts": "2026-07-11T21:36:05Z"
+}

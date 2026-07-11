@@ -6,7 +6,7 @@
 
 ## O que é gravado
 
-O `conv-sync.ps1` lê os logs nativos dos agentes (Grok, Codex, Claude Code) e
+O `conv-sync.ps1` lê os logs nativos dos agentes (Grok, Codex, Claude Code e Google Antigravity) e
 copia o **conteúdo visível** das mensagens — suas perguntas e as respostas dos
 assistentes — para:
 
@@ -21,8 +21,9 @@ assistentes — para:
 
 Por design, o sync **pula**: raciocínio interno (`thinking`/reasoning),
 saídas de ferramentas (`tool_use`/`tool_result`), prompts de sistema,
-contexto de ambiente e sub-agentes (sidechains). Só entra texto visível da
-conversa.
+contexto de ambiente e sub-agentes (sidechains). No Antigravity, entram apenas
+`USER_INPUT` e `PLANNER_RESPONSE` textual com `status=DONE`; respostas que
+contêm somente `tool_calls` são ignoradas. Só entra texto visível da conversa.
 
 ## Riscos
 

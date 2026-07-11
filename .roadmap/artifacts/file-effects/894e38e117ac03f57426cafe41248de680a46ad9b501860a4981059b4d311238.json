@@ -1,0 +1,13 @@
+{
+  "after_sha256": "db34315006c45deb9636494cd2b04d75c415a467a69cd32a127499d3a5570778",
+  "artifact_id": "ART-db34315006c45deb9636494cd2b04d75c415a467a69cd32a127499d3a5570778",
+  "artifact_sha256": "894e38e117ac03f57426cafe41248de680a46ad9b501860a4981059b4d311238",
+  "before_sha256": "db34315006c45deb9636494cd2b04d75c415a467a69cd32a127499d3a5570778",
+  "bytes": 1266,
+  "content": "# Release v1.1.1 — Conversation ESAA\n\nBuild de manutenção após ADR-009. Pacote **greenfield**: sem histórico de\nconversas, `activity.jsonl` vazio após bootstrap.\n\n## Escopo\n\n| Área | Entrega |\n|---|---|\n| CLI | `conversation-esaa.ps1` — `init`, `enable-hooks`, `sync`, `project`, `verify`, `context`, `decide`, `task` |\n| Motor | `conv-sync.ps1` — lockfile, `workspace_root`, projeções |\n| Antigravity | parser `USER_INPUT`/`PLANNER_RESPONSE`, `--agent antigravity` e hooks fail-open |\n| Tópicos | `topics list/show/create/update/link/close`, `topics.json`, `topics.md` |\n| Contexto | `--last`, `--before`, `--around`, `--agent`, `--topic`, `--topic-id`, `--json` |\n| Testes | `conv-test.ps1` e `conv-test-battery.ps1`, incluindo fixture sintética Antigravity |\n| Docs | `README.md`, `PRIVACY.md`, `paper/`, `.conversation-esaa/plans/` |\n\n## Verificação\n\n```powershell\npwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\\bin\\conv-test.ps1\npwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\\bin\\conv-test-battery.ps1 -SkipLab -SkipEsaa\n```\n\n## Privacidade\n\nLeia [PRIVACY.md](PRIVACY.md) antes de publicar seu workspace. Nunca commite `activity.jsonl` ou read models gerados.\n\n## Licença\n\nMIT — veja [LICENSE](LICENSE).\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "RELEASE.md",
+  "source_path": "RELEASE.md",
+  "ts": "2026-07-11T21:36:05Z"
+}

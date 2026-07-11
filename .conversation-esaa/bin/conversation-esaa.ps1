@@ -12,6 +12,8 @@ param(
     [string]$GrokSessionId,
     [string]$CodexSessionPath,
     [string]$ClaudeSessionPath,
+    [string]$AntigravityTranscriptPath,
+    [string]$AntigravityConversationId,
     [ValidateSet('normal', 'compact')]
     [string]$Mode = 'normal',
     [switch]$Trust,
@@ -49,6 +51,7 @@ $convCli = Join-Path $binDir 'conversation-esaa.ps1'
 $convSync = Join-Path $binDir 'conv-sync.ps1'
 $convBootstrap = Join-Path $binDir 'conv-bootstrap.ps1'
 $codexWatch = Join-Path $binDir 'codex-watch.ps1'
+$antigravityHook = Join-Path $binDir 'antigravity-hook-sync.ps1'
 
 function Resolve-WorkspacePath {
     if ($Workspace) { return (Resolve-Path -LiteralPath $Workspace).Path }
@@ -77,8 +80,8 @@ Conversation ESAA v1.1
 
 Usage:
   conversation-esaa init --workspace <path>
-  conversation-esaa enable-hooks --agent <grok|claude|codex> --workspace <path> [--trust] [--watcher]
-  conversation-esaa sync --agent <grok|claude|codex> --workspace <path>
+  conversation-esaa enable-hooks --agent <grok|claude|codex|antigravity> --workspace <path> [--trust] [--watcher]
+  conversation-esaa sync --agent <grok|claude|codex|antigravity> --workspace <path>
   conversation-esaa project --workspace <path>
   conversation-esaa verify --workspace <path>
   conversation-esaa context --workspace <path> [--agent <id>] [--last N] [--before <event_id>] [--around <event_id>] [--window N] [--topic <text>] [--topic-id TOP-001] [--json]
@@ -116,24 +119,27 @@ switch ($Command) {
         if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     'sync' {
-        if (-not $Agent) { throw 'sync requires --agent grok|claude|codex' }
-        $map = @{ grok = 'sync-grok'; codex = 'sync-codex'; claude = 'sync-claude' }
+        if (-not $Agent) { throw 'sync requires --agent grok|claude|codex|antigravity' }
+        $map = @{ grok = 'sync-grok'; codex = 'sync-codex'; claude = 'sync-claude'; antigravity = 'sync-antigravity' }
         if ($Agent -notin $map.Keys) { throw "Unknown agent: $Agent" }
         $extra = @()
         if ($Mode -eq 'compact') { $extra += '-Mode', 'compact' }
         if ($GrokSessionId) { $extra += '-GrokSessionId', $GrokSessionId }
         if ($CodexSessionPath) { $extra += '-CodexSessionPath', $CodexSessionPath }
         if ($ClaudeSessionPath) { $extra += '-ClaudeSessionPath', $ClaudeSessionPath }
+        if ($AntigravityTranscriptPath) { $extra += '-AntigravityTranscriptPath', $AntigravityTranscriptPath }
+        if ($AntigravityConversationId) { $extra += '-AntigravityConversationId', $AntigravityConversationId }
         Invoke-ConvSyncCli -SyncCommand $map[$Agent] -Extra $extra
     }
     'project' { Invoke-ConvSyncCli -SyncCommand 'project' }
     'verify' { Invoke-ConvSyncCli -SyncCommand 'verify' }
     'enable-hooks' {
-        if (-not $Agent) { throw 'enable-hooks requires --agent grok|claude|codex' }
+        if (-not $Agent) { throw 'enable-hooks requires --agent grok|claude|codex|antigravity' }
         $ws = Resolve-WorkspacePath
         $grokDir = Join-Path $ws '.grok\hooks'
         $claudeDir = Join-Path $ws '.claude'
-        New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir | Out-Null
+        $agentsDir = Join-Path $ws '.agents'
+        New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir, $agentsDir | Out-Null
         $cmdGrok = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent grok --workspace `"$ws`""
         $cmdGrokCompact = "$cmdGrok --Mode compact"
         $cmdClaude = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent claude --workspace `"$ws`""
@@ -197,6 +203,31 @@ switch ($Command) {
             } else {
                 Write-Output 'enable-hooks: codex has no native hooks; use --watcher or run codex-watch.ps1 manually'
             }
+        }
+        if ($Agent -eq 'antigravity') {
+            if (-not (Test-Path -LiteralPath $antigravityHook)) {
+                throw "Antigravity hook wrapper not found: $antigravityHook"
+            }
+            $hooksPath = Join-Path $agentsDir 'hooks.json'
+            $hooksConfig = [ordered]@{}
+            if (Test-Path -LiteralPath $hooksPath) {
+                try {
+                    $existing = Get-Content -LiteralPath $hooksPath -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+                    foreach ($key in $existing.Keys) { $hooksConfig[$key] = $existing[$key] }
+                } catch {
+                    throw "Invalid existing Antigravity hooks file: $hooksPath"
+                }
+            }
+            $hookCommand = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$antigravityHook`" -WorkspaceRoot `"$ws`""
+            $hooksConfig['conversation-esaa'] = [ordered]@{
+                Stop = @(@{ type = 'command'; command = $hookCommand; timeout = 60 })
+            }
+            [System.IO.File]::WriteAllText(
+                $hooksPath,
+                (($hooksConfig | ConvertTo-Json -Depth 10) + "`n"),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Write-Output 'enable-hooks: merged conversation-esaa into .agents/hooks.json'
         }
         Invoke-ConvSyncCli -SyncCommand 'verify'
     }

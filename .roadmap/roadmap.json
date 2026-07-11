@@ -6,12 +6,12 @@
     "master_correlation_id": "CID-ESAA-INIT",
     "run": {
       "run_id": "RUN-0001",
-      "status": "initialized",
-      "last_event_seq": 232,
-      "projection_hash_sha256": "a9ae934c75800292df48a2ed0c88c9851dc21903f76b448d051669adbfbae6ff",
+      "status": "success",
+      "last_event_seq": 358,
+      "projection_hash_sha256": "10cac7179bfe8cc46c0098f053bf3e60c304aaf65ba16e3c98ac113bd06a46cd",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-08T17:22:07Z"
+    "updated_at": "2026-07-11T22:15:40Z"
   },
   "project": {
     "name": "esaa-core",
@@ -23,7 +23,7 @@
       "task_kind": "spec",
       "title": "Create initial ESAA spec document",
       "description": "Produce the initial specification artifact for the ESAA core baseline.",
-      "status": "todo",
+      "status": "done",
       "depends_on": [],
       "targets": [
         "spec-core"
@@ -35,14 +35,23 @@
       },
       "immutability": {
         "done_is_immutable": true
-      }
+      },
+      "assigned_to": "agent-spec",
+      "started_at": "2026-07-11T22:11:55Z",
+      "verification": {
+        "checks": [
+          "documento docs/spec/T-1000.md criado",
+          "princípios fundamentais do ESAA documentados"
+        ]
+      },
+      "completed_at": "2026-07-11T22:13:50Z"
     },
     {
       "task_id": "T-1010",
       "task_kind": "impl",
       "title": "Create initial implementation artifact",
       "description": "Produce the initial implementation artifact that follows the approved specification.",
-      "status": "todo",
+      "status": "done",
       "depends_on": [
         "T-1000"
       ],
@@ -56,14 +65,22 @@
       },
       "immutability": {
         "done_is_immutable": true
-      }
+      },
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-11T22:14:33Z",
+      "verification": {
+        "checks": [
+          "arquivo src/T-1010.txt criado"
+        ]
+      },
+      "completed_at": "2026-07-11T22:15:00Z"
     },
     {
       "task_id": "T-1020",
       "task_kind": "qa",
       "title": "Create initial QA report",
       "description": "Produce the initial QA evidence artifact validating the implementation baseline.",
-      "status": "todo",
+      "status": "done",
       "depends_on": [
         "T-1010"
       ],
@@ -77,14 +94,23 @@
       },
       "immutability": {
         "done_is_immutable": true
-      }
+      },
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-11T22:15:12Z",
+      "verification": {
+        "checks": [
+          "relatório docs/qa/T-1020.md criado",
+          "validação de conformidade executada"
+        ]
+      },
+      "completed_at": "2026-07-11T22:15:40Z"
     },
     {
       "task_id": "T-2000",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Define schema and first-class topic events (ADR-009 Task 10)",
       "description": "Establish canonical schema conversation-esaa.topics.v0.1 and events topic.created/updated/closed/event.linked in conv-sync.ps1. Follow Codex recommendations: first-class events, TOP-NNN IDs, support multiple topics per event, limits on key_event_ids.",
-      "status": "review",
+      "status": "done",
       "depends_on": [],
       "targets": [],
       "outputs": {
@@ -112,14 +138,15 @@
           "ValidateSet, params, dispatch extended",
           "All acceptance criteria for T-2000 satisfied"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:43Z"
     },
     {
       "task_id": "T-2001",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Implement topics.json projection (ADR-009 Task 11)",
       "description": "Implement Project-TopicsFromEvents deterministic projection. Enrich with decisions/tasks links, compute metadata, limit key_event_ids. Always generate topics.json on project even if empty.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-2000"
       ],
@@ -147,14 +174,15 @@
           "verify passes",
           "AC for T-2001 met"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:49Z"
     },
     {
       "task_id": "T-2002",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Generate topics.md and integrate into state/handoff (ADR-009 Task 12)",
       "description": "Add Project-TopicsMarkdown. Update state.md with 'Tópicos / Assuntos Ativos' section. Update handoff.md recommended reading order to include topics.json / topics.md.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-2001"
       ],
@@ -181,14 +209,15 @@
           "Tests would pass",
           "AC met for T-2002"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:50Z"
     },
     {
       "task_id": "T-2003",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Implement topics CLI commands (ADR-009 Task 13)",
       "description": "Add dispatcher in conversation-esaa.ps1 and Invoke functions in conv-sync. Implement list, show, create, update, link, close. Writes go through lock + append event + project + verify.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-2001"
       ],
@@ -215,14 +244,15 @@
           "Tests would pass",
           "AC met for T-2003"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:51Z"
     },
     {
       "task_id": "T-2005",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Update verify and add tests (ADR-009 Task 15)",
       "description": "Extend Invoke-Verify for topics schema, IDs, status, references, reconstructibility. Add full lifecycle tests and fixtures.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-2004"
       ],
@@ -249,14 +279,15 @@
           "Tests would pass",
           "AC met for T-2005"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:53Z"
     },
     {
       "task_id": "T-2004",
       "task_kind": "impl",
       "title": "Topic Memory Layer: Extend context with --topic-id (ADR-009 Task 14)",
       "description": "Add --topic-id support in Invoke-Context. Resolve via topics.json key_event_ids and links (not text search). Add --expand support. Keep legacy --topic.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-2003"
       ],
@@ -283,7 +314,8 @@
           "Tests would pass",
           "AC met for T-2004"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:52Z"
     },
     {
       "task_id": "T-2010",
@@ -411,7 +443,7 @@
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Verify build checksum",
       "description": "Validate the conversation-esaa-v1.1.1.zip against its sha256 as per rollout plan.",
-      "status": "review",
+      "status": "done",
       "depends_on": [],
       "targets": [],
       "outputs": {
@@ -433,14 +465,15 @@
           "sha256sum -c dist/conversation-esaa-v1.1.1.sha256 returned OK",
           "Build artifact is valid for rollout"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:54Z"
     },
     {
       "task_id": "T-3002",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Backup centauri-3720",
       "description": "Create full backup of .conversation-esaa in centauri-3720 before any changes. Preserve all conversation data.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3001"
       ],
@@ -464,14 +497,15 @@
           "Backup tarball exists and is non-empty",
           "No data was modified during backup"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:54Z"
     },
     {
       "task_id": "T-3003",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Update runtime in centauri-3720",
       "description": "Selectively copy only runtime files from v1.1.1 source to centauri-3720/.conversation-esaa/bin, tests, plans. Preserve all conversation data (activity.jsonl, topics.*, state.md etc.).",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3002"
       ],
@@ -497,14 +531,15 @@
           "No conversation data overwritten",
           "Backup exists from previous task"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:55Z"
     },
     {
       "task_id": "T-3004",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Validate centauri-3720",
       "description": "After update, run project/verify/topics list in centauri-3720. Confirm new features work and no conversation data was lost.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3003"
       ],
@@ -531,14 +566,15 @@
           "No conversation data modified",
           "Legacy event issue noted (as expected in plan)"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:56Z"
     },
     {
       "task_id": "T-3005",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Backup PCA",
       "description": "Full backup of .conversation-esaa in PCA, preserving all conversation data.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3004"
       ],
@@ -560,14 +596,15 @@
           "Backup tarball created successfully",
           "Git status checked before backup"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:57Z"
     },
     {
       "task_id": "T-3006",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Update runtime in PCA",
       "description": "Selective copy of runtime files to PCA. Preserve conversation data strictly.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3005"
       ],
@@ -590,14 +627,15 @@
           "Conversation data files not modified",
           "Git status unchanged for project files"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:58Z"
     },
     {
       "task_id": "T-3007",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Validate PCA",
       "description": "project/verify/topics in PCA. Confirm Topic Memory Layer enabled.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3006"
       ],
@@ -620,14 +658,15 @@
           "topics section in state.md",
           "No data loss"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:10:59Z"
     },
     {
       "task_id": "T-3008",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Prepare consultoria (stop watcher if active)",
       "description": "Check for active codex-watch pid in consultoria and stop it before backup/update.",
-      "status": "review",
+      "status": "done",
       "depends_on": [],
       "targets": [],
       "outputs": {
@@ -647,14 +686,15 @@
           "Pid file found and process killed",
           "No active watcher remains"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:00Z"
     },
     {
       "task_id": "T-3009",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Backup consultoria",
       "description": "Full backup of consultoria .conversation-esaa.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3008"
       ],
@@ -676,14 +716,15 @@
           "Backup tarball created",
           "Watcher was stopped prior"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:00Z"
     },
     {
       "task_id": "T-3010",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Update runtime in consultoria",
       "description": "Selective copy to consultoria after watcher stopped. Preserve all conversation data.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3009"
       ],
@@ -706,14 +747,15 @@
           "Large conversation files untouched",
           "Backup present"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:01Z"
     },
     {
       "task_id": "T-3011",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Validate consultoria",
       "description": "Run project/verify/topics list. Confirm features and data integrity.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3010"
       ],
@@ -736,14 +778,15 @@
           "topics functional (none yet)",
           "state.md updated with topics"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:02Z"
     },
     {
       "task_id": "T-3012",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Restart watcher in consultoria if applicable",
       "description": "Restart codex-watch if it was running before.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3011"
       ],
@@ -766,14 +809,15 @@
           "pid file updated",
           "Using updated codex-watch.ps1"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:02Z"
     },
     {
       "task_id": "T-3013",
       "task_kind": "impl",
       "title": "Rollout v1.1.1: Final status report across all workspaces",
       "description": "Summarize results for centauri, PCA, consultoria. Confirm all invariants held.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "T-3012"
       ],
@@ -799,17 +843,133 @@
           "Build checksum matched",
           "All plan invariants held"
         ]
-      }
+      },
+      "completed_at": "2026-07-11T22:11:03Z"
+    },
+    {
+      "task_id": "ANTIGRAVITY-IMPL-001",
+      "task_kind": "impl",
+      "title": "Integrar Google Antigravity ao Conversation ESAA",
+      "description": "Implementar captura oficial do Antigravity: parser de transcript.jsonl para USER_INPUT e PLANNER_RESPONSE textual, source/agent_id antigravity, CLI sync --agent antigravity, wrapper de hooks fail-open, geração/mescla de .agents/hooks.json, testes sintéticos, documentação e rollout conservador em workspaces existentes sem sobrescrever estado privado.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/**",
+        "README.md",
+        "PRIVACY.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/plans/antigravity-integration-rollout.md",
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          ".conversation-esaa/bin/antigravity-hook-sync.ps1",
+          ".conversation-esaa/tests/fixtures/antigravity/transcript.jsonl",
+          ".conversation-esaa/bin/conv-test.ps1",
+          "README.md",
+          "PRIVACY.md",
+          "RELEASE.md",
+          "AGENTS.md",
+          ".claude/CLAUDE.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/**",
+        "README.md",
+        "PRIVACY.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "sync --agent antigravity importa somente USER_INPUT e PLANNER_RESPONSE textual com status DONE",
+        "Respostas de ferramenta, thinking e PLANNER_RESPONSE sem content são ignorados",
+        "Hooks usam conversationId, workspacePaths e transcriptPath com fallback brain/<conversation-id>",
+        "Wrapper de hook sempre devolve JSON válido e não bloqueia Antigravity em falha de sync",
+        "Deduplicação, project, verify e context --agent antigravity passam",
+        "Rollout preserva activity.jsonl, sync-state.json e projeções privadas"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-11T21:10:32Z",
+      "verification": {
+        "checks": [
+          "conv-test: 75 passed, 0 failed",
+          "Transcrição real: 6 USER_INPUT e 6 PLANNER_RESPONSE textuais importados no teste isolado; tool calls ignorados",
+          "Wrapper real: stdout {}, exit 0, fallback brain/<conversation-id> e segunda execução sem novos eventos",
+          "context --agent antigravity retorna eventos com agent_id antigravity",
+          "AGENTS.md e .claude/CLAUDE.md são idênticos",
+          "Rollout instalado em /home/elzobrito, PCA, centauri-3720, consultoria e md-studio; verify ok em todos",
+          "Backups públicos preservados em /home/elzobrito/.local/share/conversation-esaa-rollout-backups/antigravity-20260711-182214",
+          "Event store real permaneceu append-only; 6 duplicatas técnicas do rollout são filtradas nas projeções por source+session+step+actor"
+        ]
+      },
+      "completed_at": "2026-07-11T21:36:16Z"
+    },
+    {
+      "task_id": "ANTIGRAVITY-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Evitar timeout do hook Conversation ESAA no Antigravity",
+      "description": "Remover PostInvocation síncrono do hook gerado, manter captura em Stop com timeout de 60 segundos, atualizar documentação/testes e fazer rollout nos workspaces instalados. Preservar o wrapper fail-open e o estado privado.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/**",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          ".conversation-esaa/bin/conv-test.ps1",
+          "AGENTS.md",
+          ".claude/CLAUDE.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/**",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Hook gerado contém apenas Stop",
+        "Timeout do Stop é 60 segundos",
+        "Configurações existentes são atualizadas sem perder hooks de terceiros"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-11T21:36:50Z",
+      "verification": {
+        "checks": [
+          "conv-test: 77 passed, 0 failed",
+          "Runtime real comprovou causa: PostInvocation executava repetidamente e foi morto aos 30s",
+          "Todos os cinco .agents/hooks.json contêm apenas Stop com timeout 60",
+          "Hooks de terceiros são preservados pela mescla nomeada conversation-esaa",
+          "verify ok nos cinco workspaces"
+        ]
+      },
+      "completed_at": "2026-07-11T21:41:10Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 3,
-      "review": 19,
-      "todo": 3
+      "done": 27
     },
     "by_kind": {
-      "impl": 22,
+      "impl": 24,
       "qa": 1,
       "spec": 2
     }

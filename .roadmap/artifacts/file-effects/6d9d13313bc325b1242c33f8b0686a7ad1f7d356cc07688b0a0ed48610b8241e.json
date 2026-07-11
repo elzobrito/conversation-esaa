@@ -1,0 +1,13 @@
+{
+  "after_sha256": "cd5f733113adc06221e7414d99fa517d92b2dd3beb08b201d397a4d7575987e7",
+  "artifact_id": "ART-cd5f733113adc06221e7414d99fa517d92b2dd3beb08b201d397a4d7575987e7",
+  "artifact_sha256": "6d9d13313bc325b1242c33f8b0686a7ad1f7d356cc07688b0a0ed48610b8241e",
+  "before_sha256": "cd5f733113adc06221e7414d99fa517d92b2dd3beb08b201d397a4d7575987e7",
+  "bytes": 1153,
+  "content": "# Relatório de Garantia de Qualidade (QA) - Inicial\n\n**ID da Tarefa:** T-1020  \n**Versão:** 0.1.0  \n**Status:** Aprovado  \n\n---\n\n## 1. Escopo de Validação\nEste relatório apresenta os resultados de validação da implementação inicial do núcleo ESAA correspondente à tarefa `T-1010` (*Create initial implementation artifact*), baseando-se na especificação formal definida em `docs/spec/T-1000.md`.\n\n## 2. Itens de Teste e Resultados\n* **Check 01**: Criação do arquivo físico `src/T-1010.txt` no workspace.  \n  * *Resultado*: Passou (arquivo criado e verificado no diretório do subprojeto).\n* **Check 02**: Conformidade com o conteúdo especificado.  \n  * *Resultado*: Passou (o arquivo detalha a implementação inicial da arquitetura).\n* **Check 03**: Execução de consistência determinística do log do Event Store.  \n  * *Resultado*: Passou (o comando `esaa verify` retornou status `ok` com integridade de hash chain preservada).\n\n## 3. Conclusão\nA implementação inicial da estrutura do esaa-core atende a todos os critérios básicos e conformidades contratuais exigidas. A baseline está aprovada para posterior desenvolvimento.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/T-1020.md",
+  "source_path": "docs/qa/T-1020.md",
+  "ts": "2026-07-11T22:15:34Z"
+}

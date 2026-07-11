@@ -9,9 +9,10 @@ conversas, `activity.jsonl` vazio após bootstrap.
 |---|---|
 | CLI | `conversation-esaa.ps1` — `init`, `enable-hooks`, `sync`, `project`, `verify`, `context`, `decide`, `task` |
 | Motor | `conv-sync.ps1` — lockfile, `workspace_root`, projeções |
+| Antigravity | parser `USER_INPUT`/`PLANNER_RESPONSE`, `--agent antigravity` e hooks fail-open |
 | Tópicos | `topics list/show/create/update/link/close`, `topics.json`, `topics.md` |
 | Contexto | `--last`, `--before`, `--around`, `--agent`, `--topic`, `--topic-id`, `--json` |
-| Testes | `conv-test.ps1` (59), `conv-test-battery.ps1` |
+| Testes | `conv-test.ps1` e `conv-test-battery.ps1`, incluindo fixture sintética Antigravity |
 | Docs | `README.md`, `PRIVACY.md`, `paper/`, `.conversation-esaa/plans/` |
 
 ## Verificação

@@ -1,6 +1,6 @@
  Conversation ESAA
 
-**Memória conversacional compartilhada entre agentes de IA** — Grok, Codex e Claude Code.
+**Memória conversacional compartilhada entre agentes de IA** — Grok, Codex, Claude Code e Google Antigravity.
 
 Quando você troca de agente ou a janela de contexto acaba, o próximo assistente perde objetivos, decisões e tarefas abertas. O Conversation ESAA captura os turnos visíveis automaticamente (hooks e watchers), grava em um log append-only local e projeta read models compactos para handoff — **sem gastar tokens do LLM na cópia mecânica**.
 
@@ -70,6 +70,18 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File $cli enable-hooks --agent codex --
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$root\.conversation-esaa\bin\codex-watch.ps1" -WorkspaceRoot $root
 ```
 
+**Google Antigravity** — o bootstrap mescla `conversation-esaa` em
+`.agents/hooks.json`. Reinicie a CLI/IDE depois da instalação. Para ativar ou
+reparar manualmente:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli enable-hooks --agent antigravity --workspace $root
+```
+
+O wrapper usa `conversationId`, `workspacePaths` e `transcriptPath` recebidos
+via stdin. Como fallback, lê
+`~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl`.
+
 ---
 
 ## Uso diário
@@ -80,6 +92,7 @@ $cli  = Join-Path $root '.conversation-esaa\bin\conversation-esaa.ps1'
 
 # Sincronizar após conversar
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync --agent grok --workspace $root
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync --agent antigravity --workspace $root
 
 # Validar integridade
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli verify --workspace $root
@@ -151,6 +164,7 @@ seu-projeto/
     activity.jsonl       # gerado — não commitar
   .grok/hooks/           # gerado pelo bootstrap
   .claude/settings.json  # gerado pelo bootstrap
+  .agents/hooks.json     # hook Google Antigravity gerado/mesclado pelo bootstrap
 ```
 
 ---

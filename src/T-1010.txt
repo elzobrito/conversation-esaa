@@ -1,0 +1,6 @@
+ESAA Core Initial Implementation Baseline
+Task ID: T-1010
+Status: Implemented
+
+This file represents the initial implementation artifact verifying the basic setup of the Event Sourced Agent Architecture Core.
+It implements the baseline structures specified in docs/spec/T-1000.md.

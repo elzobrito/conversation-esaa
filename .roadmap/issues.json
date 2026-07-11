@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 232,
-    "updated_at": "2026-07-08T17:22:07Z"
+    "last_event_seq": 358,
+    "updated_at": "2026-07-11T22:15:40Z"
   },
   "issues": [
     {
@@ -162,6 +162,59 @@
       "timeline": {
         "created_event_seq": 77,
         "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "ISS-ANTIGRAVITY-DEDUP-001",
+      "status": "resolved",
+      "severity": "medium",
+      "title": "Identidade opcional vazia gerou seis duplicatas append-only no primeiro rollout",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "A segunda sincronização real adicionou seis respostas assistant duplicadas com novos event_id porque PowerShell converteu EventIdText nulo em string vazia. Correção aplicada no código: fallback para Text e dedupe das projeções pela identidade nativa, sem editar o event store.",
+        "repro_steps": [
+          "Comparar activity.jsonl por source=antigravity e agrupar por source_session_id, source_index e actor; steps 19,27,53,55,65,107 aparecem duas vezes."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command"
+      },
+      "links": {
+        "reported_by_task_id": "ANTIGRAVITY-IMPL-001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 239,
+        "resolved_event_seq": 242
+      }
+    },
+    {
+      "issue_id": "ISS-ANTIGRAVITY-HOOK-TIMEOUT-001",
+      "status": "resolved",
+      "severity": "high",
+      "title": "PostInvocation síncrono causa latência e timeout no Antigravity",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "O log real mostra execução do hook após cada invocação e uma chamada morta por timeout de 30 segundos às 18:29:35.",
+        "repro_steps": [
+          "Consultar ~/.gemini/antigravity-cli/log/cli-20260711_175933.log e localizar jsonhook__conversation-esaa_PostInvocation e command failed: signal: killed."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "ANTIGRAVITY-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "ANTIGRAVITY-IMPL-001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 252,
+        "resolved_event_seq": 268
       }
     }
   ],
