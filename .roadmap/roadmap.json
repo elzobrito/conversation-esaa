@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 358,
-      "projection_hash_sha256": "10cac7179bfe8cc46c0098f053bf3e60c304aaf65ba16e3c98ac113bd06a46cd",
+      "last_event_seq": 469,
+      "projection_hash_sha256": "953aff49f7c0b9ac3fa215b82d3736b1d39c3dbc1310c1a8cf6759336dacc16e",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-11T22:15:40Z"
+    "updated_at": "2026-07-20T18:39:38Z"
   },
   "project": {
     "name": "esaa-core",
@@ -962,16 +962,414 @@
         ]
       },
       "completed_at": "2026-07-11T21:41:10Z"
+    },
+    {
+      "task_id": "CONV-RAG-SPEC-001",
+      "task_kind": "spec",
+      "title": "ADR e contrato: rag-sqlite opcional no Conversation ESAA v1.2",
+      "description": "Formalizar o plano Codex de integração opt-in do rag-sqlite: ADR, contrato CLI (rag enable/status/refresh/disable/search), schema conversation-esaa.search.v1, privacidade, .gitignore e limites (Ollama local only, projeção descartável, fail-open no pipeline principal). Fonte: docs/plans/v1.2-optional-rag-sqlite.md",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "docs/plans/v1.2-optional-rag-sqlite.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/plans/v1.2-optional-rag-sqlite.md",
+          "docs/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/**",
+        "PRIVACY.md",
+        ".gitignore",
+        "AGENTS.md",
+        "RELEASE.md"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "ADR e contrato CLI documentados com schema search.v1 e estados RagNotReady/RagUnavailable/stale",
+        "PRIVACY e gitignore excluem .conversation-esaa/rag/ e artefatos reconstruíveis",
+        "Escopo v1.2: Ollama loopback only; SQLite é projeção descartável; verify sem rede"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-07-20T16:06:36Z",
+      "verification": {
+        "checks": [
+          "ADR-010 documents opt-in projection architecture",
+          "rag-cli-v1.2 and search.v1 schema present",
+          "PRIVACY and gitignore exclude .conversation-esaa/rag/"
+        ]
+      },
+      "completed_at": "2026-07-20T16:12:44Z"
+    },
+    {
+      "task_id": "CONV-RAG-ADAPTER-001",
+      "task_kind": "impl",
+      "title": "Adaptador PowerShell: config, exportador e conversation-esaa search",
+      "description": "Implementar adaptador PS e fachada em conversation-esaa.ps1: rag enable|status|refresh|disable|disable --purge; search com JSON conversation-esaa.search.v1; export determinístico por event_id em .conversation-esaa/rag/corpus; reidratação de metadados a partir de activity.jsonl; sem indexar handoff/state/decisions/topics separadamente.",
+      "status": "done",
+      "depends_on": [
+        "CONV-RAG-SPEC-001"
+      ],
+      "targets": [
+        "src/"
+      ],
+      "outputs": {
+        "files": [
+          "src/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "src/**",
+        "bin/**",
+        "*.ps1",
+        "tests/**",
+        "docs/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "rag enable localiza rag-sqlite e configura Ollama local; remote URL rejeitada",
+        "export idempotente: 2x mesmo store = mesmos arquivos e zero re-embed",
+        "search devolve conversation-esaa.search.v1 com hits dedupe event_id e untrusted",
+        "sem geração válida: RagNotReady/RagUnavailable sem fallback textual silencioso"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-20T16:12:45Z",
+      "verification": {
+        "checks": [
+          "rag enable/status/refresh/disable/search implemented",
+          "export one md per event_id; second export exported=0",
+          "remote Ollama URL rejected; search schema v1 with untrusted hits"
+        ]
+      },
+      "completed_at": "2026-07-20T16:12:46Z"
+    },
+    {
+      "task_id": "CONV-RAG-WORKER-001",
+      "task_kind": "impl",
+      "title": "Worker assíncrono: dirty marker, lock, debounce e refresh",
+      "description": "Após project+verify bem-sucedidos, gravar dirty marker e agendar worker one-shot (debounce 10s, lock próprio). Worker exporta faltantes, reconcilia exclusões, rag-sqlite index --sync --prune, reprocessa se dirty avançou. Falhas preservam índice anterior e dirty; hooks não embutem embeddings nem bloqueiam >1s.",
+      "status": "done",
+      "depends_on": [
+        "CONV-RAG-ADAPTER-001"
+      ],
+      "targets": [
+        "src/"
+      ],
+      "outputs": {
+        "files": [
+          "src/"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "src/**",
+        "bin/**",
+        "*.ps1",
+        "tests/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "dois syncs concorrentes = um worker efetivo; sem corpus parcial",
+        "falha Ollama mantém geração anterior + dirty; pipeline principal saudável",
+        "search defasado retorna stale:true com event_lag e indexed_at",
+        "agendamento no hook <=1s; embeddings fora do lock principal"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-20T16:12:46Z",
+      "verification": {
+        "checks": [
+          "Invoke-RagScheduleIfEnabled after sync/project/decide/task/topic fail-open",
+          "worker lock + debounce; refresh preserves dirty on failure",
+          "search returns RagNotReady/stale without usable generation"
+        ]
+      },
+      "completed_at": "2026-07-20T16:12:47Z"
+    },
+    {
+      "task_id": "CONV-RAG-QA-001",
+      "task_kind": "qa",
+      "title": "QA, piloto canônico, docs e release v1.2 opt-in",
+      "description": "Regressão Conversation ESAA + rag-sqlite; piloto enable só em /home/elzobrito/.conversation-esaa; smoke TOP-011, DEC-0035, CONV-003/TASK-014; docs de uso; release notes v1.2 opt-in; stores congelados não reativados.",
+      "status": "done",
+      "depends_on": [
+        "CONV-RAG-WORKER-001"
+      ],
+      "targets": [
+        "tests/"
+      ],
+      "outputs": {
+        "files": [
+          "tests/",
+          "docs/",
+          "RELEASE.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "tests/**",
+        "docs/**",
+        "RELEASE.md",
+        "README.md",
+        "PRIVACY.md"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "suíte conversation-esaa verde; esaa verify ok; rag desabilitado = comportamento idêntico",
+        "smoke piloto recupera TOP-011, DEC-0035 e CONV-003/TASK-014 no top",
+        "disable --purge remove só artefatos reconstruíveis; permissões 0700/0600 no Unix",
+        "RELEASE/README documentam opt-in v1.2 e dependências não instaladas automaticamente"
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-20T16:12:47Z",
+      "verification": {
+        "checks": [
+          "test-rag-adapter.ps1 ALL PASSED",
+          "RELEASE and README document opt-in v1.2",
+          "scripts deployed to /home/elzobrito/.conversation-esaa/bin"
+        ]
+      },
+      "completed_at": "2026-07-20T16:12:48Z"
+    },
+    {
+      "task_id": "CONV-RAG-EXEC-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Propagar falhas e validar o protocolo do rag-sqlite",
+      "description": "Corrigir o adaptador em conv-rag.ps1 para preservar exit_code, stdout e stderr do processo externo; interpretar somente stdout JSON válido; aceitar sucesso com exit 0 e, apenas para index vazio, exit 2 acompanhado de rag_sqlite.index.v1, ok=true e totals.files=0. Saída vazia ou inválida deve virar RagProtocolError; exit não permitido ou payload ok=false deve virar RagCommandFailed. Enable só publica configuração após todos os comandos config terem sucesso. Refresh malsucedido preserva geração, activity_lines e dirty marker. CLI explícita retorna exit 1 em falha; search mantém erros tipados e exit 2; worker pode falhar sem bloquear sync/project/hooks. Atualizar contrato e schema de erro sem expor stdout/stderr integralmente.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "docs/contracts/rag-cli-v1.2.md",
+        "docs/contracts/conversation-esaa.search.v1.schema.json",
+        "tests/test-rag-command-contract.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-rag.ps1",
+          "docs/contracts/rag-cli-v1.2.md",
+          "docs/contracts/conversation-esaa.search.v1.schema.json",
+          "tests/test-rag-command-contract.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "docs/contracts/rag-cli-v1.2.md",
+        "docs/contracts/conversation-esaa.search.v1.schema.json",
+        "tests/test-rag-command-contract.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Nenhuma falha, saída vazia ou JSON inválido do rag-sqlite produz ok=true.",
+        "Exit 2 só é aceito como sucesso para index vazio com payload válido e files=0.",
+        "Falha de refresh preserva geração anterior, activity_lines e dirty marker; enable parcial não substitui configuração válida.",
+        "Enable e refresh explícitos retornam erro tipado e exit 1; search indisponível retorna erro tipado e exit 2.",
+        "Falha do RAG continua fail-open para sync, project e hooks."
+      ],
+      "required_review_mode": "functional",
+      "required_verification": [
+        "Executar tests/test-rag-command-contract.ps1 com stub temporário para exit 0, 1, 2 e 9.",
+        "Cobrir JSON válido, payload ok=false, stdout vazio ou inválido e stderr separado.",
+        "Confirmar que exit 2 válido com zero arquivos é sucesso e qualquer outro exit 2 é falha.",
+        "Confirmar dirty marker, geração anterior e activity_lines preservados após falha.",
+        "Confirmar os exit codes públicos e que o pipeline conversacional permanece fail-open."
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-20T18:24:52Z",
+      "verification": {
+        "checks": [
+          "tests/test-rag-command-contract.ps1: ALL PASSED (exit 0, stubs exit 0/1/2/9, protocol, dirty/generation preserve, public exits, worker fail-open)",
+          "Invoke-RagSqlite uses ProcessStartInfo.ArgumentList + separate stdout/stderr; exit2 empty index only; enable atomic config publish"
+        ]
+      },
+      "completed_at": "2026-07-20T18:33:35Z"
+    },
+    {
+      "task_id": "CONV-RAG-BOOTSTRAP-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Instalar o adaptador RAG pelo bootstrap",
+      "description": "Adicionar conv-rag.ps1 à lista de engines copiados por conv-bootstrap.ps1. Mesclar de forma idempotente as entradas privadas do .gitignore, incluindo .conversation-esaa/rag/, preservando conteúdo, ordem e sentinelas existentes e sem duplicar padrões. O bootstrap não pode habilitar RAG, criar índice ou chamar Ollama. Corrigir test-rag-adapter.ps1 para executar exclusivamente conversation-esaa.ps1 e conv-rag.ps1 copiados para o workspace temporário, nunca os caminhos do repositório-fonte.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "tests/test-rag-adapter.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          "tests/test-rag-adapter.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "tests/test-rag-adapter.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Bootstrap limpo instala conv-rag.ps1 com hash igual ao arquivo-fonte.",
+        "Search pelo CLI instalado retorna RagUnavailable e exit 2 enquanto o RAG está desabilitado.",
+        "Quando as dependências estão disponíveis, enable, refresh e search funcionam pelo CLI instalado.",
+        "Rerun do bootstrap preserva event store e conteúdo personalizado do .gitignore e mantém uma única entrada .conversation-esaa/rag/.",
+        "Bootstrap não habilita RAG nem acessa Ollama."
+      ],
+      "required_review_mode": "regression",
+      "required_verification": [
+        "Executar bootstrap em diretório temporário limpo e validar presença e hash de conv-rag.ps1.",
+        "Executar o bootstrap sobre .gitignore com sentinela personalizada e confirmar preservação e idempotência.",
+        "Executar search desabilitado pelo CLI instalado e validar RagUnavailable com exit 2.",
+        "Executar tests/test-rag-adapter.ps1 usando somente o runtime instalado no workspace temporário.",
+        "Confirmar que bootstrap não criou config.json, index.sqlite ou conexão Ollama."
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-20T18:24:53Z",
+      "verification": {
+        "checks": [
+          "tests/test-rag-adapter.ps1: ALL PASSED — bootstrap installs conv-rag.ps1 hash match, gitignore idempotent+sentinel, search disabled RagUnavailable exit 2, happy path via installed CLI only",
+          "bootstrap does not create config.json/index.sqlite; no Ollama; engines include conv-rag.ps1"
+        ]
+      },
+      "completed_at": "2026-07-20T18:33:35Z"
+    },
+    {
+      "task_id": "CONV-RAG-PERMISSIONS-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Aplicar permissões privadas a toda a projeção RAG",
+      "description": "Implementar endurecimento recursivo Unix no adaptador: diretórios 0700 e arquivos regulares 0600, sem seguir symlinks. Cobrir config, state, manifest, corpus, dirty marker, worker lock, logs, index.sqlite, index.sqlite-wal e index.sqlite-shm. Aplicar imediatamente após criar lock ou redirecionamentos e no finally das chamadas ao motor, refresh e worker. Validar o exit code de chmod; falha explícita deve produzir PermissionHardeningFailed, preservar dirty e nunca ser registrada como refresh bem-sucedido. No worker, a falha permanece fail-open para o pipeline conversacional. Não alterar o comportamento Windows.",
+      "status": "done",
+      "depends_on": [
+        "CONV-RAG-EXEC-HOTFIX-001"
+      ],
+      "targets": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "tests/test-rag-permissions.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-rag.ps1",
+          "tests/test-rag-permissions.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "tests/test-rag-permissions.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Após enable, refresh ou worker, todos os diretórios RAG Unix têm modo 0700 e todos os arquivos regulares têm modo 0600.",
+        "DB, WAL, SHM, locks e logs são abrangidos pelo endurecimento.",
+        "Falha de chmod produz PermissionHardeningFailed, mantém dirty e não resulta em ok=true.",
+        "Symlinks não são seguidos e o comportamento Windows permanece inalterado.",
+        "Falha do endurecimento no worker não bloqueia o pipeline conversacional."
+      ],
+      "required_review_mode": "security",
+      "required_verification": [
+        "Executar tests/test-rag-permissions.ps1 em workspace temporário Unix.",
+        "Criar deliberadamente DB, WAL, SHM, lock e logs permissivos, executar refresh e validar todos os modos com stat.",
+        "Simular falha de chmod e confirmar PermissionHardeningFailed, dirty preservado e ausência de falso sucesso.",
+        "Confirmar que symlinks não são seguidos.",
+        "Confirmar que sync e project permanecem saudáveis quando somente o endurecimento RAG falha."
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-20T18:33:43Z",
+      "verification": {
+        "checks": [
+          "tests/test-rag-permissions.ps1: ALL PASSED — dirs 0700 files 0600, symlink not followed, chmod fail PermissionHardeningFailed preserves dirty, worker fail-open exit 0",
+          "Protect-RagProjection recursive no-follow; chmod exit validated; applied after engine/refresh/worker/lock"
+        ]
+      },
+      "completed_at": "2026-07-20T18:37:15Z"
+    },
+    {
+      "task_id": "CONV-RAG-QA-002",
+      "task_kind": "qa",
+      "title": "Regressão integrada dos hotfixes RAG",
+      "description": "Validar em conjunto os hotfixes de execução, bootstrap e permissões sem implementar correções adicionais. Executar os testes específicos, happy path real com rag-sqlite, Ollama embeddinggemma e sqlite-vec, bateria legada, verificações de contrato e governança. Testes não podem modificar arquivos versionados nem deixar workers temporários. Finding novo deve ser reportado e a QA deve solicitar mudanças, não corrigir silenciosamente.",
+      "status": "done",
+      "depends_on": [
+        "CONV-RAG-BOOTSTRAP-HOTFIX-001",
+        "CONV-RAG-PERMISSIONS-HOTFIX-001"
+      ],
+      "targets": [
+        "tests/",
+        ".conversation-esaa/bin/conv-test.ps1",
+        ".conversation-esaa/bin/conv-test-battery.ps1",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Testes de contrato, permissões e adaptador passam integralmente.",
+        "conv-test-battery.ps1 -SkipLab -SkipEsaa mantém no mínimo o baseline de 77 passed e 0 failed.",
+        "Bootstrap limpo usa exclusivamente o runtime copiado.",
+        "Happy path real confirma rag-sqlite ready, embeddinggemma, sqlite-vec e busca funcional.",
+        "git diff --check, equivalência AGENTS.md/CLAUDE.md e esaa verify passam.",
+        "A execução dos testes não cria alterações versionadas nem deixa workers temporários."
+      ],
+      "required_review_mode": "regression",
+      "required_verification": [
+        "Executar tests/test-rag-command-contract.ps1.",
+        "Executar tests/test-rag-permissions.ps1.",
+        "Executar tests/test-rag-adapter.ps1.",
+        "Executar .conversation-esaa/bin/conv-test-battery.ps1 -SkipLab -SkipEsaa e exigir pelo menos 77 passed, 0 failed.",
+        "Executar rag-sqlite health e uma busca real com Ollama embeddinggemma e sqlite-vec.",
+        "Executar git diff --check, diff AGENTS.md .claude/CLAUDE.md e esaa --root . verify.",
+        "Comparar git status antes e depois dos testes e confirmar ausência de novas alterações versionadas."
+      ],
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-20T18:37:21Z",
+      "verification": {
+        "checks": [
+          "test-rag-command-contract.ps1 ALL PASSED exit 0",
+          "test-rag-permissions.ps1 ALL PASSED exit 0",
+          "test-rag-adapter.ps1 ALL PASSED exit 0 (installed runtime only)",
+          "conv-test-battery.ps1 -SkipLab -SkipEsaa: 77 passed, 0 failed",
+          "real happy path: rag enable, health ok provider_ok model embeddinggemma sqlite-vec available, refresh ok generation 1, search hit_count=1 backend=sqlite-vec",
+          "git diff --check clean; AGENTS.md == .claude/CLAUDE.md; esaa verify ok last_event_seq=463",
+          "git status before/after identical; no leftover rag workers; no .conversation-esaa/rag in product repo"
+        ]
+      },
+      "completed_at": "2026-07-20T18:39:38Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 27
+      "done": 35
     },
     "by_kind": {
-      "impl": 24,
-      "qa": 1,
-      "spec": 2
+      "impl": 29,
+      "qa": 3,
+      "spec": 3
     }
   }
 }

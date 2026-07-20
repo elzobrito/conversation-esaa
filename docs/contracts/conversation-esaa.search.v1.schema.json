@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conversation-esaa.local/schemas/conversation-esaa.search.v1.schema.json",
+  "title": "conversation-esaa.search.v1",
+  "type": "object",
+  "required": ["schema_version", "ok", "query", "workspace", "hits"],
+  "properties": {
+    "schema_version": { "const": "conversation-esaa.search.v1" },
+    "ok": { "type": "boolean" },
+    "query": { "type": "string" },
+    "workspace": { "type": "string" },
+    "provider": { "type": ["string", "null"] },
+    "model": { "type": ["string", "null"] },
+    "backend": { "type": ["string", "null"] },
+    "stale": { "type": "boolean" },
+    "event_lag": { "type": "integer", "minimum": 0 },
+    "pending_events": { "type": "integer", "minimum": 0 },
+    "indexed_at": { "type": ["string", "null"] },
+    "active_generation_id": { "type": ["integer", "null"] },
+    "hit_count": { "type": "integer", "minimum": 0 },
+    "content_untrusted": { "const": true },
+    "hits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event_id", "score", "snippet", "content_untrusted"],
+        "properties": {
+          "event_id": { "type": "string" },
+          "ts": { "type": ["string", "null"] },
+          "event": { "type": ["string", "null"] },
+          "actor": { "type": ["string", "null"] },
+          "agent_id": { "type": ["string", "null"] },
+          "source": { "type": ["string", "null"] },
+          "score": { "type": "number" },
+          "snippet": { "type": "string" },
+          "content_untrusted": { "const": true }
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "required": ["type", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "RagUnavailable",
+            "RagNotReady",
+            "RagProtocolError",
+            "RagCommandFailed",
+            "WorkerBusy",
+            "PermissionHardeningFailed",
+            "AdapterError",
+            "RefreshFailed"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "description": "Mensagem curta. Não deve conter stdout/stderr integral do rag-sqlite."
+        }
+      }
+    }
+  }
+}

@@ -6,11 +6,12 @@ Quando você troca de agente ou a janela de contexto acaba, o próximo assistent
 
 | | |
 |---|---|
-| **Versão** | v1.1.0 |
-| **Plataforma** | Windows + PowerShell 7 (`pwsh`) |
+| **Versão** | v1.2.0 (RAG opt-in) |
+| **Plataforma** | Windows + PowerShell 7 (`pwsh`); Linux com `pwsh` |
 | **Licença** | MIT |
 | **Privacidade** | [PRIVACY.md](PRIVACY.md) — leia antes de versionar |
 | **Agentes** | [AGENTS.md](AGENTS.md) — contrato operacional (idêntico a `.claude/CLAUDE.md`) |
+| **RAG opcional** | [ADR-010](docs/architecture/adr-010-optional-rag-sqlite.md) + motor externo [rag-sqlite](https://github.com/elzobrito/rag-sqlite) |
 
 ---
 
@@ -32,6 +33,20 @@ agente → hook/watcher → conversation-esaa sync
 | `handoff.md` / `state.md` | Resumo para agente frio |
 | `tasks.json` / `decisions.md` | Tarefas e decisões projetadas |
 | `conversation-esaa.ps1` | CLI pública |
+| `.conversation-esaa/rag/` (opt-in) | Projeção descartável (corpus + SQLite); nunca fonte canônica |
+
+### Busca semântica opcional (v1.2)
+
+```powershell
+# Pré-requisitos: rag-sqlite no PATH, Ollama local com embeddinggemma
+conversation-esaa rag enable --workspace $root
+conversation-esaa rag refresh --workspace $root   # 1ª indexação pode demorar
+conversation-esaa search "sua consulta" --workspace $root --top-k 5 --min-score 0.25
+conversation-esaa rag status --workspace $root --json
+```
+
+`sync` / `project` / `verify` / `context` continuam iguais se o RAG estiver
+desligado ou indisponível (`verify` não chama rede).
 
 ---
 

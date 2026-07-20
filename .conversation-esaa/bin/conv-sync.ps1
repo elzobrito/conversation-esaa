@@ -1926,6 +1926,23 @@ if (-not (Test-Path -LiteralPath $paths.Esaa)) {
     throw "Missing .conversation-esaa at $($paths.Esaa)"
 }
 
+function Invoke-RagScheduleIfEnabled {
+    param([string]$WorkspaceRoot)
+    # Fail-open: never break main pipeline. Schedules async RAG refresh if enabled.
+    try {
+        $ragCfg = Join-Path $WorkspaceRoot '.conversation-esaa/rag/config.json'
+        if (-not (Test-Path -LiteralPath $ragCfg)) { return }
+        $cfg = Get-Content -LiteralPath $ragCfg -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+        if (-not $cfg.enabled) { return }
+        $ragScript = Join-Path $PSScriptRoot 'conv-rag.ps1'
+        if (-not (Test-Path -LiteralPath $ragScript)) { return }
+        $null = & pwsh -NoProfile -ExecutionPolicy Bypass -File $ragScript `
+            -Action schedule -WorkspaceRoot $WorkspaceRoot 2>$null
+    } catch {
+        # ignore
+    }
+}
+
 switch ($Command) {
     'sync-grok' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
@@ -1936,6 +1953,7 @@ switch ($Command) {
             Invoke-Verify -Paths $paths
             Save-SyncState $state $paths.SyncState
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'sync-codex' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
@@ -1946,6 +1964,7 @@ switch ($Command) {
             Invoke-Verify -Paths $paths
             Save-SyncState $state $paths.SyncState
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'sync-claude' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
@@ -1956,6 +1975,7 @@ switch ($Command) {
             Invoke-Verify -Paths $paths
             Save-SyncState $state $paths.SyncState
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'sync-antigravity' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
@@ -1966,11 +1986,13 @@ switch ($Command) {
             Invoke-Verify -Paths $paths
             Save-SyncState $state $paths.SyncState
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'project' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
             Invoke-Project -Paths $paths
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'verify' {
         Invoke-Verify -Paths $paths
@@ -1984,6 +2006,7 @@ switch ($Command) {
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'task' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
@@ -1991,6 +2014,7 @@ switch ($Command) {
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
         }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
     'topic' {
         if ($TopicAction -in @('list', 'show')) {
@@ -2001,6 +2025,7 @@ switch ($Command) {
                 Invoke-Project -Paths $paths
                 Invoke-Verify -Paths $paths
             }
+            try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
         }
     }
 }

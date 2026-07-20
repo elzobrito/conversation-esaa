@@ -39,6 +39,14 @@ param(
     [string]$TopicTitle,
     [Alias('Summary')]
     [string]$TopicSummary,
+    [string]$CommandPath,
+    [string]$BaseUrl,
+    [string]$Model,
+    [int]$TimeoutSeconds = 0,
+    [int]$TopK = 0,
+    [double]$MinScore = -1,
+    [switch]$Force,
+    [switch]$Purge,
     [parameter(ValueFromRemainingArguments = $true)]
     [string[]]$Rest
 )
@@ -52,6 +60,7 @@ $convSync = Join-Path $binDir 'conv-sync.ps1'
 $convBootstrap = Join-Path $binDir 'conv-bootstrap.ps1'
 $codexWatch = Join-Path $binDir 'codex-watch.ps1'
 $antigravityHook = Join-Path $binDir 'antigravity-hook-sync.ps1'
+$convRag = Join-Path $binDir 'conv-rag.ps1'
 
 function Resolve-WorkspacePath {
     if ($Workspace) { return (Resolve-Path -LiteralPath $Workspace).Path }
@@ -93,7 +102,23 @@ Usage:
   conversation-esaa topics list --workspace <path>
   conversation-esaa topics show TOP-001 --workspace <path>
   conversation-esaa context --topic-id TOP-001 --workspace <path>
+  conversation-esaa rag enable|status|refresh|disable [--workspace <path>] [--command PATH] [--purge] [--force] [--json]
+  conversation-esaa search "<query>" [--workspace <path>] [--top-k N] [--min-score F] [--json]
 '@ | Write-Output
+}
+
+function Invoke-ConvRag {
+    param([string[]]$Extra = @())
+    if (-not (Test-Path -LiteralPath $convRag)) {
+        throw "RAG adapter not found: $convRag"
+    }
+    $ws = Resolve-WorkspacePath
+    $args = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convRag,
+        '-WorkspaceRoot', $ws
+    ) + $Extra
+    & pwsh @args
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 $sub = if ($Rest -and $Rest.Count -ge 1) { $Rest[0] } else { $null }
@@ -328,6 +353,55 @@ switch ($Command) {
             default { throw "Unknown topics action: $sub" }
         }
         Invoke-ConvSyncCli -SyncCommand 'topic' -Extra $extra
+    }
+    'rag' {
+        if (-not $sub) { throw 'rag requires enable|status|refresh|disable' }
+        $extra = @('-Action', $sub)
+        if ($CommandPath) { $extra += '-CommandPath', $CommandPath }
+        if ($BaseUrl) { $extra += '-BaseUrl', $BaseUrl }
+        if ($Model) { $extra += '-Model', $Model }
+        if ($TimeoutSeconds -gt 0) { $extra += '-TimeoutSeconds', "$TimeoutSeconds" }
+        if ($Force) { $extra += '-Force' }
+        if ($Purge) { $extra += '-Purge' }
+        if ($Json) { $extra += '-Json' }
+        # parse remaining flags from Rest after sub
+        if ($Rest -and $Rest.Count -ge 2) {
+            for ($i = 1; $i -lt $Rest.Count; $i++) {
+                switch -Regex ($Rest[$i]) {
+                    '^--command$' { if ($i + 1 -lt $Rest.Count) { $extra += '-CommandPath', $Rest[++$i] } }
+                    '^--base-url$' { if ($i + 1 -lt $Rest.Count) { $extra += '-BaseUrl', $Rest[++$i] } }
+                    '^--model$' { if ($i + 1 -lt $Rest.Count) { $extra += '-Model', $Rest[++$i] } }
+                    '^--timeout$' { if ($i + 1 -lt $Rest.Count) { $extra += '-TimeoutSeconds', $Rest[++$i] } }
+                    '^--force$' { $extra += '-Force' }
+                    '^--purge$' { $extra += '-Purge' }
+                    '^--json$' { $extra += '-Json' }
+                }
+            }
+        }
+        Invoke-ConvRag -Extra $extra
+    }
+    'search' {
+        $q = if ($Rest -and $Rest.Count -ge 1) { ($Rest -join ' ').Trim() } else { $Title }
+        # strip flags from free text if present
+        if ([string]::IsNullOrWhiteSpace($q)) { throw 'search requires query text' }
+        # clean leading flags-only junk
+        $parts = @($q -split '\s+')
+        $queryParts = [System.Collections.Generic.List[string]]::new()
+        $tk = if ($TopK -gt 0) { $TopK } else { 5 }
+        $ms = if ($MinScore -ge 0) { $MinScore } else { 0.25 }
+        for ($i = 0; $i -lt $parts.Count; $i++) {
+            switch -Regex ($parts[$i]) {
+                '^--top-k$' { if ($i + 1 -lt $parts.Count) { $tk = [int]$parts[++$i] }; continue }
+                '^--min-score$' { if ($i + 1 -lt $parts.Count) { $ms = [double]$parts[++$i] }; continue }
+                '^--json$' { continue }
+                '^--workspace$' { $i++; continue }
+                default { $queryParts.Add($parts[$i]) }
+            }
+        }
+        $q2 = ($queryParts -join ' ').Trim()
+        if ([string]::IsNullOrWhiteSpace($q2)) { throw 'search requires query text' }
+        $extra = @('-Action', 'search', '-Query', $q2, '-TopK', "$tk", '-MinScore', "$ms", '-Json')
+        Invoke-ConvRag -Extra $extra
     }
     default { throw "Unknown command: $Command" }
 }
