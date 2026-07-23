@@ -1,0 +1,52 @@
+name: installer-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Verify PowerShell
+        shell: pwsh
+        run: |
+          if ($PSVersionTable.PSVersion.Major -lt 7) {
+            throw 'PowerShell 7+ is required'
+          }
+      - run: npm ci
+      - run: npm test
+        env:
+          CONVERSATION_ESAA_SKIP_NETWORK: "1"
+      - name: Bootstrap contract
+        shell: pwsh
+        run: ./tests/test-installer-bootstrap.ps1
+      - name: Legacy and RAG regression suites
+        if: matrix.node == 22
+        shell: pwsh
+        run: |
+          ./.conversation-esaa/bin/conv-test.ps1
+          ./tests/test-rag-adapter.ps1
+          ./tests/test-rag-command-contract.ps1
+          ./tests/test-rag-permissions.ps1
+      - name: Contract parity
+        shell: pwsh
+        run: |
+          $left = Get-Content AGENTS.md -Raw
+          $right = Get-Content .claude/CLAUDE.md -Raw
+          if ($left -cne $right) { throw 'AGENTS.md and CLAUDE.md differ' }
