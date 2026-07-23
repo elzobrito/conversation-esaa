@@ -1,0 +1,13 @@
+{
+  "after_sha256": "d75fbada5d896985bf10350ca66b2ba3e4ebcfc08a8c85fe647d3ea3467067c0",
+  "artifact_id": "ART-d75fbada5d896985bf10350ca66b2ba3e4ebcfc08a8c85fe647d3ea3467067c0",
+  "artifact_sha256": "64718771299ed734f88e09e451ee30ff18ff93f567bf65846803934e13e75934",
+  "before_sha256": null,
+  "bytes": 876,
+  "content": "import { createHash } from \"node:crypto\";\nimport { mkdir, readFile, rename, writeFile } from \"node:fs/promises\";\nimport path from \"node:path\";\n\nexport async function sha256(file) {\n  const content = await readFile(file);\n  return createHash(\"sha256\").update(content).digest(\"hex\");\n}\n\nexport async function writeJsonAtomic(file, value) {\n  await mkdir(path.dirname(file), { recursive: true });\n  const temporary = `${file}.${process.pid}.tmp`;\n  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\\n`, {\n    encoding: \"utf8\",\n    mode: 0o600,\n  });\n  await rename(temporary, file);\n}\n\nexport function workspaceRelative(workspace, file) {\n  const relative = path.relative(workspace, file).split(path.sep).join(\"/\");\n  if (!relative || relative === \"..\" || relative.startsWith(\"../\")) {\n    throw new Error(`path escapes workspace: ${file}`);\n  }\n  return relative;\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/installer/files.js",
+  "source_path": "src/installer/files.js",
+  "ts": "2026-07-23T19:31:58Z"
+}

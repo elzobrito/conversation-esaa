@@ -1,0 +1,13 @@
+{
+  "after_sha256": "2feb86c2720b6911234aee4dac0e1303312f6639ee0b5ec27da6ca6ec1b0589d",
+  "artifact_id": "ART-2feb86c2720b6911234aee4dac0e1303312f6639ee0b5ec27da6ca6ec1b0589d",
+  "artifact_sha256": "12e04b009f2be1f495db6252a30da1ccbd1e5a01bddfba1def054dd5cdc5ad6f",
+  "before_sha256": null,
+  "bytes": 1359,
+  "content": "name: installer-ci\n\non:\n  pull_request:\n  push:\n    branches: [main]\n    tags: [\"v*\"]\n\npermissions:\n  contents: read\n\njobs:\n  installer:\n    strategy:\n      fail-fast: false\n      matrix:\n        os: [ubuntu-latest, windows-latest]\n        node: [20, 22]\n    runs-on: ${{ matrix.os }}\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: ${{ matrix.node }}\n          cache: npm\n      - name: Verify PowerShell\n        shell: pwsh\n        run: |\n          if ($PSVersionTable.PSVersion.Major -lt 7) {\n            throw 'PowerShell 7+ is required'\n          }\n      - run: npm ci\n      - run: npm test\n        env:\n          CONVERSATION_ESAA_SKIP_NETWORK: \"1\"\n      - name: Bootstrap contract\n        shell: pwsh\n        run: ./tests/test-installer-bootstrap.ps1\n      - name: Legacy and RAG regression suites\n        if: matrix.node == 22\n        shell: pwsh\n        run: |\n          ./.conversation-esaa/bin/conv-test.ps1\n          ./tests/test-rag-adapter.ps1\n          ./tests/test-rag-command-contract.ps1\n          ./tests/test-rag-permissions.ps1\n      - name: Contract parity\n        shell: pwsh\n        run: |\n          $left = Get-Content AGENTS.md -Raw\n          $right = Get-Content .claude/CLAUDE.md -Raw\n          if ($left -cne $right) { throw 'AGENTS.md and CLAUDE.md differ' }\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".github/workflows/installer-ci.yml",
+  "source_path": ".github/workflows/installer-ci.yml",
+  "ts": "2026-07-23T19:48:34Z"
+}

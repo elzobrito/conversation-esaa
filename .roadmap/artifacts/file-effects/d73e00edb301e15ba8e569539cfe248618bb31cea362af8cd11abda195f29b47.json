@@ -1,0 +1,13 @@
+{
+  "after_sha256": "f6f32e4a23976f123a2e46bf6a044c366b3ae1f831846377fa24a72421f0472f",
+  "artifact_id": "ART-f6f32e4a23976f123a2e46bf6a044c366b3ae1f831846377fa24a72421f0472f",
+  "artifact_sha256": "d73e00edb301e15ba8e569539cfe248618bb31cea362af8cd11abda195f29b47",
+  "before_sha256": null,
+  "bytes": 704,
+  "content": "import { createInterface } from \"node:readline/promises\";\n\nexport async function promptAgents(\n  supported,\n  { input = process.stdin, output = process.stdout } = {},\n) {\n  const readline = createInterface({ input, output });\n  try {\n    const answer = await readline.question(\n      `Agents (${supported.join(\", \")}) [all]: `,\n    );\n    const values = answer.trim()\n      ? answer.split(\",\").map((value) => value.trim().toLowerCase())\n      : supported;\n    const invalid = values.filter((value) => !supported.includes(value));\n    if (invalid.length) {\n      throw new Error(`unsupported agent: ${invalid.join(\", \")}`);\n    }\n    return [...new Set(values)];\n  } finally {\n    readline.close();\n  }\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/installer/prompts.js",
+  "source_path": "src/installer/prompts.js",
+  "ts": "2026-07-23T19:31:58Z"
+}

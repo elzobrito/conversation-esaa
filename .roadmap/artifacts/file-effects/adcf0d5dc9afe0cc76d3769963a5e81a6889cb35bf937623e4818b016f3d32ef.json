@@ -1,0 +1,13 @@
+{
+  "after_sha256": "14b1d1ff5a70078d2ee7ad2503c057fcb53f164ac97020599016d16362684060",
+  "artifact_id": "ART-14b1d1ff5a70078d2ee7ad2503c057fcb53f164ac97020599016d16362684060",
+  "artifact_sha256": "adcf0d5dc9afe0cc76d3769963a5e81a6889cb35bf937623e4818b016f3d32ef",
+  "before_sha256": null,
+  "bytes": 780,
+  "content": "import assert from \"node:assert/strict\";\nimport test from \"node:test\";\nimport { parseArgs } from \"../../src/installer/args.js\";\n\ntest(\"parses workspace, agents, and machine modes\", () => {\n  const value = parseArgs(\n    [\n      \"install\",\n      \"--workspace\",\n      \"./project\",\n      \"--agent\",\n      \"codex\",\n      \"--agents\",\n      \"grok,claude\",\n      \"--json\",\n      \"--dry-run\",\n      \"--non-interactive\",\n    ],\n    \"/tmp\",\n  );\n  assert.equal(value.workspace, \"/tmp/project\");\n  assert.deepEqual(value.agents, [\"codex\", \"grok\", \"claude\"]);\n  assert.equal(value.json, true);\n  assert.equal(value.dryRun, true);\n});\n\ntest(\"rejects unsupported agents\", () => {\n  assert.throws(\n    () => parseArgs([\"install\", \"--agents\", \"codex,unknown\"]),\n    /unsupported agent/,\n  );\n});\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/installer/args.test.js",
+  "source_path": "tests/installer/args.test.js",
+  "ts": "2026-07-23T19:31:58Z"
+}
