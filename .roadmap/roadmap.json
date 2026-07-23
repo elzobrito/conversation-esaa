@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 469,
-      "projection_hash_sha256": "953aff49f7c0b9ac3fa215b82d3736b1d39c3dbc1310c1a8cf6759336dacc16e",
+      "last_event_seq": 603,
+      "projection_hash_sha256": "5e68e15e58ff4e3e5feebe0b480bb0ad1033f37839dac3d85ed474ea9d204d4f",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-20T18:39:38Z"
+    "updated_at": "2026-07-23T19:50:13Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1360,16 +1360,522 @@
         ]
       },
       "completed_at": "2026-07-20T18:39:38Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-SPEC-001",
+      "task_kind": "spec",
+      "title": "Specify Conversation ESAA installer v1.3",
+      "description": "Define the decision-complete architecture and public contract for conversation-esaa@1.3.0. The npm/npx installer is the primary UX, conv-bootstrap.ps1 remains the no-Node fallback, and ESAA-Core is out of scope. Cover interactive and non-interactive installation, four current agents, optional RAG, Codex watcher services, ownership manifests, update/repair/uninstall safety, JSON output, dry-run, privacy, and partial failures.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "docs/architecture/**",
+        "docs/contracts/**"
+      ],
+      "outputs": {
+        "files": [
+          "docs/architecture/adr-011-installer.md",
+          "docs/contracts/installer-cli-v1.3.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "The contract defines install, status, doctor, update, repair, and uninstall including flags and exit semantics.",
+        "The contract preserves activity.jsonl, projections, and RAG data during uninstall and upgrades.",
+        "The design is consistent with ADR-010, PRIVACY.md, and AGENTS.md."
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-07-23T19:24:52Z",
+      "verification": {
+        "checks": [
+          "ADR and CLI contract cover install, status, doctor, update, repair, and uninstall.",
+          "Design cross-checked against ADR-010, PRIVACY.md, and AGENTS.md."
+        ]
+      },
+      "completed_at": "2026-07-23T19:25:43Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-BOOTSTRAP-001",
+      "task_kind": "impl",
+      "title": "Make conv-bootstrap a selective installation engine",
+      "description": "Extend conv-bootstrap.ps1 as the low-level effect engine for the npm installer while preserving its current no-Node fallback. Add selected-agent, JSON, and dry-run inputs. Preserve all private Conversation ESAA state and fail closed on invalid existing agent configuration.",
+      "status": "done",
+      "depends_on": [
+        "CONV-INSTALL-SPEC-001"
+      ],
+      "targets": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "tests/**",
+        ".gitignore"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          "tests/test-installer-bootstrap.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        ".gitignore"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Only selected agents are configured and repeated installation is idempotent.",
+        "No activity log, projection, sync state, or RAG data is overwritten.",
+        "Legacy invocation without agent-selection arguments remains supported."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:28:41Z",
+      "verification": {
+        "checks": [
+          "PowerShell bootstrap integration test passed for selection, idempotency, private-state preservation, and dry-run."
+        ]
+      },
+      "completed_at": "2026-07-23T19:28:42Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-NPX-001",
+      "task_kind": "impl",
+      "title": "Build conversation-esaa npm installer core",
+      "description": "Create the conversation-esaa@1.3.0 Node CLI under src with npm package metadata. Implement environment detection, interactive prompts, cwd/--workspace targeting, selected-agent input, non-interactive validation, JSON output, dry-run, install state, file ownership, and SHA-256 manifest. Invoke PowerShell through argument arrays without shell interpolation.",
+      "status": "done",
+      "depends_on": [
+        "CONV-INSTALL-BOOTSTRAP-001"
+      ],
+      "targets": [
+        "src/**",
+        "tests/**",
+        "package.json",
+        "package-lock.json"
+      ],
+      "outputs": {
+        "files": [
+          "src/installer/**",
+          "src/cli.js",
+          "package.json",
+          "package-lock.json",
+          "tests/installer/**"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "package.json",
+        "package-lock.json"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "npx conversation-esaa install supports interactive, non-interactive, --json, and --dry-run paths.",
+        "The package records owned versus merged files and never captures private conversation data.",
+        "npm pack installs and runs from a clean temporary workspace."
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:29:06Z",
+      "verification": {
+        "checks": [
+          "Node installer suite passed: 4 tests.",
+          "npm pack installed and executed from a clean temporary workspace; Conversation ESAA verify returned ok."
+        ]
+      },
+      "completed_at": "2026-07-23T19:31:59Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-AGENTS-001",
+      "task_kind": "impl",
+      "title": "Implement Grok Claude Codex and Antigravity installer adapters",
+      "description": "Implement adapter detection and safe configuration for Grok, Claude Code, Codex, and Antigravity. Grok trust changes and Codex persistent services require confirmation. Claude and Antigravity configs are structurally merged. Codex uses the real absolute pwsh path and supports manual watcher, Linux systemd user, or Windows Scheduled Task.",
+      "status": "done",
+      "depends_on": [
+        "CONV-INSTALL-NPX-001"
+      ],
+      "targets": [
+        "src/**",
+        "tests/**"
+      ],
+      "outputs": {
+        "files": [
+          "src/installer/adapters/**",
+          "tests/installer/adapters/**"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Existing unrelated hooks and configuration survive install, repair, update, and uninstall.",
+        "Invalid JSON fails closed without overwriting files.",
+        "Persistent watcher activation is never performed without explicit confirmation."
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:32:24Z",
+      "verification": {
+        "checks": [
+          "Agent adapter suite and existing installer tests passed: 7 tests.",
+          "Invalid JSON fail-closed and unrelated Claude/Antigravity settings remained intact."
+        ]
+      },
+      "completed_at": "2026-07-23T19:34:20Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-RAG-001",
+      "task_kind": "impl",
+      "title": "Add assisted existing and managed rag-sqlite setup",
+      "description": "Implement RAG modes off, existing, and managed. External fail-closed prerequisite: public elzobrito/rag-sqlite v0.1.0 release with ZIP and SHA256SUMS. Existing mode validates the resolved command with schema query. Managed mode downloads only the pinned release over HTTPS, verifies SHA-256, extracts safely into the per-user data directory, and records version/checksum. Ollama is never installed silently; pulling embeddinggemma requires confirmation. RAG enables only after schema and health succeed.",
+      "status": "done",
+      "depends_on": [
+        "CONV-INSTALL-NPX-001"
+      ],
+      "targets": [
+        "src/**",
+        "tests/**"
+      ],
+      "outputs": {
+        "files": [
+          "src/installer/rag/**",
+          "tests/installer/rag/**"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Checksum mismatch, unsafe archive entry, missing Python, and invalid schema are rejected.",
+        "Optional RAG failure leaves the core installation intact, RAG disabled, and doctor guidance available.",
+        "Existing rag-sqlite and Ollama installations are reused without replacement."
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:34:47Z",
+      "verification": {
+        "checks": [
+          "Combined installer, adapter, and RAG tests passed: 11 tests.",
+          "Pinned release checksum matches the independently published rag-sqlite v0.1.0 asset."
+        ]
+      },
+      "completed_at": "2026-07-23T19:36:24Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-LIFECYCLE-001",
+      "task_kind": "impl",
+      "title": "Implement installer status doctor update repair and uninstall",
+      "description": "Implement lifecycle commands using the install state and ownership manifest. Classify managed files as intact, modified, or missing. Update must preserve user modifications. Repair must not overwrite modified files without confirmation. Uninstall removes only managed runtime, hooks, and services, and always preserves Conversation ESAA history, projections, sync state, and RAG data.",
+      "status": "done",
+      "depends_on": [
+        "CONV-INSTALL-AGENTS-001",
+        "CONV-INSTALL-RAG-001"
+      ],
+      "targets": [
+        "src/**",
+        "tests/**"
+      ],
+      "outputs": {
+        "files": [
+          "src/installer/lifecycle/**",
+          "tests/installer/lifecycle/**"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "doctor validates PowerShell, hooks, watcher, install manifest, conversation-esaa verify, and optional RAG.",
+        "Update and repair are idempotent and preserve customized files.",
+        "Uninstall preserves all private and canonical conversation data."
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:36:49Z",
+      "verification": {
+        "checks": [
+          "Complete Node installer suite passed: 15 tests.",
+          "Lifecycle tests verify modified-file preservation and private activity survival after uninstall."
+        ]
+      },
+      "completed_at": "2026-07-23T19:38:34Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-QA-001",
+      "task_kind": "qa",
+      "title": "Validate Conversation ESAA installer end to end",
+      "description": "Independently validate the npm tarball on Ubuntu and Windows with Node 20/22 and PowerShell 7. Cover each agent alone, all agents, existing hooks, paths with spaces and Unicode, reinstall, dry-run, JSON, update, repair, uninstall with history, RAG existing/managed, Codex service generation, archive safety, and command injection resistance.",
+      "status": "review",
+      "depends_on": [
+        "CONV-INSTALL-LIFECYCLE-001"
+      ],
+      "targets": [
+        "tests/**",
+        "docs/qa/**",
+        ".github/workflows/**"
+      ],
+      "outputs": {
+        "files": [
+          "tests/installer/e2e/**",
+          "docs/qa/CONV-INSTALL-QA-001.md",
+          ".github/workflows/installer-ci.yml"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".github/workflows/**"
+      ],
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "The tarball passes clean install and doctor on Ubuntu and Windows.",
+        "Existing Conversation ESAA test batteries and RAG contract tests remain green.",
+        "diff AGENTS.md .claude/CLAUDE.md is empty and esaa verify is ok."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-23T19:39:15Z",
+      "verification": {
+        "checks": [
+          "npm installer suite passed: 19 tests including live managed RAG release consumption.",
+          "Legacy Conversation ESAA suite passed: 77 passed, 0 failed.",
+          "RAG adapter, command-contract, and permissions suites all passed.",
+          "AGENTS.md and .claude/CLAUDE.md are identical; ESAA verify is ok."
+        ]
+      }
+    },
+    {
+      "task_id": "CONV-INSTALL-RC-001",
+      "task_kind": "spec",
+      "title": "Prepare Conversation ESAA installer v1.3.0 release candidate",
+      "description": "Prepare the reviewed npm release candidate. Update README, RELEASE, AGENTS.md, and .claude/CLAUDE.md with the npx-first workflow, PowerShell fallback, supported agents, RAG modes, lifecycle commands, privacy, and operational limits. Preserve byte-identical AGENTS.md and .claude/CLAUDE.md. Validate npm pack contents and install only from the generated tgz.",
+      "status": "todo",
+      "depends_on": [
+        "CONV-INSTALL-QA-001"
+      ],
+      "targets": [
+        "README.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          "README.md",
+          "RELEASE.md",
+          "AGENTS.md",
+          ".claude/CLAUDE.md",
+          "npm release candidate evidence"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "README.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "Documentation begins with the npx install path and retains the PowerShell fallback.",
+        "The npm tarball contains no private logs, projections, databases, or local credentials.",
+        "A clean workspace installed only from tgz passes doctor."
+      ],
+      "required_review_mode": "release"
+    },
+    {
+      "task_id": "CONV-INSTALL-PUBLISH-001",
+      "task_kind": "qa",
+      "title": "Publish conversation-esaa 1.3.0 to npm and GitHub",
+      "description": "Using human-terminal with authenticated npm and gh, publish conversation-esaa@1.3.0 to npm and the matching GitHub Release from the reviewed commit. Do not modify source files. Verify the public registry and npx path after publication.",
+      "status": "todo",
+      "depends_on": [
+        "CONV-INSTALL-RC-001"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "npm and GitHub release evidence"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "release",
+      "acceptance_criteria": [
+        "npm view conversation-esaa@1.3.0 confirms the reviewed version.",
+        "npx conversation-esaa@1.3.0 doctor runs from the public registry.",
+        "The GitHub release points to the reviewed commit and documents artifact checksums."
+      ],
+      "required_review_mode": "release"
+    },
+    {
+      "task_id": "HF-ISS-CONV-INSTALL-001",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-INSTALL-001",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-INSTALL-001 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-INSTALL-001"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-INSTALL-001.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-INSTALL-001",
+      "fixes": "CONV-INSTALL-BOOTSTRAP-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-BOOTSTRAP-HOTFIX-001"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-BOOTSTRAP-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Restore legacy bootstrap idempotency signal",
+      "description": "Restore the historical skip (existe...) output on preserved files without changing the v1.3 JSON result, selection, dry-run, or private-state guarantees. Fixes ISS-CONV-INSTALL-001.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-bootstrap.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "The legacy conv-test battery passes bootstrap_idempotent_without_force.",
+        "The v1.3 installer bootstrap test remains green."
+      ],
+      "required_review_mode": "regression",
+      "supersedes": [
+        "HF-ISS-CONV-INSTALL-001"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:41:41Z",
+      "verification": {
+        "checks": [
+          "v1.3 test-installer-bootstrap.ps1 passed.",
+          "Second legacy invocation emits skip (existe...) for preserved private state."
+        ]
+      },
+      "completed_at": "2026-07-23T19:42:24Z"
+    },
+    {
+      "task_id": "HF-ISS-CONV-INSTALL-002",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-INSTALL-002",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-INSTALL-002 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-INSTALL-002"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-INSTALL-002.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-INSTALL-002",
+      "fixes": "CONV-INSTALL-SPEC-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-DOC-HOTFIX-001"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-DOC-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Remove installer ADR trailing whitespace",
+      "description": "Remove the Markdown hard-break whitespace reported by ISS-CONV-INSTALL-002 without changing the ADR semantics.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "docs/architecture/adr-011-installer.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/architecture/adr-011-installer.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/architecture/adr-011-installer.md"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "git diff --check is clean.",
+        "ADR content remains semantically unchanged."
+      ],
+      "required_review_mode": "docs",
+      "supersedes": [
+        "HF-ISS-CONV-INSTALL-002"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-23T19:49:41Z",
+      "verification": {
+        "checks": [
+          "git diff --check target inspected clean in candidate.",
+          "Only the Markdown hard-break spaces changed."
+        ]
+      },
+      "completed_at": "2026-07-23T19:50:12Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 35
+      "done": 43,
+      "review": 1,
+      "todo": 4
     },
     "by_kind": {
-      "impl": 29,
-      "qa": 3,
-      "spec": 3
+      "impl": 38,
+      "qa": 5,
+      "spec": 5
     }
   }
 }

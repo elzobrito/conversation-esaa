@@ -75,11 +75,12 @@ function Invoke-ConvSyncCli {
         [string[]]$Extra = @()
     )
     $ws = Resolve-WorkspacePath
+    $pwshExe = (Get-Command pwsh -ErrorAction Stop).Source
     $args = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convSync,
         $SyncCommand, '-WorkspaceRoot', $ws
     ) + $Extra
-    & pwsh @args
+    & $pwshExe @args
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 

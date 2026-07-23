@@ -1,0 +1,13 @@
+{
+  "after_sha256": "12d45820ec038b19a00ef089ba0e17670b9049945985f8cabdefc562d7b8d91d",
+  "artifact_id": "ART-12d45820ec038b19a00ef089ba0e17670b9049945985f8cabdefc562d7b8d91d",
+  "artifact_sha256": "b28094ea7db2af643fd4f707ec216bce954f4bdbfe8e83a84dd9704d9986808b",
+  "before_sha256": null,
+  "bytes": 639,
+  "content": "import { spawnSync } from \"node:child_process\";\n\nexport function runPowerShell(script, args, { executable = \"pwsh\" } = {}) {\n  const result = spawnSync(\n    executable,\n    [\"-NoProfile\", \"-ExecutionPolicy\", \"Bypass\", \"-File\", script, ...args],\n    {\n      encoding: \"utf8\",\n      shell: false,\n      windowsHide: true,\n    },\n  );\n  if (result.error) {\n    throw new Error(`PowerShell 7 is required: ${result.error.message}`);\n  }\n  if (result.status !== 0) {\n    const detail = (result.stderr || result.stdout || \"\").trim();\n    throw new Error(`PowerShell bootstrap failed (${result.status}): ${detail}`);\n  }\n  return result.stdout;\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/installer/powershell.js",
+  "source_path": "src/installer/powershell.js",
+  "ts": "2026-07-23T19:31:58Z"
+}

@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 469,
-    "updated_at": "2026-07-20T18:39:38Z"
+    "last_event_seq": 603,
+    "updated_at": "2026-07-23T19:50:13Z"
   },
   "issues": [
     {
@@ -215,6 +215,60 @@
       "timeline": {
         "created_event_seq": 252,
         "resolved_event_seq": 268
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-INSTALL-001",
+      "status": "resolved",
+      "severity": "medium",
+      "title": "Legacy bootstrap idempotency signal regressed",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "conv-test expects the second legacy bootstrap invocation to emit skip (existe...), but v1.3 emits only the new summary.",
+        "repro_steps": [
+          "Run pwsh -NoProfile -File .conversation-esaa/bin/conv-test.ps1 and observe bootstrap_idempotent_without_force fail."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-BOOTSTRAP-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "fixes_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "hotfix_task_id": "HF-ISS-CONV-INSTALL-001"
+      },
+      "timeline": {
+        "created_event_seq": 560,
+        "resolved_event_seq": 577
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-INSTALL-002",
+      "status": "resolved",
+      "severity": "low",
+      "title": "Installer ADR contains trailing whitespace",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "git diff --check reports trailing whitespace at docs/architecture/adr-011-installer.md line 3.",
+        "repro_steps": [
+          "Run git diff --check."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-DOC-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-SPEC-001",
+        "fixes_task_id": "CONV-INSTALL-SPEC-001",
+        "hotfix_task_id": "HF-ISS-CONV-INSTALL-002"
+      },
+      "timeline": {
+        "created_event_seq": 584,
+        "resolved_event_seq": 601
       }
     }
   ],

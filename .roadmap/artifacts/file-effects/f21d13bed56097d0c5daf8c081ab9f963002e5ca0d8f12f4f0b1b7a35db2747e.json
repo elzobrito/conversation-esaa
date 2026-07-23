@@ -1,0 +1,13 @@
+{
+  "after_sha256": "08684c039eceeb200aa9f61886a261668e7a6d3cf5bfae161020dbb0c63a2a90",
+  "artifact_id": "ART-08684c039eceeb200aa9f61886a261668e7a6d3cf5bfae161020dbb0c63a2a90",
+  "artifact_sha256": "f21d13bed56097d0c5daf8c081ab9f963002e5ca0d8f12f4f0b1b7a35db2747e",
+  "before_sha256": null,
+  "bytes": 142,
+  "content": "import \"./adapters/adapters.test.js\";\nimport \"./rag/rag.test.js\";\nimport \"./lifecycle/lifecycle.test.js\";\nimport \"./e2e/install.e2e.test.js\";\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/installer/all.test.js",
+  "source_path": "tests/installer/all.test.js",
+  "ts": "2026-07-23T19:48:34Z"
+}
