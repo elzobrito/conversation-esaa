@@ -33,6 +33,8 @@ jobs:
       - run: npm test
         env:
           CONVERSATION_ESAA_SKIP_NETWORK: "1"
+          LANG: C.UTF-8
+          LC_ALL: C.UTF-8
       - name: Bootstrap contract
         shell: pwsh
         run: ./tests/test-installer-bootstrap.ps1

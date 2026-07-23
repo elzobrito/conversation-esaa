@@ -115,11 +115,13 @@ export async function doctor(options, dependencies = {}) {
     detail: drift.length ? `${drift.length} file(s) drifted` : "all files intact",
   });
   if (pwsh) {
-    const cli = path.join(
+    // Call conv-sync verify directly (PowerShell -WorkspaceRoot). Avoid nested
+    // conversation-esaa.ps1 -> pwsh, which is fragile on CI PATH/locale setups.
+    const syncCli = path.join(
       report.workspace,
       ".conversation-esaa",
       "bin",
-      "conversation-esaa.ps1",
+      "conv-sync.ps1",
     );
     const execution = (dependencies.spawnSync || spawnSync)(
       pwsh,
@@ -128,17 +130,35 @@ export async function doctor(options, dependencies = {}) {
         "-ExecutionPolicy",
         "Bypass",
         "-File",
-        cli,
+        syncCli,
         "verify",
-        "--workspace",
+        "-WorkspaceRoot",
         report.workspace,
       ],
-      { encoding: "utf8", shell: false, windowsHide: true },
+      {
+        encoding: "utf8",
+        shell: false,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          ...(dependencies.env || {}),
+          LANG: process.env.LANG || "C.UTF-8",
+          LC_ALL: process.env.LC_ALL || "C.UTF-8",
+        },
+      },
     );
+    const failDetail = [execution.stderr, execution.stdout, execution.error?.message]
+      .filter(Boolean)
+      .join("\n")
+      .trim()
+      .slice(0, 800);
     checks.push({
       name: "conversation-verify",
       ok: execution.status === 0,
-      detail: execution.status === 0 ? "ok" : "failed",
+      detail:
+        execution.status === 0
+          ? "ok"
+          : failDetail || `failed (exit ${execution.status ?? "null"})`,
     });
   }
   checks.push({
