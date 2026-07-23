@@ -30,3 +30,20 @@ executed from the source checkout. Coverage includes:
 GitHub Actions runs the packed CLI on Ubuntu and Windows with Node.js 20 and 22
 plus PowerShell 7. Network-dependent managed-RAG download is covered locally;
 CI keeps network optional and retains deterministic archive-policy tests.
+
+## Continuation (2026-07-23, Grok)
+
+Local revalidation after Codex handoff:
+
+| Check | Result |
+|-------|--------|
+| `npm test` | 19/19 pass |
+| `pwsh tests/test-installer-bootstrap.ps1` | PASS |
+| Push of installer (no workflow file) | OK → branch `agent/conversation-esaa-installer-v1.3.0` @ `577b854` |
+| PR | https://github.com/elzobrito/conversation-esaa/pull/1 |
+| `.github/workflows/installer-ci.yml` | Present locally; **not pushed** (OAuth token lacks `workflow` scope) |
+| Windows CI matrix | **Pending** until workflow push |
+| `npm publish` | **Blocked** — machine not logged in (`npm whoami` → ENEEDAUTH) |
+
+ESAA: `CONV-INSTALL-QA-001` remains in `review` until Windows CI evidence exists (do not approve Windows AC without matrix).
+`CONV-INSTALL-RC-001` and `CONV-INSTALL-PUBLISH-001` still `todo`.
