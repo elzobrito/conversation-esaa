@@ -17,16 +17,26 @@ const repo = path.resolve(
   "../../..",
 );
 
-function resolveCommand(executable) {
-  if (process.platform !== "win32") return executable;
-  if (executable === "npm") return "npm.cmd";
-  if (executable === "npx") return "npx.cmd";
-  return executable;
+function resolveInvocation(executable, args) {
+  if (typeof executable === "object") {
+    return {
+      command: executable.command,
+      args: [...executable.args, ...args],
+    };
+  }
+  if (process.platform === "win32" && executable === "npm") {
+    assert.ok(process.env.npm_execpath, "npm_execpath is required on Windows");
+    return {
+      command: process.execPath,
+      args: [process.env.npm_execpath, ...args],
+    };
+  }
+  return { command: executable, args };
 }
 
 function run(executable, args, options = {}) {
-  const command = resolveCommand(executable);
-  const result = spawnSync(command, args, {
+  const invocation = resolveInvocation(executable, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     encoding: "utf8",
     shell: false,
     windowsHide: true,
@@ -35,7 +45,7 @@ function run(executable, args, options = {}) {
   assert.equal(
     result.status,
     0,
-    `${command} ${args.join(" ")}\nstatus=${result.status}\n${result.stdout}\n${result.stderr}\n${result.error || ""}`,
+    `${invocation.command} ${invocation.args.join(" ")}\nstatus=${result.status}\n${result.stdout}\n${result.stderr}\n${result.error || ""}`,
   );
   return result.stdout;
 }
@@ -57,12 +67,18 @@ async function packedCli() {
   const archive = path.join(root, output[0].filename);
   const prefix = path.join(root, "install");
   run("npm", ["install", "--prefix", prefix, archive]);
-  const cli = path.join(
-    prefix,
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "conversation-esaa.cmd" : "conversation-esaa",
-  );
+  const cli = {
+    command: process.execPath,
+    args: [
+      path.join(
+        prefix,
+        "node_modules",
+        "conversation-esaa",
+        "src",
+        "cli.js",
+      ),
+    ],
+  };
   return { root, cli };
 }
 

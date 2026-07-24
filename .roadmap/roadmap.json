@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 629,
-      "projection_hash_sha256": "f0c41d4aea8afac4af23db15606cf4d382def5ea95e05794d057c4b53a044673",
+      "last_event_seq": 647,
+      "projection_hash_sha256": "a7973036335dbc9c01000bde013857a4d7c070a8cc59d44a5f402003a72d3778",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-24T16:48:42Z"
+    "updated_at": "2026-07-24T16:52:40Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1943,16 +1943,127 @@
         ]
       },
       "completed_at": "2026-07-24T16:48:41Z"
+    },
+    {
+      "task_id": "HF-ISS-CONV-CI-005",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-CI-005",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-CI-005 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-CI-005"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-CI-005.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-CI-005",
+      "fixes": "T-2010",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-CI-HOTFIX-002"
+      ]
+    },
+    {
+      "task_id": "HF-ISS-CONV-CI-006",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-CI-006",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-CI-006 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-CI-006"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-CI-006.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-CI-006",
+      "fixes": "CONV-INSTALL-CI-HOTFIX-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-CI-HOTFIX-002"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-CI-HOTFIX-002",
+      "task_kind": "impl",
+      "title": "Fix timezone and Windows process portability in installer CI",
+      "description": "Resolve CI-only regressions by generating fixed-offset timestamps from DateTimeOffset.Now and by invoking npm plus the packaged JavaScript CLI without Windows shell wrappers.",
+      "status": "review",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-sync.ps1",
+        "tests/installer/e2e/install.e2e.test.js"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-sync.ps1",
+          "tests/installer/e2e/install.e2e.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-sync.ps1",
+        "tests/installer/e2e/install.e2e.test.js"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Timestamp generation succeeds regardless of host local timezone.",
+        "Windows E2E invokes npm and Conversation ESAA without shell wrapper EINVAL or shell injection exposure.",
+        "Ubuntu and Windows Node 20/22 CI matrix passes."
+      ],
+      "required_review_mode": "regression",
+      "supersedes": [
+        "HF-ISS-CONV-CI-005",
+        "HF-ISS-CONV-CI-006"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-24T16:51:24Z",
+      "verification": {
+        "checks": [
+          "TZ=UTC npm test passed 18 tests with 1 intentional network skip, covering packed install, doctor, lifecycle, and injection resistance.",
+          "TZ=UTC PowerShell bootstrap regression test passed.",
+          "All child processes remain shell:false; packaged CLI is exercised via src/cli.js."
+        ]
+      }
     }
   ],
   "indexes": {
     "by_status": {
       "done": 44,
-      "review": 1,
-      "todo": 5
+      "review": 2,
+      "todo": 7
     },
     "by_kind": {
-      "impl": 40,
+      "impl": 43,
       "qa": 5,
       "spec": 5
     }

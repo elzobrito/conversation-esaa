@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 629,
-    "updated_at": "2026-07-24T16:48:42Z"
+    "last_event_seq": 647,
+    "updated_at": "2026-07-24T16:52:40Z"
   },
   "issues": [
     {
@@ -273,6 +273,54 @@
       }
     },
     {
+      "issue_id": "ISS-CONV-CI-005",
+      "status": "open",
+      "severity": "high",
+      "title": "Timestamp generation fails outside UTC-03 timezone",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Get-IsoTimestamp constructs a DateTimeOffset from a local DateTime and a fixed -03:00 offset, which throws when the host local offset differs.",
+        "repro_steps": [
+          "Run packed installer tests on ubuntu-latest where the local timezone is UTC."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "T-2010",
+        "fixes_task_id": "T-2010",
+        "hotfix_task_id": "HF-ISS-CONV-CI-005"
+      },
+      "timeline": {
+        "created_event_seq": 630,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-006",
+      "status": "open",
+      "severity": "high",
+      "title": "Windows E2E cannot spawn command wrappers without a shell",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Node spawnSync returns EINVAL for npm.cmd and the generated conversation-esaa.cmd when shell is disabled.",
+        "repro_steps": [
+          "Run npm test on windows-latest with Node 20 or 22."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-CI-HOTFIX-001",
+        "fixes_task_id": "CONV-INSTALL-CI-HOTFIX-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-006"
+      },
+      "timeline": {
+        "created_event_seq": 634,
+        "resolved_event_seq": null
+      }
+    },
+    {
       "issue_id": "ISS-CONV-INSTALL-001",
       "status": "resolved",
       "severity": "medium",
@@ -335,7 +383,9 @@
         "CLOSE-T-2002",
         "CLOSE-T-2003",
         "CLOSE-T-2004",
-        "CLOSE-T-2005"
+        "CLOSE-T-2005",
+        "ISS-CONV-CI-005",
+        "ISS-CONV-CI-006"
       ]
     }
   }
