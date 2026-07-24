@@ -1,0 +1,13 @@
+{
+  "after_sha256": "cb078dfb820bf8c55e6c84c4e50231a7f2d77fa2b43c6ab81643e40ab6982e31",
+  "artifact_id": "ART-cb078dfb820bf8c55e6c84c4e50231a7f2d77fa2b43c6ab81643e40ab6982e31",
+  "artifact_sha256": "db8da6f599fc894b80b2cd921957dbc63ee998bed0aa4ff4427c846f14eddf95",
+  "before_sha256": null,
+  "bytes": 1179,
+  "content": "import { mkdir, readFile, writeFile } from \"node:fs/promises\";\nimport path from \"node:path\";\n\nexport async function readJsonObject(file, fallback = {}) {\n  try {\n    const value = JSON.parse(await readFile(file, \"utf8\"));\n    if (!value || Array.isArray(value) || typeof value !== \"object\") {\n      throw new Error(\"root must be an object\");\n    }\n    return value;\n  } catch (error) {\n    if (error.code === \"ENOENT\") return structuredClone(fallback);\n    throw new Error(`invalid existing JSON; refusing to overwrite ${file}: ${error.message}`);\n  }\n}\n\nexport async function writeJson(file, value, dryRun = false) {\n  if (dryRun) return;\n  await mkdir(path.dirname(file), { recursive: true });\n  await writeFile(file, `${JSON.stringify(value, null, 2)}\\n`, \"utf8\");\n}\n\nexport function appendUniqueHook(config, event, hook) {\n  config.hooks ||= {};\n  const groups = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];\n  const commands = groups.flatMap((group) =>\n    Array.isArray(group?.hooks) ? group.hooks.map((entry) => entry?.command) : [],\n  );\n  if (!commands.includes(hook.command)) {\n    groups.push({ hooks: [hook] });\n  }\n  config.hooks[event] = groups;\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/installer/adapters/json.js",
+  "source_path": "src/installer/adapters/json.js",
+  "ts": "2026-07-23T19:34:19Z"
+}

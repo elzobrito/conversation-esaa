@@ -202,7 +202,7 @@ function Get-IsoTimestamp {
             ([datetimeoffset]$SourceOffset).ToOffset($offset)
         }
     } else {
-        [DateTimeOffset]::new((Get-Date), $offset)
+        [DateTimeOffset]::Now.ToOffset($offset)
     }
     return $dto.ToString("yyyy-MM-dd'T'HH:mm:ssK")
 }

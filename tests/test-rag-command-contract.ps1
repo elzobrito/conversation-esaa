@@ -34,99 +34,98 @@ try {
     New-Item -ItemType Directory -Force -Path $esaa, $ragDir, (Join-Path $ragDir 'corpus'), (Join-Path $ragDir 'logs') | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $esaa 'activity.jsonl'), '', [System.Text.UTF8Encoding]::new($false))
 
-    $stub = Join-Path $stubDir 'rag-sqlite'
+    $stub = Join-Path $stubDir 'rag-sqlite.ps1'
     $modeFile = Join-Path $stubDir 'mode.txt'
 
-    # Portable stub: bash script that reads MODE and emits controlled stdout/stderr/exit.
+    # Portable PowerShell stub that emits controlled stdout/stderr/exit.
     $stubBody = @'
-#!/usr/bin/env bash
-set -euo pipefail
-MODE_FILE="$(dirname "$0")/mode.txt"
-MODE="ok"
-if [[ -f "$MODE_FILE" ]]; then MODE="$(cat "$MODE_FILE")"; fi
-# shift past --db X --compact
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --db) shift 2 || true ;;
-    --compact) shift || true ;;
-    *) break ;;
-  esac
-done
-CMD="${1:-}"
-case "$MODE" in
-  ok)
-    if [[ "$CMD" == "schema" ]]; then
-      echo '{"schema_version":"rag_sqlite.schema.v1","ok":true,"name":"rag_sqlite"}'
-      exit 0
-    fi
-    if [[ "$CMD" == "config" ]]; then
-      echo '{"schema_version":"rag_sqlite.config.set.v1","ok":true}'
-      exit 0
-    fi
-    if [[ "$CMD" == "index" || "$CMD" == "reindex" ]]; then
-      echo '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":3,"totals":{"files":2,"indexed":2,"unchanged":0,"empty":0,"error":0}}'
-      exit 0
-    fi
-    if [[ "$CMD" == "query" ]]; then
-      echo '{"schema_version":"rag_sqlite.query.v1","ok":true,"hits":[],"meta":{"provider":"ollama","model":"embeddinggemma","backend":"sqlite-vec","generation_id":3}}'
-      exit 0
-    fi
-    echo '{"ok":true}'
-    exit 0
-    ;;
-  empty_index)
-    echo '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":1,"totals":{"files":0,"indexed":0,"unchanged":0,"empty":0,"error":0}}' 
-    # intentional stderr noise must not poison protocol
-    echo 'diag on stderr' 1>&2
-    exit 2
-    ;;
-  exit2_fail)
-    echo '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":1,"totals":{"files":5,"indexed":0,"unchanged":0,"empty":0,"error":5}}'
-    exit 2
-    ;;
-  ok_false)
-    echo '{"schema_version":"rag_sqlite.index.v1","ok":false,"error":{"code":"boom","message":"nope"}}'
-    echo 'stderr noise' 1>&2
-    exit 1
-    ;;
-  empty_stdout)
-    echo 'only stderr' 1>&2
-    exit 0
-    ;;
-  invalid_json)
-    echo 'NOT-JSON{{{'
-    echo 'stderr' 1>&2
-    exit 0
-    ;;
-  exit9)
-    echo '{"ok":true,"schema_version":"rag_sqlite.index.v1","totals":{"files":1}}'
-    exit 9
-    ;;
-  config_fail_mid)
-    # first config ok via set-ollama, fail on later set
-    if [[ "$CMD" == "schema" ]]; then
-      echo '{"schema_version":"rag_sqlite.schema.v1","ok":true,"name":"rag_sqlite"}'
-      exit 0
-    fi
-    if [[ "$CMD" == "config" && "${2:-}" == "set-ollama" ]]; then
-      echo '{"schema_version":"rag_sqlite.config.set_ollama.v1","ok":true}'
-      exit 0
-    fi
-    if [[ "$CMD" == "config" ]]; then
-      echo '{"ok":false,"error":{"message":"mid fail"}}'
-      exit 1
-    fi
-    echo '{"ok":true}'
-    exit 0
-    ;;
-  *)
-    echo '{"ok":false,"error":{"message":"unknown mode"}}'
-    exit 1
-    ;;
-esac
+$modeFile = Join-Path $PSScriptRoot 'mode.txt'
+$mode = if (Test-Path -LiteralPath $modeFile) {
+    (Get-Content -LiteralPath $modeFile -Raw).Trim()
+} else {
+    'ok'
+}
+$cliArgs = @($args)
+$index = 0
+while ($index -lt $cliArgs.Count) {
+    if ($cliArgs[$index] -eq '--db') {
+        $index += 2
+        continue
+    }
+    if ($cliArgs[$index] -eq '--compact') {
+        $index++
+        continue
+    }
+    break
+}
+$command = if ($index -lt $cliArgs.Count) { $cliArgs[$index] } else { '' }
+$subcommand = if (($index + 1) -lt $cliArgs.Count) { $cliArgs[$index + 1] } else { '' }
+
+switch ($mode) {
+    'ok' {
+        if ($command -eq 'schema') {
+            Write-Output '{"schema_version":"rag_sqlite.schema.v1","ok":true,"name":"rag_sqlite"}'
+        } elseif ($command -eq 'config') {
+            Write-Output '{"schema_version":"rag_sqlite.config.set.v1","ok":true}'
+        } elseif ($command -in @('index', 'reindex')) {
+            Write-Output '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":3,"totals":{"files":2,"indexed":2,"unchanged":0,"empty":0,"error":0}}'
+        } elseif ($command -eq 'query') {
+            Write-Output '{"schema_version":"rag_sqlite.query.v1","ok":true,"hits":[],"meta":{"provider":"ollama","model":"embeddinggemma","backend":"sqlite-vec","generation_id":3}}'
+        } else {
+            Write-Output '{"ok":true}'
+        }
+        exit 0
+    }
+    'empty_index' {
+        Write-Output '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":1,"totals":{"files":0,"indexed":0,"unchanged":0,"empty":0,"error":0}}'
+        [Console]::Error.WriteLine('diag on stderr')
+        exit 2
+    }
+    'exit2_fail' {
+        Write-Output '{"schema_version":"rag_sqlite.index.v1","ok":true,"generation_id":1,"totals":{"files":5,"indexed":0,"unchanged":0,"empty":0,"error":5}}'
+        exit 2
+    }
+    'ok_false' {
+        Write-Output '{"schema_version":"rag_sqlite.index.v1","ok":false,"error":{"code":"boom","message":"nope"}}'
+        [Console]::Error.WriteLine('stderr noise')
+        exit 1
+    }
+    'empty_stdout' {
+        [Console]::Error.WriteLine('only stderr')
+        exit 0
+    }
+    'invalid_json' {
+        Write-Output 'NOT-JSON{{{'
+        [Console]::Error.WriteLine('stderr')
+        exit 0
+    }
+    'exit9' {
+        Write-Output '{"ok":true,"schema_version":"rag_sqlite.index.v1","totals":{"files":1}}'
+        exit 9
+    }
+    'config_fail_mid' {
+        if ($command -eq 'schema') {
+            Write-Output '{"schema_version":"rag_sqlite.schema.v1","ok":true,"name":"rag_sqlite"}'
+            exit 0
+        }
+        if ($command -eq 'config' -and $subcommand -eq 'set-ollama') {
+            Write-Output '{"schema_version":"rag_sqlite.config.set_ollama.v1","ok":true}'
+            exit 0
+        }
+        if ($command -eq 'config') {
+            Write-Output '{"ok":false,"error":{"message":"mid fail"}}'
+            exit 1
+        }
+        Write-Output '{"ok":true}'
+        exit 0
+    }
+    default {
+        Write-Output '{"ok":false,"error":{"message":"unknown mode"}}'
+        exit 1
+    }
+}
 '@
-    [System.IO.File]::WriteAllText($stub, $stubBody.Replace("`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
-    & chmod +x $stub
+    [System.IO.File]::WriteAllText($stub, $stubBody, [System.Text.UTF8Encoding]::new($false))
 
     function Set-StubMode([string]$Mode) {
         [System.IO.File]::WriteAllText($modeFile, $Mode, [System.Text.UTF8Encoding]::new($false))

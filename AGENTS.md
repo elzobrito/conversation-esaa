@@ -12,8 +12,9 @@
 |---|---|
 | **É** | Memória conversacional + handoff entre agentes (event sourcing de turnos) |
 | **Não é** | Runtime de tarefas de código (claim/complete/review) — isso é **ESAA-Core** |
-| **Versão** | v1.1.x |
-| **CLI** | PowerShell 7 (`pwsh`) — `conversation-esaa.ps1` / `conv-sync.ps1` |
+| **Versão** | v1.3.0 |
+| **Instalador** | Node.js 18+ / npm; runtime em PowerShell 7 (`pwsh`) |
+| **CLI runtime** | `conversation-esaa.ps1` / `conv-sync.ps1` |
 
 ## 2. Harness
 
@@ -21,6 +22,30 @@ Grok (`AGENTS.md`), Claude Code (`.claude/CLAUDE.md`), Codex e outros devem
 seguir as **mesmas** regras, paths, CLI e fail-closed.
 
 Mecanismos de **captura** (hooks vs watcher) diferem; o **contrato operacional** não.
+
+## 2.1 Instalação e ciclo de vida
+
+Caminho principal:
+
+```powershell
+npx conversation-esaa@1.3.0 install --workspace . --agents grok,claude,codex,antigravity --non-interactive
+npx conversation-esaa@1.3.0 doctor --workspace .
+```
+
+- Agentes suportados: `grok`, `claude`, `codex`, `antigravity`.
+- `--yes` seleciona todos; `--agent` pode ser repetido.
+- RAG: `--rag off` (padrão), `existing` ou `managed`.
+- Codex: watcher manual por padrão; `--codex-service user` é opt-in.
+- Ciclo: `status`, `doctor`, `update`, `repair`, `uninstall`.
+- Fallback: `conv-bootstrap.ps1` quando os scripts já estiverem disponíveis.
+
+`update`/`repair` não substituem arquivo próprio modificado sem `--force`.
+`uninstall` preserva event store, projeções, decisões, tarefas e dados RAG.
+Nunca aprove confiança de projeto ou hooks em nome do usuário.
+
+Limites: o modo RAG gerenciado precisa de rede; Ollama/`embeddinggemma` não são
+instalados; o pacote npm nunca deve conter logs, projeções, SQLite, credenciais
+ou configuração local.
 
 ## 3. Paths
 

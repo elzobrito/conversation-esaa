@@ -236,6 +236,15 @@ function Invoke-ExternalCaptured {
         [string]$FilePath,
         [string[]]$Arguments
     )
+    if ([System.IO.Path]::GetExtension($FilePath) -ieq '.ps1') {
+        $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+        $Arguments = @(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', $FilePath
+        ) + @($Arguments)
+        $FilePath = $pwsh
+    }
     # ProcessStartInfo.ArgumentList preserves spaces in argv (Start-Process -ArgumentList does not).
     $psi = [System.Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = $FilePath

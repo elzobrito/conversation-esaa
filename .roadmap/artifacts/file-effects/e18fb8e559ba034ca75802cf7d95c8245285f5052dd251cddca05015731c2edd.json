@@ -1,0 +1,13 @@
+{
+  "after_sha256": "b6ea4b199bf46020b3c1e043a8745d8dc471a17d14983c16d83ef7069d5d081e",
+  "artifact_id": "ART-b6ea4b199bf46020b3c1e043a8745d8dc471a17d14983c16d83ef7069d5d081e",
+  "artifact_sha256": "e18fb8e559ba034ca75802cf7d95c8245285f5052dd251cddca05015731c2edd",
+  "before_sha256": null,
+  "bytes": 1295,
+  "content": "# CONV-INSTALL-QA-001 — Installer end-to-end validation\n\n## Scope\n\nThe release tarball is installed into clean temporary workspaces rather than\nexecuted from the source checkout. Coverage includes:\n\n- Grok, Claude Code, Codex, and Antigravity individually and together;\n- existing unrelated hook configuration;\n- spaces, Unicode, and shell metacharacters in workspace paths;\n- JSON, non-interactive, and dry-run modes;\n- status, doctor, repair, update, and uninstall;\n- preservation of literal private history;\n- managed RAG release consumption and fail-open core installation;\n- archive traversal, symlink, checksum, and schema rejection;\n- Codex manual versus explicitly requested user service;\n- legacy Conversation ESAA and RAG regression suites.\n\n## Local result\n\n- Node installer/unit/lifecycle tests: green.\n- PowerShell bootstrap v1.3 test: green.\n- Legacy `conv-test.ps1`: 77 passed, 0 failed after governed hotfix\n  `CONV-INSTALL-BOOTSTRAP-HOTFIX-001`.\n- `AGENTS.md` and `.claude/CLAUDE.md`: byte-identical.\n- ESAA verification: green.\n\n## CI matrix\n\nGitHub Actions runs the packed CLI on Ubuntu and Windows with Node.js 20 and 22\nplus PowerShell 7. Network-dependent managed-RAG download is covered locally;\nCI keeps network optional and retains deterministic archive-policy tests.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/CONV-INSTALL-QA-001.md",
+  "source_path": "docs/qa/CONV-INSTALL-QA-001.md",
+  "ts": "2026-07-23T19:48:34Z"
+}

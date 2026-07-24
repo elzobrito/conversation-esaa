@@ -1,0 +1,13 @@
+{
+  "after_sha256": "e1ea021cda3137842da08f9b65a025ad1758f37d6073ef258e233be2d17b2e68",
+  "artifact_id": "ART-e1ea021cda3137842da08f9b65a025ad1758f37d6073ef258e233be2d17b2e68",
+  "artifact_sha256": "98d5c44767986bb6d98475018d3ffdf157f610fe9b59dba7562478aef656da95",
+  "before_sha256": null,
+  "bytes": 338,
+  "content": "{\n  \"name\": \"conversation-esaa\",\n  \"version\": \"1.3.0\",\n  \"lockfileVersion\": 3,\n  \"requires\": true,\n  \"packages\": {\n    \"\": {\n      \"name\": \"conversation-esaa\",\n      \"version\": \"1.3.0\",\n      \"license\": \"MIT\",\n      \"bin\": {\n        \"conversation-esaa\": \"src/cli.js\"\n      },\n      \"engines\": {\n        \"node\": \">=18\"\n      }\n    }\n  }\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "package-lock.json",
+  "source_path": "package-lock.json",
+  "ts": "2026-07-23T19:31:58Z"
+}

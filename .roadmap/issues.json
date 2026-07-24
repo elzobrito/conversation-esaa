@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 469,
-    "updated_at": "2026-07-20T18:39:38Z"
+    "last_event_seq": 712,
+    "updated_at": "2026-07-24T17:07:31Z"
   },
   "issues": [
     {
@@ -215,6 +215,223 @@
       "timeline": {
         "created_event_seq": 252,
         "resolved_event_seq": 268
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-003",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Bootstrap omits projected topics in packed installation",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "GitHub Actions doctor fails with topics.json not found after a clean packed install.",
+        "repro_steps": [
+          "Run npm test on Ubuntu CI and inspect the packed CLI doctor failure."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "fixes_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-003"
+      },
+      "timeline": {
+        "created_event_seq": 604,
+        "resolved_event_seq": 624
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-004",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Installer tests are not portable to Windows",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Windows Node 20 and 22 jobs fail because child_process invokes npm instead of npm.cmd and an assertion compares a POSIX literal path against a resolved Windows path.",
+        "repro_steps": [
+          "Run npm test on windows-latest with Node 20 or 22.",
+          "Observe spawnSync status null for npm and D:\\\\tmp\\\\project differing from /tmp/project."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-QA-001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 608,
+        "resolved_event_seq": 627
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-005",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Timestamp generation fails outside UTC-03 timezone",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Get-IsoTimestamp constructs a DateTimeOffset from a local DateTime and a fixed -03:00 offset, which throws when the host local offset differs.",
+        "repro_steps": [
+          "Run packed installer tests on ubuntu-latest where the local timezone is UTC."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-002"
+      },
+      "links": {
+        "reported_by_task_id": "T-2010",
+        "fixes_task_id": "T-2010",
+        "hotfix_task_id": "HF-ISS-CONV-CI-005"
+      },
+      "timeline": {
+        "created_event_seq": 630,
+        "resolved_event_seq": 668
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-006",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Windows E2E cannot spawn command wrappers without a shell",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Node spawnSync returns EINVAL for npm.cmd and the generated conversation-esaa.cmd when shell is disabled.",
+        "repro_steps": [
+          "Run npm test on windows-latest with Node 20 or 22."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-002"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-CI-HOTFIX-001",
+        "fixes_task_id": "CONV-INSTALL-CI-HOTFIX-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-006"
+      },
+      "timeline": {
+        "created_event_seq": 634,
+        "resolved_event_seq": 671
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-007",
+      "status": "resolved",
+      "severity": "high",
+      "title": "RAG command contract stub is not executable on Windows",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "The contract suite configures a shebang Bash file as rag_sqlite_command, but ProcessStartInfo UseShellExecute=false requires a native executable on Windows; enable and refresh therefore fail.",
+        "repro_steps": [
+          "Run tests/test-rag-command-contract.ps1 on windows-latest."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-003"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-RAG-EXEC-HOTFIX-001",
+        "fixes_task_id": "CONV-RAG-EXEC-HOTFIX-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-007"
+      },
+      "timeline": {
+        "created_event_seq": 648,
+        "resolved_event_seq": 674
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-INSTALL-001",
+      "status": "resolved",
+      "severity": "medium",
+      "title": "Legacy bootstrap idempotency signal regressed",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "conv-test expects the second legacy bootstrap invocation to emit skip (existe...), but v1.3 emits only the new summary.",
+        "repro_steps": [
+          "Run pwsh -NoProfile -File .conversation-esaa/bin/conv-test.ps1 and observe bootstrap_idempotent_without_force fail."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-BOOTSTRAP-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "fixes_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "hotfix_task_id": "HF-ISS-CONV-INSTALL-001"
+      },
+      "timeline": {
+        "created_event_seq": 560,
+        "resolved_event_seq": 577
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-INSTALL-002",
+      "status": "resolved",
+      "severity": "low",
+      "title": "Installer ADR contains trailing whitespace",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "git diff --check reports trailing whitespace at docs/architecture/adr-011-installer.md line 3.",
+        "repro_steps": [
+          "Run git diff --check."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-DOC-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-SPEC-001",
+        "fixes_task_id": "CONV-INSTALL-SPEC-001",
+        "hotfix_task_id": "HF-ISS-CONV-INSTALL-002"
+      },
+      "timeline": {
+        "created_event_seq": 584,
+        "resolved_event_seq": 601
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-PACKAGE-001",
+      "status": "resolved",
+      "severity": "medium",
+      "title": "npm tarball includes unrelated ESAA Core baseline artifact",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "The files allowlist publishes the entire src directory, including src/T-1010.txt, which is unrelated to the Conversation ESAA installer.",
+        "repro_steps": [
+          "Run npm pack and inspect the archive listing for package/src/T-1010.txt."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-PACKAGE-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-NPX-001",
+        "fixes_task_id": "CONV-INSTALL-NPX-001",
+        "hotfix_task_id": "HF-ISS-CONV-PACKAGE-001"
+      },
+      "timeline": {
+        "created_event_seq": 690,
+        "resolved_event_seq": 707
       }
     }
   ],

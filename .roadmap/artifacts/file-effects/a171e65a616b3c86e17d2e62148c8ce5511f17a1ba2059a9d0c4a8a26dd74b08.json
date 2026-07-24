@@ -1,0 +1,13 @@
+{
+  "after_sha256": "a3d50880ddc2d280ae7a198328f0a25808086c01a3711c69f0a81a54cebf64ce",
+  "artifact_id": "ART-a3d50880ddc2d280ae7a198328f0a25808086c01a3711c69f0a81a54cebf64ce",
+  "artifact_sha256": "a171e65a616b3c86e17d2e62148c8ce5511f17a1ba2059a9d0c4a8a26dd74b08",
+  "before_sha256": null,
+  "bytes": 708,
+  "content": "{\n  \"name\": \"conversation-esaa\",\n  \"version\": \"1.3.0\",\n  \"description\": \"Installer and lifecycle manager for Conversation ESAA\",\n  \"type\": \"module\",\n  \"bin\": {\n    \"conversation-esaa\": \"src/cli.js\"\n  },\n  \"files\": [\n    \"src/\",\n    \".conversation-esaa/bin/*.ps1\",\n    \"LICENSE\",\n    \"PRIVACY.md\"\n  ],\n  \"scripts\": {\n    \"test\": \"node --test tests/installer/*.test.js\",\n    \"test:bootstrap\": \"pwsh -NoProfile -File tests/test-installer-bootstrap.ps1\"\n  },\n  \"engines\": {\n    \"node\": \">=18\"\n  },\n  \"keywords\": [\n    \"agents\",\n    \"conversation\",\n    \"esaa\",\n    \"installer\"\n  ],\n  \"license\": \"MIT\",\n  \"repository\": {\n    \"type\": \"git\",\n    \"url\": \"git+https://github.com/elzobrito/conversation-esaa.git\"\n  }\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "package.json",
+  "source_path": "package.json",
+  "ts": "2026-07-23T19:31:58Z"
+}
