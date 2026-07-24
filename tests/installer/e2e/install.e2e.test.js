@@ -17,8 +17,16 @@ const repo = path.resolve(
   "../../..",
 );
 
+function resolveCommand(executable) {
+  if (process.platform !== "win32") return executable;
+  if (executable === "npm") return "npm.cmd";
+  if (executable === "npx") return "npx.cmd";
+  return executable;
+}
+
 function run(executable, args, options = {}) {
-  const result = spawnSync(executable, args, {
+  const command = resolveCommand(executable);
+  const result = spawnSync(command, args, {
     encoding: "utf8",
     shell: false,
     windowsHide: true,
@@ -27,7 +35,7 @@ function run(executable, args, options = {}) {
   assert.equal(
     result.status,
     0,
-    `${executable} ${args.join(" ")}\n${result.stdout}\n${result.stderr}`,
+    `${command} ${args.join(" ")}\nstatus=${result.status}\n${result.stdout}\n${result.stderr}\n${result.error || ""}`,
   );
   return result.stdout;
 }

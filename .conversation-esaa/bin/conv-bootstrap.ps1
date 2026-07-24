@@ -264,9 +264,29 @@ Merge-Gitignore -Path $gitignore -Entries @(
     '.agents/hooks.json'
 )
 
-if (-not $DryRun) {
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File $convCli project --workspace $WorkspaceRoot | Out-Null
-    & pwsh -NoProfile -ExecutionPolicy Bypass -File $convCli verify --workspace $WorkspaceRoot | Out-Null
+if (-not $DryRun -and -not (Test-Path -LiteralPath (Join-Path $esaaDir 'topics.json'))) {
+    # Invoke conv-sync directly (no nested conversation-esaa.ps1 -> pwsh hop).
+    # Fail closed if project/verify cannot materialize topics.json etc.
+    $pwshExe = (Get-Command pwsh -ErrorAction Stop).Source
+    $convSync = Join-Path $binDir 'conv-sync.ps1'
+    foreach ($syncCommand in @('project', 'verify')) {
+        $syncArgs = @(
+            '-NoProfile',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', $convSync,
+            $syncCommand,
+            '-WorkspaceRoot', $WorkspaceRoot
+        )
+        $syncOutput = & $pwshExe @syncArgs
+        $syncExit = $LASTEXITCODE
+        if ($syncExit -and $syncExit -ne 0) {
+            $syncDetail = ($syncOutput | Out-String).Trim()
+            if ($syncDetail) {
+                throw "bootstrap $syncCommand failed with exit ${syncExit}: $syncDetail"
+            }
+            throw "bootstrap $syncCommand failed with exit $syncExit for $WorkspaceRoot"
+        }
+    }
 }
 
 $result.ok = $true

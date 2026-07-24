@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 603,
-      "projection_hash_sha256": "5e68e15e58ff4e3e5feebe0b480bb0ad1033f37839dac3d85ed474ea9d204d4f",
+      "last_event_seq": 629,
+      "projection_hash_sha256": "f0c41d4aea8afac4af23db15606cf4d382def5ea95e05794d057c4b53a044673",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-23T19:50:13Z"
+    "updated_at": "2026-07-24T16:48:42Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1864,16 +1864,95 @@
         ]
       },
       "completed_at": "2026-07-23T19:50:12Z"
+    },
+    {
+      "task_id": "HF-ISS-CONV-CI-003",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-CI-003",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-CI-003 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-CI-003"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-CI-003.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-CI-003",
+      "fixes": "CONV-INSTALL-BOOTSTRAP-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-CI-HOTFIX-001"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-CI-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Fix packed bootstrap and Windows CI portability",
+      "description": "Govern retrospectively the CI fixes identified by the Ubuntu and Windows GitHub Actions matrix: materialize projections during packed bootstrap without corrupting JSON output, resolve npm executables portably on Windows, and compare platform-native resolved paths.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "tests/installer/**"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          "tests/installer/args.test.js",
+          "tests/installer/e2e/install.e2e.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "tests/installer/**"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Packed all-agent installation completes and doctor reports topics.json available.",
+        "Installer tests pass on Ubuntu and Windows path/command semantics.",
+        "Full local npm test suite remains green and CI matrix is ready for rerun."
+      ],
+      "required_review_mode": "regression",
+      "supersedes": [
+        "HF-ISS-CONV-CI-003"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-24T16:46:28Z",
+      "verification": {
+        "checks": [
+          "Candidate package npm test passed 19/19, including packed all-agent install, doctor, lifecycle preservation, and managed RAG.",
+          "PowerShell bootstrap regression test passed.",
+          "Windows-specific command and path behavior is covered by npm.cmd/npx.cmd resolution and path.resolve assertions."
+        ]
+      },
+      "completed_at": "2026-07-24T16:48:41Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 43,
+      "done": 44,
       "review": 1,
-      "todo": 4
+      "todo": 5
     },
     "by_kind": {
-      "impl": 38,
+      "impl": 40,
       "qa": 5,
       "spec": 5
     }

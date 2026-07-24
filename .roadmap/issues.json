@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 603,
-    "updated_at": "2026-07-23T19:50:13Z"
+    "last_event_seq": 629,
+    "updated_at": "2026-07-24T16:48:42Z"
   },
   "issues": [
     {
@@ -215,6 +215,61 @@
       "timeline": {
         "created_event_seq": 252,
         "resolved_event_seq": 268
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-003",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Bootstrap omits projected topics in packed installation",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "GitHub Actions doctor fails with topics.json not found after a clean packed install.",
+        "repro_steps": [
+          "Run npm test on Ubuntu CI and inspect the packed CLI doctor failure."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "fixes_task_id": "CONV-INSTALL-BOOTSTRAP-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-003"
+      },
+      "timeline": {
+        "created_event_seq": 604,
+        "resolved_event_seq": 624
+      }
+    },
+    {
+      "issue_id": "ISS-CONV-CI-004",
+      "status": "resolved",
+      "severity": "high",
+      "title": "Installer tests are not portable to Windows",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Windows Node 20 and 22 jobs fail because child_process invokes npm instead of npm.cmd and an assertion compares a POSIX literal path against a resolved Windows path.",
+        "repro_steps": [
+          "Run npm test on windows-latest with Node 20 or 22.",
+          "Observe spawnSync status null for npm and D:\\\\tmp\\\\project differing from /tmp/project."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-QA-001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 608,
+        "resolved_event_seq": 627
       }
     },
     {
