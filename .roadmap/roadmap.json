@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 709,
-      "projection_hash_sha256": "8ab40a5d6f3c577f79ad70843c8ce189f3cdc202274973acc163082105676076",
+      "last_event_seq": 712,
+      "projection_hash_sha256": "14dd811aa68edf4b7723f59687eaea3405d6abbb829df26f8d8c5528664127d0",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-24T17:06:54Z"
+    "updated_at": "2026-07-24T17:07:31Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1709,7 +1709,7 @@
       "task_kind": "qa",
       "title": "Publish conversation-esaa 1.3.0 to npm and GitHub",
       "description": "Using human-terminal with authenticated npm and gh, publish conversation-esaa@1.3.0 to npm and the matching GitHub Release from the reviewed commit. Do not modify source files. Verify the public registry and npx path after publication.",
-      "status": "todo",
+      "status": "in_progress",
       "depends_on": [
         "CONV-INSTALL-RC-001"
       ],
@@ -1728,7 +1728,9 @@
         "npx conversation-esaa@1.3.0 doctor runs from the public registry.",
         "The GitHub release points to the reviewed commit and documents artifact checksums."
       ],
-      "required_review_mode": "release"
+      "required_review_mode": "release",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-24T17:07:31Z"
     },
     {
       "task_id": "HF-ISS-CONV-INSTALL-001",
@@ -2224,7 +2226,8 @@
   "indexes": {
     "by_status": {
       "done": 49,
-      "todo": 8
+      "in_progress": 1,
+      "todo": 7
     },
     "by_kind": {
       "impl": 47,
