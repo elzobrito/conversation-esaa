@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 647,
-    "updated_at": "2026-07-24T16:52:40Z"
+    "last_event_seq": 661,
+    "updated_at": "2026-07-24T16:59:19Z"
   },
   "issues": [
     {
@@ -321,6 +321,30 @@
       }
     },
     {
+      "issue_id": "ISS-CONV-CI-007",
+      "status": "open",
+      "severity": "high",
+      "title": "RAG command contract stub is not executable on Windows",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "The contract suite configures a shebang Bash file as rag_sqlite_command, but ProcessStartInfo UseShellExecute=false requires a native executable on Windows; enable and refresh therefore fail.",
+        "repro_steps": [
+          "Run tests/test-rag-command-contract.ps1 on windows-latest."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "CONV-RAG-EXEC-HOTFIX-001",
+        "fixes_task_id": "CONV-RAG-EXEC-HOTFIX-001",
+        "hotfix_task_id": "HF-ISS-CONV-CI-007"
+      },
+      "timeline": {
+        "created_event_seq": 648,
+        "resolved_event_seq": null
+      }
+    },
+    {
       "issue_id": "ISS-CONV-INSTALL-001",
       "status": "resolved",
       "severity": "medium",
@@ -385,7 +409,8 @@
         "CLOSE-T-2004",
         "CLOSE-T-2005",
         "ISS-CONV-CI-005",
-        "ISS-CONV-CI-006"
+        "ISS-CONV-CI-006",
+        "ISS-CONV-CI-007"
       ]
     }
   }

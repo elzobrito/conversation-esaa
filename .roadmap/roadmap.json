@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 647,
-      "projection_hash_sha256": "a7973036335dbc9c01000bde013857a4d7c070a8cc59d44a5f402003a72d3778",
+      "last_event_seq": 661,
+      "projection_hash_sha256": "ac41a69389199f82a7285b1077f852fdb8aa0bf12374c9d3869a1435ce2ed6fb",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-24T16:52:40Z"
+    "updated_at": "2026-07-24T16:59:19Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2054,16 +2054,93 @@
           "All child processes remain shell:false; packaged CLI is exercised via src/cli.js."
         ]
       }
+    },
+    {
+      "task_id": "HF-ISS-CONV-CI-007",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-CI-007",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-CI-007 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-CI-007"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-CI-007.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-CI-007",
+      "fixes": "CONV-RAG-EXEC-HOTFIX-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-CI-HOTFIX-003"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-CI-HOTFIX-003",
+      "task_kind": "impl",
+      "title": "Make RAG command contract portable to Windows",
+      "description": "Allow PowerShell script command wrappers to execute through pwsh with argument-list isolation, and replace the Bash-only rag-sqlite test stub with a cross-platform PowerShell stub.",
+      "status": "review",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "tests/test-rag-command-contract.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-rag.ps1",
+          "tests/test-rag-command-contract.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-rag.ps1",
+        "tests/test-rag-command-contract.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "PowerShell rag-sqlite wrappers execute with UseShellExecute=false and argument boundaries preserved.",
+        "RAG command contract covers exit 0, 1, 2, and 9 on Windows and Linux.",
+        "Full Ubuntu and Windows Node 20/22 CI matrix passes."
+      ],
+      "required_review_mode": "regression",
+      "supersedes": [
+        "HF-ISS-CONV-CI-007"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-24T16:56:59Z",
+      "verification": {
+        "checks": [
+          "Cross-platform RAG command contract passed all exit 0, 1, 2, 9, JSON, stderr isolation, state preservation, and fail-open cases.",
+          "RAG permissions regression suite passed, including hardening failures and worker fail-open behavior.",
+          "PowerShell wrapper execution keeps UseShellExecute=false and preserves each argument through ArgumentList."
+        ]
+      }
     }
   ],
   "indexes": {
     "by_status": {
       "done": 44,
-      "review": 2,
-      "todo": 7
+      "review": 3,
+      "todo": 8
     },
     "by_kind": {
-      "impl": 43,
+      "impl": 45,
       "qa": 5,
       "spec": 5
     }
