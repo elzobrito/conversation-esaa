@@ -1,5 +1,69 @@
 # Release notes — Conversation ESAA
 
+## v1.3.0 — instalador npm e ciclo de vida
+
+Release candidata validada em Ubuntu e Windows com Node.js 20/22 e
+PowerShell 7.
+
+### Instalação principal
+
+```powershell
+npx conversation-esaa@1.3.0 install `
+  --workspace . `
+  --agents grok,claude,codex,antigravity `
+  --non-interactive
+
+npx conversation-esaa@1.3.0 doctor --workspace .
+```
+
+O pacote aceita seleção repetível com `--agent`, lista com `--agents` ou todos
+com `--yes`. O fallback continua disponível por
+`.conversation-esaa/bin/conv-bootstrap.ps1`.
+
+### Entregas
+
+| Área | Entrega |
+|---|---|
+| Installer | CLI Node/npm com `install`, `status`, `doctor`, `update`, `repair` e `uninstall` |
+| Agentes | Grok, Claude Code, Codex e Google Antigravity, isolados ou combinados |
+| Codex | watcher manual por padrão; serviço de usuário explícito com `--codex-service user` |
+| RAG | `off`, `existing` e `managed`; release fixada com SHA-256 |
+| Segurança | execução sem shell, validação de ZIP/checksum/schema e rejeição de traversal/symlink |
+| Preservação | hooks JSON mesclados; histórico e projeções privadas nunca removidos no uninstall |
+| QA | pacote `.tgz` instalado em workspaces limpos; matriz Ubuntu/Windows Node 20/22 |
+
+### Ciclo de vida
+
+```powershell
+npx conversation-esaa@1.3.0 status --workspace . --json
+npx conversation-esaa@1.3.0 doctor --workspace . --json
+npx conversation-esaa@1.3.0 update --workspace . --json
+npx conversation-esaa@1.3.0 repair --workspace . --json
+npx conversation-esaa@1.3.0 uninstall --workspace . --json
+```
+
+`update` e `repair` exigem `--force` para substituir arquivos próprios que
+sofreram modificação. `uninstall` preserva o event store, read models,
+decisões, tarefas e o diretório RAG.
+
+### RAG e limites
+
+- `--rag off`: padrão, sem RAG;
+- `--rag existing`: usa um comando local validado;
+- `--rag managed`: baixa `rag-sqlite` v0.1.0 e valida a release publicada;
+- Ollama e `embeddinggemma` continuam dependências locais e não são instalados;
+- confiança e aprovação dos hooks continuam ações humanas;
+- Conversation ESAA não substitui a governança de tarefas do ESAA Core.
+
+### Privacidade e conteúdo do pacote
+
+O tarball publica somente `src/`, scripts públicos em
+`.conversation-esaa/bin/`, `LICENSE` e `PRIVACY.md`. Logs, event stores,
+projeções, bancos SQLite, credenciais e configurações locais não fazem parte do
+pacote.
+
+---
+
 ## v1.2.0 (opt-in RAG)
 
 Integração **opcional** com motor externo [rag-sqlite](https://github.com/elzobrito/rag-sqlite)

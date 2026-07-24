@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 661,
-    "updated_at": "2026-07-24T16:59:19Z"
+    "last_event_seq": 709,
+    "updated_at": "2026-07-24T17:06:54Z"
   },
   "issues": [
     {
@@ -274,7 +274,7 @@
     },
     {
       "issue_id": "ISS-CONV-CI-005",
-      "status": "open",
+      "status": "resolved",
       "severity": "high",
       "title": "Timestamp generation fails outside UTC-03 timezone",
       "baseline_id": null,
@@ -285,7 +285,10 @@
           "Run packed installer tests on ubuntu-latest where the local timezone is UTC."
         ]
       },
-      "resolution": null,
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-002"
+      },
       "links": {
         "reported_by_task_id": "T-2010",
         "fixes_task_id": "T-2010",
@@ -293,12 +296,12 @@
       },
       "timeline": {
         "created_event_seq": 630,
-        "resolved_event_seq": null
+        "resolved_event_seq": 668
       }
     },
     {
       "issue_id": "ISS-CONV-CI-006",
-      "status": "open",
+      "status": "resolved",
       "severity": "high",
       "title": "Windows E2E cannot spawn command wrappers without a shell",
       "baseline_id": null,
@@ -309,7 +312,10 @@
           "Run npm test on windows-latest with Node 20 or 22."
         ]
       },
-      "resolution": null,
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-002"
+      },
       "links": {
         "reported_by_task_id": "CONV-INSTALL-CI-HOTFIX-001",
         "fixes_task_id": "CONV-INSTALL-CI-HOTFIX-001",
@@ -317,12 +323,12 @@
       },
       "timeline": {
         "created_event_seq": 634,
-        "resolved_event_seq": null
+        "resolved_event_seq": 671
       }
     },
     {
       "issue_id": "ISS-CONV-CI-007",
-      "status": "open",
+      "status": "resolved",
       "severity": "high",
       "title": "RAG command contract stub is not executable on Windows",
       "baseline_id": null,
@@ -333,7 +339,10 @@
           "Run tests/test-rag-command-contract.ps1 on windows-latest."
         ]
       },
-      "resolution": null,
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-CI-HOTFIX-003"
+      },
       "links": {
         "reported_by_task_id": "CONV-RAG-EXEC-HOTFIX-001",
         "fixes_task_id": "CONV-RAG-EXEC-HOTFIX-001",
@@ -341,7 +350,7 @@
       },
       "timeline": {
         "created_event_seq": 648,
-        "resolved_event_seq": null
+        "resolved_event_seq": 674
       }
     },
     {
@@ -397,6 +406,33 @@
         "created_event_seq": 584,
         "resolved_event_seq": 601
       }
+    },
+    {
+      "issue_id": "ISS-CONV-PACKAGE-001",
+      "status": "resolved",
+      "severity": "medium",
+      "title": "npm tarball includes unrelated ESAA Core baseline artifact",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "The files allowlist publishes the entire src directory, including src/T-1010.txt, which is unrelated to the Conversation ESAA installer.",
+        "repro_steps": [
+          "Run npm pack and inspect the archive listing for package/src/T-1010.txt."
+        ]
+      },
+      "resolution": {
+        "status": "resolved_by_command",
+        "hotfix_task_id": "CONV-INSTALL-PACKAGE-HOTFIX-001"
+      },
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-NPX-001",
+        "fixes_task_id": "CONV-INSTALL-NPX-001",
+        "hotfix_task_id": "HF-ISS-CONV-PACKAGE-001"
+      },
+      "timeline": {
+        "created_event_seq": 690,
+        "resolved_event_seq": 707
+      }
     }
   ],
   "indexes": {
@@ -407,10 +443,7 @@
         "CLOSE-T-2002",
         "CLOSE-T-2003",
         "CLOSE-T-2004",
-        "CLOSE-T-2005",
-        "ISS-CONV-CI-005",
-        "ISS-CONV-CI-006",
-        "ISS-CONV-CI-007"
+        "CLOSE-T-2005"
       ]
     }
   }

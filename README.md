@@ -6,12 +6,39 @@ Quando você troca de agente ou a janela de contexto acaba, o próximo assistent
 
 | | |
 |---|---|
-| **Versão** | v1.2.0 (RAG opt-in) |
-| **Plataforma** | Windows + PowerShell 7 (`pwsh`); Linux com `pwsh` |
+| **Versão** | v1.3.0 (instalador npm + RAG opt-in) |
+| **Plataforma** | Windows e Linux; Node.js 18+ e PowerShell 7 (`pwsh`) |
 | **Licença** | MIT |
 | **Privacidade** | [PRIVACY.md](PRIVACY.md) — leia antes de versionar |
 | **Agentes** | [AGENTS.md](AGENTS.md) — contrato operacional (idêntico a `.claude/CLAUDE.md`) |
 | **RAG opcional** | [ADR-010](docs/architecture/adr-010-optional-rag-sqlite.md) + motor externo [rag-sqlite](https://github.com/elzobrito/rag-sqlite) |
+
+---
+
+## Instalação rápida
+
+No diretório do projeto, selecione os agentes e deixe o instalador configurar
+runtime, hooks, watcher e manifesto:
+
+```powershell
+npx conversation-esaa@1.3.0 install `
+  --workspace . `
+  --agents grok,claude,codex,antigravity `
+  --non-interactive
+
+npx conversation-esaa@1.3.0 doctor --workspace .
+```
+
+Também é possível instalar um agente por vez:
+
+```powershell
+npx conversation-esaa@1.3.0 install --workspace . --agent codex --non-interactive
+npx conversation-esaa@1.3.0 install --workspace . --agent claude --non-interactive
+```
+
+Use `--yes` no lugar de `--agents` para selecionar todos. O instalador mescla
+configurações JSON existentes, não sobrescreve o histórico privado e falha
+fechado quando encontra JSON inválido.
 
 ---
 
@@ -35,34 +62,78 @@ agente → hook/watcher → conversation-esaa sync
 | `conversation-esaa.ps1` | CLI pública |
 | `.conversation-esaa/rag/` (opt-in) | Projeção descartável (corpus + SQLite); nunca fonte canônica |
 
-### Busca semântica opcional (v1.2)
+### Busca semântica opcional
+
+O instalador mantém o RAG desligado por padrão. Os modos são:
+
+| Modo | Comportamento |
+|---|---|
+| `--rag off` | não instala nem habilita RAG |
+| `--rag existing` | valida um `rag-sqlite` já instalado; aceite `--rag-command <path>` |
+| `--rag managed` | baixa a release fixada, valida SHA-256 e habilita o adaptador |
 
 ```powershell
-# Pré-requisitos: rag-sqlite no PATH, Ollama local com embeddinggemma
-conversation-esaa rag enable --workspace $root
-conversation-esaa rag refresh --workspace $root   # 1ª indexação pode demorar
-conversation-esaa search "sua consulta" --workspace $root --top-k 5 --min-score 0.25
-conversation-esaa rag status --workspace $root --json
+npx conversation-esaa@1.3.0 install `
+  --workspace . `
+  --agent codex `
+  --rag existing `
+  --rag-command /caminho/para/rag-sqlite `
+  --non-interactive
+
+# ou instalação gerenciada da release fixada
+npx conversation-esaa@1.3.0 install --workspace . --agent codex --rag managed --non-interactive
 ```
 
-`sync` / `project` / `verify` / `context` continuam iguais se o RAG estiver
-desligado ou indisponível (`verify` não chama rede).
+O RAG requer Python 3.10+, Ollama local e o modelo `embeddinggemma`. Ele é uma
+projeção descartável e fail-open: `sync`, `project`, `verify` e `context`
+continuam funcionando se o RAG estiver desligado ou indisponível.
 
 ---
 
 ## Instalação
 
-**Pré-requisito:** [PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows)
+### Pré-requisitos
+
+- [Node.js 18+](https://nodejs.org/);
+- [PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows);
+- Git, apenas para o fluxo normal do projeto.
+
+### Caminho recomendado: npx
+
+```powershell
+npx conversation-esaa@1.3.0 install --workspace . --agents grok,claude --non-interactive
+npx conversation-esaa@1.3.0 status --workspace .
+npx conversation-esaa@1.3.0 doctor --workspace .
+```
+
+Para o Codex, o watcher é manual por padrão. Use
+`--codex-service user` somente se quiser que o instalador crie uma unit systemd
+de usuário no Linux ou uma Scheduled Task no Windows.
+
+```powershell
+npx conversation-esaa@1.3.0 install `
+  --workspace . `
+  --agent codex `
+  --codex-service user `
+  --non-interactive
+```
+
+### Fallback PowerShell
+
+Use este caminho para desenvolvimento a partir de um clone ou quando npm/npx
+não estiver disponível:
 
 ```powershell
 $root = 'C:\caminho\do\seu\projeto'
-New-Item -ItemType Directory -Force -Path $root | Out-Null
-
-# Copie .conversation-esaa/ para $root (ou clone este repositório)
-pwsh -NoProfile -ExecutionPolicy Bypass -File "$root\.conversation-esaa\bin\conv-bootstrap.ps1" -WorkspaceRoot $root
+pwsh -NoProfile -ExecutionPolicy Bypass `
+  -File ".\.conversation-esaa\bin\conv-bootstrap.ps1" `
+  -WorkspaceRoot $root `
+  -Agents codex,claude
 ```
 
-O bootstrap cria `activity.jsonl` **vazio**, instala os scripts e gera hooks com caminhos do **seu** workspace.
+O fallback pressupõe que `.conversation-esaa/bin/` já está disponível
+localmente. O bootstrap cria o event store vazio, instala os scripts e gera
+integrações com caminhos absolutos do workspace.
 
 ### Ativar sync automático
 
@@ -125,6 +196,21 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File $cli task close CONV-001 -Evidence
 
 Comandos adicionais: `context --before`, `--around`, `task update`, `project`. Rode `conversation-esaa.ps1 help` para a lista completa.
 
+### Manutenção da instalação
+
+```powershell
+npx conversation-esaa@1.3.0 status --workspace . --json
+npx conversation-esaa@1.3.0 doctor --workspace . --json
+npx conversation-esaa@1.3.0 update --workspace . --json
+npx conversation-esaa@1.3.0 repair --workspace . --json
+npx conversation-esaa@1.3.0 uninstall --workspace . --json
+```
+
+`update` e `repair` recusam substituir arquivos gerenciados modificados, salvo
+com `--force`. `uninstall` remove apenas arquivos próprios intactos, desfaz as
+entradas de hooks que reconhece e preserva `activity.jsonl`, projeções, decisões,
+tarefas e dados RAG.
+
 ---
 
 ## Handoff entre agentes
@@ -142,7 +228,20 @@ Quando um agente novo entra no projeto, leia nesta ordem:
 
 ## Privacidade
 
-O `activity.jsonl` grava o **texto literal** das suas conversas. O `.gitignore` já exclui dados sensíveis, mas **confira antes de qualquer `git push`**. Detalhes em [PRIVACY.md](PRIVACY.md).
+O `activity.jsonl` grava o **texto literal** das suas conversas. O pacote npm
+contém somente runtime e documentação pública; não contém logs, projeções,
+bancos locais ou credenciais. O `.gitignore` exclui dados sensíveis gerados,
+mas **confira antes de qualquer `git push`**. Detalhes em
+[PRIVACY.md](PRIVACY.md).
+
+## Limites operacionais
+
+- O Conversation ESAA é memória e handoff; governança de tarefas
+  `claim/complete/review` pertence ao ESAA Core.
+- O instalador não configura confiança ou aprova hooks em nome do usuário.
+- O Codex não possui hook nativo neste produto; depende do watcher.
+- O modo RAG gerenciado requer rede durante a instalação e não instala Ollama.
+- Dados privados não devem ser versionados, mesmo quando o `.gitignore` os cobre.
 
 ---
 
@@ -160,7 +259,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test-b
 | Recurso | Conteúdo |
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | Modelo de privacidade e redação |
-| [RELEASE.md](RELEASE.md) | Notas da v1.1.0 |
+| [RELEASE.md](RELEASE.md) | Notas da v1.3.0 e versões anteriores |
 | `.conversation-esaa/plans/` | System design, ADRs, plano de implementação |
 
 

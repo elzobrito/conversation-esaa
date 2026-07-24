@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 661,
-      "projection_hash_sha256": "ac41a69389199f82a7285b1077f852fdb8aa0bf12374c9d3869a1435ce2ed6fb",
+      "last_event_seq": 709,
+      "projection_hash_sha256": "8ab40a5d6f3c577f79ad70843c8ce189f3cdc202274973acc163082105676076",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-24T16:59:19Z"
+    "updated_at": "2026-07-24T17:06:54Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1612,7 +1612,7 @@
       "task_kind": "qa",
       "title": "Validate Conversation ESAA installer end to end",
       "description": "Independently validate the npm tarball on Ubuntu and Windows with Node 20/22 and PowerShell 7. Cover each agent alone, all agents, existing hooks, paths with spaces and Unicode, reinstall, dry-run, JSON, update, repair, uninstall with history, RAG existing/managed, Codex service generation, archive safety, and command injection resistance.",
-      "status": "review",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-LIFECYCLE-001"
       ],
@@ -1650,14 +1650,15 @@
           "RAG adapter, command-contract, and permissions suites all passed.",
           "AGENTS.md and .claude/CLAUDE.md are identical; ESAA verify is ok."
         ]
-      }
+      },
+      "completed_at": "2026-07-24T17:03:03Z"
     },
     {
       "task_id": "CONV-INSTALL-RC-001",
       "task_kind": "spec",
       "title": "Prepare Conversation ESAA installer v1.3.0 release candidate",
       "description": "Prepare the reviewed npm release candidate. Update README, RELEASE, AGENTS.md, and .claude/CLAUDE.md with the npx-first workflow, PowerShell fallback, supported agents, RAG modes, lifecycle commands, privacy, and operational limits. Preserve byte-identical AGENTS.md and .claude/CLAUDE.md. Validate npm pack contents and install only from the generated tgz.",
-      "status": "todo",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-QA-001"
       ],
@@ -1691,7 +1692,17 @@
         "The npm tarball contains no private logs, projections, databases, or local credentials.",
         "A clean workspace installed only from tgz passes doctor."
       ],
-      "required_review_mode": "release"
+      "required_review_mode": "release",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-07-24T17:03:14Z",
+      "verification": {
+        "checks": [
+          "Candidate npm tarball was inspected and contains no event stores, projections, SQLite databases, credentials, or local configuration.",
+          "A clean workspace installed only from the generated tgz configured all four agents and passed doctor with pwsh, manifest, conversation-verify, and RAG checks green.",
+          "Candidate AGENTS.md and .claude/CLAUDE.md are byte-identical."
+        ]
+      },
+      "completed_at": "2026-07-24T17:05:36Z"
     },
     {
       "task_id": "CONV-INSTALL-PUBLISH-001",
@@ -2015,7 +2026,7 @@
       "task_kind": "impl",
       "title": "Fix timezone and Windows process portability in installer CI",
       "description": "Resolve CI-only regressions by generating fixed-offset timestamps from DateTimeOffset.Now and by invoking npm plus the packaged JavaScript CLI without Windows shell wrappers.",
-      "status": "review",
+      "status": "done",
       "depends_on": [],
       "targets": [
         ".conversation-esaa/bin/conv-sync.ps1",
@@ -2053,7 +2064,8 @@
           "TZ=UTC PowerShell bootstrap regression test passed.",
           "All child processes remain shell:false; packaged CLI is exercised via src/cli.js."
         ]
-      }
+      },
+      "completed_at": "2026-07-24T17:03:02Z"
     },
     {
       "task_id": "HF-ISS-CONV-CI-007",
@@ -2093,7 +2105,7 @@
       "task_kind": "impl",
       "title": "Make RAG command contract portable to Windows",
       "description": "Allow PowerShell script command wrappers to execute through pwsh with argument-list isolation, and replace the Bash-only rag-sqlite test stub with a cross-platform PowerShell stub.",
-      "status": "review",
+      "status": "done",
       "depends_on": [],
       "targets": [
         ".conversation-esaa/bin/conv-rag.ps1",
@@ -2130,17 +2142,92 @@
           "RAG permissions regression suite passed, including hardening failures and worker fail-open behavior.",
           "PowerShell wrapper execution keeps UseShellExecute=false and preserves each argument through ArgumentList."
         ]
-      }
+      },
+      "completed_at": "2026-07-24T17:03:01Z"
+    },
+    {
+      "task_id": "HF-ISS-CONV-PACKAGE-001",
+      "task_kind": "impl",
+      "title": "Hotfix for ISS-CONV-PACKAGE-001",
+      "description": "Apply a minimal hotfix to resolve issue ISS-CONV-PACKAGE-001 without regressing immutable done tasks.",
+      "status": "todo",
+      "depends_on": [],
+      "targets": [
+        "ISS-CONV-PACKAGE-001"
+      ],
+      "outputs": {
+        "files": [
+          "src/hotfix/HF-ISS-CONV-PACKAGE-001.txt"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "is_hotfix": true,
+      "issue_id": "ISS-CONV-PACKAGE-001",
+      "fixes": "CONV-INSTALL-NPX-001",
+      "scope_patch": [
+        "src/hotfix/"
+      ],
+      "required_verification": [
+        "unit",
+        "regression"
+      ],
+      "baseline_id": "B-000",
+      "superseded_by": [
+        "CONV-INSTALL-PACKAGE-HOTFIX-001"
+      ]
+    },
+    {
+      "task_id": "CONV-INSTALL-PACKAGE-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Restrict npm source allowlist to installer runtime",
+      "description": "Replace the broad src/ package allowlist with src/cli.js and src/installer/ so historical internal artifacts cannot enter the public tarball.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "package.json"
+      ],
+      "outputs": {
+        "files": [
+          "package.json"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "package.json"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "npm pack includes the CLI and installer runtime but excludes src/T-1010.txt.",
+        "The tarball remains free of private state and installs successfully in a clean workspace.",
+        "The installed package passes doctor."
+      ],
+      "required_review_mode": "release",
+      "supersedes": [
+        "HF-ISS-CONV-PACKAGE-001"
+      ],
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-24T17:06:17Z",
+      "verification": {
+        "checks": [
+          "npm pack no longer contains package/src/T-1010.txt and still contains every CLI/installer runtime file.",
+          "Archive inspection found no private state, projections, databases, credentials, or local configuration.",
+          "Clean tgz-only installation configured all agents and passed doctor."
+        ]
+      },
+      "completed_at": "2026-07-24T17:06:54Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 44,
-      "review": 3,
+      "done": 49,
       "todo": 8
     },
     "by_kind": {
-      "impl": 45,
+      "impl": 47,
       "qa": 5,
       "spec": 5
     }
