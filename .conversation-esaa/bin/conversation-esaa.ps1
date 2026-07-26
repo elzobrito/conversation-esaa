@@ -54,6 +54,67 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# --- long-form option compatibility (--agent claude, --workspace "C:\x") ----------------
+# Every option in Show-Help and in AGENTS.md is written with a double dash. Whether that
+# actually binds depends on HOW the script was started, which is the surprising part:
+#
+#   pwsh -File conversation-esaa.ps1 sync --agent claude
+#       binds -- the -File argument binder folds the extra dash.
+#
+#   pwsh -Command "& '<path>/conversation-esaa.ps1' sync --agent claude"
+#       does NOT bind -- the parser hands `--agent` to the ValueFromRemainingArguments
+#       parameter, $Agent stays empty, and the command dies with
+#       "sync requires --agent grok|claude|codex|antigravity": the very thing that was
+#       just passed.
+#
+# The second form is what wrappers, task runners and agent tooling typically emit, so the
+# same documented command line works or fails depending on the caller, with no diagnostic.
+# `--name=value` binds in neither form.
+#
+# This normalizes `--name value` and `--name=value` onto the real parameters, matching by
+# name or alias and ignoring dashes/underscores/case. Anything that matches no parameter is
+# left in $Rest untouched, so behaviour for unknown tokens is unchanged, and single-dash
+# PowerShell binding keeps working exactly as before.
+if ($Rest -and $Rest.Count -gt 0) {
+    $paramMeta = $MyInvocation.MyCommand.Parameters
+    # Documented spellings whose parameter has a different name and no matching alias.
+    $longAliases = @{ 'source' = 'SourceEvent'; 'command' = 'CommandPath' }
+
+    function Resolve-LongOption {
+        param([string]$Raw)
+        $flat = ($Raw -replace '[-_]', '')
+        if ($longAliases.ContainsKey($flat.ToLowerInvariant())) { return $longAliases[$flat.ToLowerInvariant()] }
+        foreach ($k in $paramMeta.Keys) {
+            if ($k -ieq $flat) { return $k }
+            foreach ($al in $paramMeta[$k].Aliases) {
+                if (($al -replace '[-_]', '') -ieq $flat) { return $k }
+            }
+        }
+        return $null
+    }
+
+    $leftover = [System.Collections.Generic.List[string]]::new()
+    for ($i = 0; $i -lt $Rest.Count; $i++) {
+        $tok = $Rest[$i]
+        if ($tok -notmatch '^--([A-Za-z][A-Za-z0-9_-]*)(?:=(.*))?$') { $leftover.Add($tok); continue }
+        $label = $Matches[1]
+        $inline = if ($Matches.Count -gt 2) { $Matches[2] } else { $null }
+        $name = Resolve-LongOption -Raw $label
+        if (-not $name) { $leftover.Add($tok); continue }
+        if (-not [string]::IsNullOrEmpty($inline)) {
+            Set-Variable -Name $name -Value $inline
+        } elseif ($paramMeta[$name].ParameterType -eq [switch]) {
+            Set-Variable -Name $name -Value ([switch]$true)
+        } elseif ($i + 1 -lt $Rest.Count -and $Rest[$i + 1] -notmatch '^--[A-Za-z]') {
+            Set-Variable -Name $name -Value $Rest[$i + 1]
+            $i++
+        } else {
+            throw "Option --$label requires a value."
+        }
+    }
+    $Rest = $leftover.ToArray()
+}
+
 $binDir = $PSScriptRoot
 $convCli = Join-Path $binDir 'conversation-esaa.ps1'
 $convSync = Join-Path $binDir 'conv-sync.ps1'
