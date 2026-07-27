@@ -10,6 +10,8 @@ $temp = Join-Path ([System.IO.Path]::GetTempPath()) (
 $bin = Join-Path $temp '.conversation-esaa/bin'
 $cli = Join-Path $bin 'conversation-esaa.ps1'
 $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
+$workspaceArgument = '.'
+$resolvedWorkspace = $repo
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw "ASSERT: $Message" }
@@ -93,28 +95,29 @@ param(
 
     foreach ($mode in @('File', 'Command')) {
         $separate = Invoke-Cli -Mode $mode -Arguments @(
-            'sync', '--agent', 'claude', '--workspace', $temp
+            'sync', '--agent', 'claude', '--workspace', $workspaceArgument
         )
         Assert-True ($separate.command -eq 'sync-claude') "$mode separated agent"
-        Assert-ContainsSequence $separate.rest @('-WorkspaceRoot', $temp) (
+        Assert-ContainsSequence $separate.rest @('-WorkspaceRoot', $resolvedWorkspace) (
             "$mode separated workspace"
         )
 
         $equals = Invoke-Cli -Mode $mode -Arguments @(
-            'sync', '--agent=codex', "--workspace=$temp", '--mode=compact'
+            'sync', '--agent=codex', "--workspace=$workspaceArgument", '--mode=compact'
         )
         Assert-True ($equals.command -eq 'sync-codex') "$mode equals agent"
         Assert-ContainsSequence $equals.rest @('-Mode', 'compact') "$mode equals mode"
 
         if ($mode -eq 'File') {
             $native = Invoke-Cli -Mode $mode -Arguments @(
-                'sync', '-Agent', 'grok', '-Workspace', $temp
+                'sync', '-Agent', 'grok', '-Workspace', $workspaceArgument
             )
             Assert-True ($native.command -eq 'sync-grok') "$mode native single dash"
         }
 
         $decision = Invoke-Cli -Mode $mode -Arguments @(
-            'decide', 'keep positional text', "--workspace=$temp", '--source=EV-7'
+            'decide', 'keep positional text', "--workspace=$workspaceArgument",
+            '--source=EV-7'
         )
         Assert-ContainsSequence $decision.rest @(
             '-DecisionText', 'keep positional text'
@@ -125,14 +128,15 @@ param(
 
         $topic = Invoke-Cli -Mode $mode -Arguments @(
             'topics', 'link', 'TOP-001', '--event-id', 'EV-1',
-            '--events=EV-2', "--workspace=$temp"
+            '--events=EV-2', "--workspace=$workspaceArgument"
         )
         Assert-ContainsSequence $topic.rest @(
             '-TopicEventIds', 'EV-1,EV-2'
         ) "$mode repeated alias array"
 
         $rag = Invoke-Cli -Mode $mode -Arguments @(
-            'rag', 'enable', "--workspace=$temp", '--command=/tmp/rag tool',
+            'rag', 'enable', "--workspace=$workspaceArgument",
+            '--command=/tmp/rag tool',
             '--timeout=7', '--base_url=http://127.0.0.1:11434', '--json'
         )
         Assert-ContainsSequence $rag.rest @(
@@ -144,7 +148,7 @@ param(
         Assert-ContainsSequence $rag.rest @('-Json') "$mode switch"
 
         $search = Invoke-Cli -Mode $mode -Arguments @(
-            'search', 'needle', "--workspace=$temp", '--top_k=7',
+            'search', 'needle', "--workspace=$workspaceArgument", '--top_k=7',
             '--min-score=0.5'
         )
         Assert-ContainsSequence $search.rest @('-Query', 'needle') "$mode query"
@@ -154,7 +158,7 @@ param(
         ) "$mode typed double"
 
         $unknown = Invoke-Cli -Mode $mode -Arguments @(
-            'decide', '--literal-unknown', "--workspace=$temp"
+            'decide', '--literal-unknown', "--workspace=$workspaceArgument"
         )
         Assert-ContainsSequence $unknown.rest @(
             '-DecisionText', '--literal-unknown'
@@ -186,7 +190,8 @@ param(
     }
 
     $conflictExpression = "& $(Quote-PowerShellLiteral $cli) sync " +
-        "-Agent claude --agent grok -Workspace $(Quote-PowerShellLiteral $temp)"
+        "-Agent claude --agent grok " +
+        "-Workspace $(Quote-PowerShellLiteral $workspaceArgument)"
     $conflictOutput = & $pwsh -NoProfile -Command $conflictExpression 2>&1
     Assert-True ($LASTEXITCODE -ne 0) 'native and normalized conflict must fail'
     $conflict = ($conflictOutput | Out-String).Trim()
@@ -197,7 +202,7 @@ param(
     ) 'native and normalized duplicate conflict'
 
     $nativeExpression = "& $(Quote-PowerShellLiteral $cli) sync " +
-        "-Agent grok -Workspace $(Quote-PowerShellLiteral $temp)"
+        "-Agent grok -Workspace $(Quote-PowerShellLiteral $workspaceArgument)"
     $nativeOutput = & $pwsh -NoProfile -Command $nativeExpression 2>&1
     Assert-True ($LASTEXITCODE -eq 0) 'Command native single dash invocation'
     $nativeCommand = (($nativeOutput | Out-String).Trim() | ConvertFrom-Json)
@@ -206,7 +211,8 @@ param(
     ) 'Command native single dash binding'
 
     $invalidMode = Invoke-Cli -Mode Command -Arguments @(
-        'sync', '--agent=claude', '--mode=turbo', "--workspace=$temp"
+        'sync', '--agent=claude', '--mode=turbo',
+        "--workspace=$workspaceArgument"
     ) -ExpectFailure
     Assert-True (
         $invalidMode.Contains("Option --mode has invalid value 'turbo'.") -and
@@ -215,6 +221,7 @@ param(
     ) 'ValidateSet error'
 
     Write-Output 'test-cli-long-options: ALL PASSED'
+    $global:LASTEXITCODE = 0
 } finally {
     if (Test-Path -LiteralPath $temp) {
         Remove-Item -LiteralPath $temp -Recurse -Force
