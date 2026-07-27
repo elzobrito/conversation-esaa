@@ -6,6 +6,7 @@ import { sha256, workspaceRelative, writeJsonAtomic } from "./files.js";
 import { runPowerShell } from "./powershell.js";
 import { promptAgents } from "./prompts.js";
 import { configureAgents } from "./adapters/index.js";
+import { readPackageMetadata } from "./package.js";
 import { setupRag } from "./rag/index.js";
 
 const packageRoot = path.resolve(
@@ -15,6 +16,7 @@ const packageRoot = path.resolve(
 const runtimeNames = [
   "conv-sync.ps1",
   "conversation-esaa.ps1",
+  "conv-bootstrap.ps1",
   "codex-watch.ps1",
   "antigravity-hook-sync.ps1",
   "conv-rag.ps1",
@@ -41,6 +43,7 @@ export async function resolveAgents(options, io = {}) {
 }
 
 export async function install(options, dependencies = {}) {
+  const packageMetadata = await readPackageMetadata();
   const run = dependencies.runPowerShell || runPowerShell;
   const agents = await resolveAgents(options, dependencies.io);
   const workspace = path.resolve(options.workspace);
@@ -70,6 +73,7 @@ export async function install(options, dependencies = {}) {
     "-Agents",
     agents.join(","),
     "-Json",
+    "-SkipAgentIntegrations",
   ];
   if (options.dryRun) bootstrapArgs.push("-DryRun");
   if (options.force) bootstrapArgs.push("-Force");
@@ -95,7 +99,7 @@ export async function install(options, dependencies = {}) {
     ok: true,
     command: "install",
     workspace,
-    version: "1.3.0",
+    version: packageMetadata.version,
     agents,
     changed: bootstrapResult.changed || [],
     preserved: bootstrapResult.preserved || [],
@@ -138,7 +142,7 @@ export async function install(options, dependencies = {}) {
   }
   const manifest = {
     schema_version: "conversation-esaa.install-manifest.v1",
-    version: "1.3.0",
+    version: packageMetadata.version,
     workspace,
     agents,
     rag: ragResult,

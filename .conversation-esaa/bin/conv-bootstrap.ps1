@@ -14,7 +14,8 @@ param(
     [string[]]$Agents,
     [switch]$Force,
     [switch]$Json,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$SkipAgentIntegrations
 )
 
 Set-StrictMode -Version Latest
@@ -146,6 +147,7 @@ foreach ($directory in @($esaaDir, $binDir, $plansDir, $runDir)) {
 foreach ($engine in @(
     'conv-sync.ps1',
     'conversation-esaa.ps1',
+    'conv-bootstrap.ps1',
     'codex-watch.ps1',
     'antigravity-hook-sync.ps1',
     'conv-rag.ps1'
@@ -195,7 +197,7 @@ function New-SyncCommand([string]$Agent, [string]$Extra = '') {
     return $command
 }
 
-if ($Agents -contains 'grok') {
+if (-not $SkipAgentIntegrations -and $Agents -contains 'grok') {
     $path = Join-Path $WorkspaceRoot '.grok/hooks/conversation-esaa.json'
     $value = [ordered]@{
         hooks = [ordered]@{
@@ -213,7 +215,7 @@ if ($Agents -contains 'grok') {
     Write-AgentJson -Path $path -Value $value -Label 'Grok hook'
 }
 
-if ($Agents -contains 'claude') {
+if (-not $SkipAgentIntegrations -and $Agents -contains 'claude') {
     $path = Join-Path $WorkspaceRoot '.claude/settings.json'
     $value = [ordered]@{
         hooks = [ordered]@{
@@ -231,7 +233,7 @@ if ($Agents -contains 'claude') {
     Write-AgentJson -Path $path -Value $value -Label 'Claude settings'
 }
 
-if ($Agents -contains 'antigravity') {
+if (-not $SkipAgentIntegrations -and $Agents -contains 'antigravity') {
     $path = Join-Path $WorkspaceRoot '.agents/hooks.json'
     $hooks = [ordered]@{}
     if (Test-Path -LiteralPath $path) {

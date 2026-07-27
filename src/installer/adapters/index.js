@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { appendUniqueHook, readJsonObject, writeJson } from "./json.js";
+import { readJsonObject, replaceMatchingHook, writeJson } from "./json.js";
 
 function quoteCommandPart(value) {
   return `"${String(value).replaceAll('"', '\\"')}"`;
@@ -38,20 +38,44 @@ function syncCommand(pwsh, cli, workspace, agent, extra = []) {
   ].join(" ");
 }
 
+function normalCommand(value) {
+  return String(value || "")
+    .replaceAll("\\", "/")
+    .replaceAll(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function isInstalledSyncHook(entry, context, agent) {
+  const command = normalCommand(entry?.command);
+  const cli = normalCommand(context.cli);
+  if (!command.includes(cli) || !/(^| )sync( |$)/.test(command)) return false;
+  const escapedAgent = agent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    `--agent(?:=|\\s+)[\"']?${escapedAgent}[\"']?(?:\\s|$)`,
+    "i",
+  ).test(command);
+}
+
 async function configureHookAgent(agent, file, events, context) {
   const config = await readJsonObject(file);
   for (const [event, timeout, extra = []] of events) {
-    appendUniqueHook(config, event, {
-      type: "command",
-      command: syncCommand(
-        context.pwsh,
-        context.cli,
-        context.workspace,
-        agent,
-        extra,
-      ),
-      timeout,
-    });
+    replaceMatchingHook(
+      config,
+      event,
+      {
+        type: "command",
+        command: syncCommand(
+          context.pwsh,
+          context.cli,
+          context.workspace,
+          agent,
+          extra,
+        ),
+        timeout,
+      },
+      (entry) => isInstalledSyncHook(entry, context, agent),
+    );
   }
   await writeJson(file, config, context.dryRun);
   return file;

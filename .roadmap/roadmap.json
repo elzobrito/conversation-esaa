@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 712,
-      "projection_hash_sha256": "14dd811aa68edf4b7723f59687eaea3405d6abbb829df26f8d8c5528664127d0",
+      "last_event_seq": 763,
+      "projection_hash_sha256": "04d7cb402401241cc71eb701c777d637ea4cbd83ce2e8947ff69ac4ee2740561",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-24T17:07:31Z"
+    "updated_at": "2026-07-27T16:58:23Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1730,7 +1730,10 @@
       ],
       "required_review_mode": "release",
       "assigned_to": "agent-qa",
-      "started_at": "2026-07-24T17:07:31Z"
+      "started_at": "2026-07-24T17:07:31Z",
+      "superseded_by": [
+        "CONV-INSTALL-PUBLISH-002"
+      ]
     },
     {
       "task_id": "HF-ISS-CONV-INSTALL-001",
@@ -2221,18 +2224,263 @@
         ]
       },
       "completed_at": "2026-07-24T17:06:54Z"
+    },
+    {
+      "task_id": "CONV-CLI-LONGOPT-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Normalize GNU-style long options across PowerShell invocation modes",
+      "description": "Add one normalization pass immediately after strict-mode initialization in the public PowerShell CLI. Discover canonical parameter names and aliases from script metadata while ignoring dashes, underscores, and case; explicitly map source to SourceEvent, command to CommandPath, and timeout to TimeoutSeconds. Support --name value and --name=value for value parameters under pwsh -File and pwsh -Command; keep switches bare, accumulate repeated arrays, preserve unknown and positional Rest tokens, preserve native single-dash binding, reject duplicate binding explicitly, and raise Option --x requires a value. Remove now-redundant command-specific Rest parsers without changing command semantics.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        "tests/test-cli-long-options.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          "tests/test-cli-long-options.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Every documented value-taking long option binds under -File and -Command in separated and equals forms, including aliases and the explicit source, command, and timeout mappings.",
+        "Switches, repeated arrays, typed values, missing values, duplicate bindings, unknown tokens, and positional Rest compatibility are covered by executable tests.",
+        "Native single-dash PowerShell invocation remains compatible and command behavior is not double-parsed."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-27T16:47:05Z",
+      "verification": {
+        "checks": [
+          "tests/test-cli-long-options.ps1: ALL PASSED for File and Command modes, separated and equals values, aliases, arrays, types, conflicts, missing values, unknown tokens, and native single-dash behavior.",
+          ".conversation-esaa/bin/conv-test.ps1 exited 0, preserving the legacy runtime suite.",
+          "git diff --check passed for the CLI and new test."
+        ]
+      },
+      "completed_at": "2026-07-27T16:52:53Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-RUNTIME-HOTFIX-001",
+      "task_kind": "impl",
+      "title": "Make npm installation single-writer and install the complete runtime",
+      "description": "Prevent duplicate Grok and Claude hooks by adding SkipAgentIntegrations to conv-bootstrap.ps1 and passing it from the npm installer, making the Node adapter the sole integration writer on npm installs while retaining PowerShell-only fallback behavior. During upgrades, replace only existing commands that invoke the installed conversation-esaa.ps1 sync for the same agent, preserve unrelated hooks, and emit one canonical absolute-pwsh command. Copy conv-bootstrap.ps1 into workspaces, include it in runtime ownership manifests, and make lifecycle status, doctor, repair, update, and uninstall handle it like every other public runtime file without touching private state.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        "src/installer",
+        "tests/installer"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          "src/installer/install.js",
+          "src/installer/adapters/index.js",
+          "src/installer/adapters/json.js",
+          "tests/installer"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-bootstrap.ps1"
+      ],
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Fresh and upgraded installs contain exactly one Conversation ESAA hook per supported event while preserving unrelated hooks.",
+        "conv-bootstrap.ps1 is installed, owned in the manifest, checked by status and doctor, repaired or updated, and removed by uninstall while private state remains.",
+        "PowerShell-only fallback still configures selected agents and preserves private Conversation ESAA state."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-27T16:53:06Z",
+      "verification": {
+        "checks": [
+          "CONVERSATION_ESAA_SKIP_NETWORK=1 npm test: 19 passed, 0 failed, 1 intentional network skip.",
+          "tests/test-installer-bootstrap.ps1: PASS, including SkipAgentIntegrations, private-state preservation, idempotency, dry-run, and self-install.",
+          "Adapter convergence tests: 3 passed; git diff --check passed."
+        ]
+      },
+      "completed_at": "2026-07-27T16:56:20Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-131-PACKAGE-001",
+      "task_kind": "impl",
+      "title": "Prepare a version-consistent conversation-esaa 1.3.1 package",
+      "description": "Bump package.json and package-lock.json to 1.3.1. Add a package-metadata helper inside src/installer that reads the packaged package.json and make src/cli.js plus install.js use it as the single version source for --version, install results, and install-manifest.json. Remove Node runtime hardcodes for 1.3.0 and verify npm pack produces conversation-esaa-1.3.1.tgz with only the intended public runtime.",
+      "status": "done",
+      "depends_on": [
+        "CONV-CLI-LONGOPT-HOTFIX-001",
+        "CONV-INSTALL-RUNTIME-HOTFIX-001"
+      ],
+      "targets": [
+        "package.json",
+        "package-lock.json",
+        "src/installer",
+        "src/cli.js",
+        "tests/installer"
+      ],
+      "outputs": {
+        "files": [
+          "package.json",
+          "package-lock.json",
+          "src/installer/package.js",
+          "src/cli.js",
+          "src/installer/install.js",
+          "tests/installer"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "package.json",
+        "package-lock.json"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "package metadata, CLI --version, installer results, and install manifests all report 1.3.1 from one package.json source.",
+        "npm pack produces conversation-esaa-1.3.1.tgz and the packed CLI installs and runs from a clean workspace.",
+        "The tarball contains no private logs, projections, SQLite databases, credentials, local configuration, or unrelated internal artifacts."
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-07-27T16:56:44Z",
+      "verification": {
+        "checks": [
+          "node src/cli.js --version and the installed tarball CLI both reported 1.3.1; runtime source contains no 1.3.0 hardcodes.",
+          "npm test: 20 passed, 0 failed, 1 intentional network skip.",
+          "npm pack produced conversation-esaa-1.3.1.tgz; SHA-256 124953e72602a32a951df8065a139bf31304a8f50d7c92edee60c0e846fc813a; forbidden private/internal-name scan returned no matches."
+        ]
+      },
+      "completed_at": "2026-07-27T16:58:07Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-131-QA-001",
+      "task_kind": "qa",
+      "title": "Validate Conversation ESAA 1.3.1 release candidate end to end",
+      "description": "Independently validate the corrected 1.3.1 tarball on Ubuntu and Windows with Node 20 and 22. Add the long-option PowerShell suite to CI, cover fresh installs and upgrades containing literal-pwsh, absolute-pwsh, and legacy duplicate hook variants, verify one canonical hook per event while preserving unrelated hooks, and exercise installed init, status, doctor, repair, update, and uninstall with private event store, projections, tasks, and RAG preserved. Inspect the tarball and record reproducible evidence in docs/qa/CONV-INSTALL-131-QA-001.md.",
+      "status": "in_progress",
+      "depends_on": [
+        "CONV-INSTALL-131-PACKAGE-001"
+      ],
+      "targets": [
+        "docs/qa",
+        ".github/workflows/installer-ci.yml",
+        "tests"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-INSTALL-131-QA-001.md",
+          ".github/workflows/installer-ci.yml"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".github/workflows/installer-ci.yml"
+      ],
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "PowerShell long-option tests and installer tests pass on Ubuntu and Windows with Node 20 and 22.",
+        "Fresh and upgraded workspaces have one canonical hook per event, an owned bootstrap runtime, and intact private data across lifecycle commands.",
+        "The inspected 1.3.1 tarball contains only intended public files and a reproducible QA report records all commands and results."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-27T16:58:23Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-RC-131-001",
+      "task_kind": "spec",
+      "title": "Prepare Conversation ESAA 1.3.1 release candidate documentation",
+      "description": "Update README.md, RELEASE.md, AGENTS.md, and .claude/CLAUDE.md for version 1.3.1 after QA passes. Keep npm/npx as the primary installation path and clone/bootstrap as fallback. Document identical GNU-style long-option behavior under pwsh -File and pwsh -Command, including --name=value for value parameters, and record the hook single-writer, installed bootstrap, lifecycle preservation, privacy, and operational limits. Keep AGENTS.md and .claude/CLAUDE.md byte-identical.",
+      "status": "todo",
+      "depends_on": [
+        "CONV-INSTALL-131-QA-001"
+      ],
+      "targets": [
+        "README.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          "README.md",
+          "RELEASE.md",
+          "AGENTS.md",
+          ".claude/CLAUDE.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "README.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "All public version references and npx commands target 1.3.1 while retaining a working clone/bootstrap fallback.",
+        "The PowerShell invocation contract and the 1.3.1 runtime fixes are documented without claiming npm availability before publication evidence exists.",
+        "AGENTS.md and .claude/CLAUDE.md are byte-identical and privacy rules remain unchanged."
+      ],
+      "required_review_mode": "release"
+    },
+    {
+      "task_id": "CONV-INSTALL-PUBLISH-002",
+      "task_kind": "qa",
+      "title": "Publish and publicly verify conversation-esaa 1.3.1",
+      "description": "Publish the reviewed 1.3.1 candidate only after CI is green, the exact commit is identified, npm view confirms 1.3.1 is absent, and npm whoami confirms authentication. Build and inspect a clean tarball, record SHA-256, publish that tarball with public access, verify npm view and npx from the registry in a clean workspace, smoke-test -Command long options, hook convergence, installed bootstrap, and doctor, then create GitHub tag and Release v1.3.1 on the reviewed commit with checksum. Close GitHub issues 3 and 4 only after public verification and resolve ISS-CONV-PUBLISH-130-BLOCKED-001 with this task as evidence. If authentication is absent, report the blocker without publishing or tagging.",
+      "status": "todo",
+      "depends_on": [
+        "CONV-INSTALL-RC-131-001"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "npm registry evidence",
+          "GitHub release evidence",
+          "public smoke-test evidence"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "release",
+      "acceptance_criteria": [
+        "npm view and npx confirm public conversation-esaa@1.3.1 and a clean registry-only installation passes doctor.",
+        "Public smoke tests confirm -Command long options, one canonical hook per event, and installed conv-bootstrap.ps1.",
+        "GitHub Release v1.3.1 points to the reviewed commit, records the tarball SHA-256, and issues 3 and 4 are closed with verification evidence."
+      ],
+      "required_review_mode": "release",
+      "supersedes": [
+        "CONV-INSTALL-PUBLISH-001"
+      ]
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 49,
-      "in_progress": 1,
-      "todo": 7
+      "done": 52,
+      "in_progress": 2,
+      "todo": 9
     },
     "by_kind": {
-      "impl": 47,
-      "qa": 5,
-      "spec": 5
+      "impl": 50,
+      "qa": 7,
+      "spec": 6
     }
   }
 }

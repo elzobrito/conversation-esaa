@@ -1,17 +1,13 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { parseArgs } from "./installer/args.js";
 import { install } from "./installer/install.js";
+import { readPackageMetadata } from "./installer/package.js";
 import {
   doctor,
   status,
   uninstall,
   updateOrRepair,
 } from "./installer/lifecycle/index.js";
-
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 function help() {
   return `Conversation ESAA installer
@@ -42,10 +38,8 @@ export async function main(argv = process.argv.slice(2)) {
       return 0;
     }
     if (options.command === "version") {
-      const pkg = JSON.parse(
-        await readFile(path.join(packageRoot, "package.json"), "utf8"),
-      );
-      process.stdout.write(`${pkg.version}\n`);
+      const metadata = await readPackageMetadata();
+      process.stdout.write(`${metadata.version}\n`);
       return 0;
     }
     let result;
