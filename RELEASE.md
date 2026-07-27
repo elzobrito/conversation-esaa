@@ -1,5 +1,44 @@
 # Release notes — Conversation ESAA
 
+## v1.3.1 — opções portáveis e instalador convergente
+
+Release de correção do primeiro candidato npm. A publicação pública só deve ser
+considerada disponível depois da evidência registrada pela tarefa
+`CONV-INSTALL-PUBLISH-002`.
+
+### Correções
+
+- opções GNU da CLI PowerShell funcionam igualmente por `pwsh -File` e pelo
+  operador `&` em `pwsh -Command`;
+- parâmetros com valor aceitam `--nome valor` e `--nome=valor`, com conversão
+  tipada, aliases e erros explícitos;
+- o caminho npm usa um único escritor de hooks e converge variantes antigas sem
+  remover integrações alheias;
+- `conv-bootstrap.ps1` é instalado, registrado no manifesto e participa de
+  `status`, `doctor`, `repair`, `update` e `uninstall`;
+- `package.json` é a única fonte da versão `1.3.1` para CLI, resultado do
+  instalador e manifesto.
+
+```powershell
+npx conversation-esaa@1.3.1 install `
+  --workspace . `
+  --agents grok,claude,codex,antigravity `
+  --non-interactive
+
+npx conversation-esaa@1.3.1 doctor --workspace .
+```
+
+### Verificação
+
+- matriz Ubuntu/Windows com Node.js 20/22 e PowerShell 7;
+- suíte npm, bootstrap, opções longas, motor legado e contratos RAG;
+- instalação e upgrade a partir do `.tgz`, incluindo hooks antigos;
+- inspeção do tarball para excluir logs, projeções, SQLite, credenciais e
+  configuração local;
+- `AGENTS.md` e `.claude/CLAUDE.md` byte-idênticos.
+
+---
+
 ## v1.3.0 — instalador npm e ciclo de vida
 
 Release candidata validada em Ubuntu e Windows com Node.js 20/22 e

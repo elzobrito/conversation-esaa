@@ -12,7 +12,7 @@
 |---|---|
 | **É** | Memória conversacional + handoff entre agentes (event sourcing de turnos) |
 | **Não é** | Runtime de tarefas de código (claim/complete/review) — isso é **ESAA-Core** |
-| **Versão** | v1.3.0 |
+| **Versão** | v1.3.1 |
 | **Instalador** | Node.js 18+ / npm; runtime em PowerShell 7 (`pwsh`) |
 | **CLI runtime** | `conversation-esaa.ps1` / `conv-sync.ps1` |
 
@@ -28,8 +28,8 @@ Mecanismos de **captura** (hooks vs watcher) diferem; o **contrato operacional**
 Caminho principal:
 
 ```powershell
-npx conversation-esaa@1.3.0 install --workspace . --agents grok,claude,codex,antigravity --non-interactive
-npx conversation-esaa@1.3.0 doctor --workspace .
+npx conversation-esaa@1.3.1 install --workspace . --agents grok,claude,codex,antigravity --non-interactive
+npx conversation-esaa@1.3.1 doctor --workspace .
 ```
 
 - Agentes suportados: `grok`, `claude`, `codex`, `antigravity`.
@@ -38,6 +38,10 @@ npx conversation-esaa@1.3.0 doctor --workspace .
 - Codex: watcher manual por padrão; `--codex-service user` é opt-in.
 - Ciclo: `status`, `doctor`, `update`, `repair`, `uninstall`.
 - Fallback: `conv-bootstrap.ps1` quando os scripts já estiverem disponíveis.
+- CLI PowerShell: opções GNU funcionam por `-File` e pelo operador `&` em
+  `-Command`; parâmetros com valor aceitam `--nome valor` e `--nome=valor`.
+- Instalação npm: bootstrap escreve o motor e o adaptador Node escreve uma única
+  integração canônica por evento; `conv-bootstrap.ps1` é runtime versionado.
 
 `update`/`repair` não substituem arquivo próprio modificado sem `--force`.
 `uninstall` preserva event store, projeções, decisões, tarefas e dados RAG.

@@ -6,7 +6,7 @@ Quando você troca de agente ou a janela de contexto acaba, o próximo assistent
 
 | | |
 |---|---|
-| **Versão** | v1.3.0 (instalador npm + RAG opt-in) |
+| **Versão** | v1.3.1 (instalador npm + RAG opt-in) |
 | **Plataforma** | Windows e Linux; Node.js 18+ e PowerShell 7 (`pwsh`) |
 | **Licença** | MIT |
 | **Privacidade** | [PRIVACY.md](PRIVACY.md) — leia antes de versionar |
@@ -21,19 +21,19 @@ No diretório do projeto, selecione os agentes e deixe o instalador configurar
 runtime, hooks, watcher e manifesto:
 
 ```powershell
-npx conversation-esaa@1.3.0 install `
+npx conversation-esaa@1.3.1 install `
   --workspace . `
   --agents grok,claude,codex,antigravity `
   --non-interactive
 
-npx conversation-esaa@1.3.0 doctor --workspace .
+npx conversation-esaa@1.3.1 doctor --workspace .
 ```
 
 Também é possível instalar um agente por vez:
 
 ```powershell
-npx conversation-esaa@1.3.0 install --workspace . --agent codex --non-interactive
-npx conversation-esaa@1.3.0 install --workspace . --agent claude --non-interactive
+npx conversation-esaa@1.3.1 install --workspace . --agent codex --non-interactive
+npx conversation-esaa@1.3.1 install --workspace . --agent claude --non-interactive
 ```
 
 Use `--yes` no lugar de `--agents` para selecionar todos. O instalador mescla
@@ -73,7 +73,7 @@ O instalador mantém o RAG desligado por padrão. Os modos são:
 | `--rag managed` | baixa a release fixada, valida SHA-256 e habilita o adaptador |
 
 ```powershell
-npx conversation-esaa@1.3.0 install `
+npx conversation-esaa@1.3.1 install `
   --workspace . `
   --agent codex `
   --rag existing `
@@ -81,7 +81,7 @@ npx conversation-esaa@1.3.0 install `
   --non-interactive
 
 # ou instalação gerenciada da release fixada
-npx conversation-esaa@1.3.0 install --workspace . --agent codex --rag managed --non-interactive
+npx conversation-esaa@1.3.1 install --workspace . --agent codex --rag managed --non-interactive
 ```
 
 O RAG requer Python 3.10+, Ollama local e o modelo `embeddinggemma`. Ele é uma
@@ -101,9 +101,9 @@ continuam funcionando se o RAG estiver desligado ou indisponível.
 ### Caminho recomendado: npx
 
 ```powershell
-npx conversation-esaa@1.3.0 install --workspace . --agents grok,claude --non-interactive
-npx conversation-esaa@1.3.0 status --workspace .
-npx conversation-esaa@1.3.0 doctor --workspace .
+npx conversation-esaa@1.3.1 install --workspace . --agents grok,claude --non-interactive
+npx conversation-esaa@1.3.1 status --workspace .
+npx conversation-esaa@1.3.1 doctor --workspace .
 ```
 
 Para o Codex, o watcher é manual por padrão. Use
@@ -111,7 +111,7 @@ Para o Codex, o watcher é manual por padrão. Use
 de usuário no Linux ou uma Scheduled Task no Windows.
 
 ```powershell
-npx conversation-esaa@1.3.0 install `
+npx conversation-esaa@1.3.1 install `
   --workspace . `
   --agent codex `
   --codex-service user `
@@ -134,6 +134,20 @@ pwsh -NoProfile -ExecutionPolicy Bypass `
 O fallback pressupõe que `.conversation-esaa/bin/` já está disponível
 localmente. O bootstrap cria o event store vazio, instala os scripts e gera
 integrações com caminhos absolutos do workspace.
+
+### Compatibilidade de opções PowerShell
+
+A CLI pública aceita as opções GNU documentadas tanto com `pwsh -File` quanto
+quando o script é chamado pelo operador `&` dentro de `pwsh -Command`.
+Parâmetros com valor aceitam `--nome valor` e `--nome=valor`; switches como
+`--json`, `--force` e `--purge` permanecem sem valor. A sintaxe PowerShell
+nativa com um hífen continua compatível.
+
+No caminho npm, o bootstrap instala o motor e o adaptador Node é o único
+escritor das integrações. Instalações novas ou atualizadas convergem variantes
+antigas para um único hook canônico por evento, preservando hooks alheios.
+`conv-bootstrap.ps1` também faz parte do runtime registrado no manifesto e do
+ciclo `status`/`doctor`/`repair`/`update`/`uninstall`.
 
 ### Ativar sync automático
 
@@ -199,11 +213,11 @@ Comandos adicionais: `context --before`, `--around`, `task update`, `project`. R
 ### Manutenção da instalação
 
 ```powershell
-npx conversation-esaa@1.3.0 status --workspace . --json
-npx conversation-esaa@1.3.0 doctor --workspace . --json
-npx conversation-esaa@1.3.0 update --workspace . --json
-npx conversation-esaa@1.3.0 repair --workspace . --json
-npx conversation-esaa@1.3.0 uninstall --workspace . --json
+npx conversation-esaa@1.3.1 status --workspace . --json
+npx conversation-esaa@1.3.1 doctor --workspace . --json
+npx conversation-esaa@1.3.1 update --workspace . --json
+npx conversation-esaa@1.3.1 repair --workspace . --json
+npx conversation-esaa@1.3.1 uninstall --workspace . --json
 ```
 
 `update` e `repair` recusam substituir arquivos gerenciados modificados, salvo
@@ -259,7 +273,7 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test-b
 | Recurso | Conteúdo |
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | Modelo de privacidade e redação |
-| [RELEASE.md](RELEASE.md) | Notas da v1.3.0 e versões anteriores |
+| [RELEASE.md](RELEASE.md) | Notas da v1.3.1 e versões anteriores |
 | `.conversation-esaa/plans/` | System design, ADRs, plano de implementação |
 
 

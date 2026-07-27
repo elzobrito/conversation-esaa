@@ -63,3 +63,12 @@ The GitHub Actions workflow runs `npm test`, the bootstrap contract, and the
 long-option contract in all four Ubuntu/Windows and Node 20/22 cells. The
 legacy and RAG suites run in both operating systems on Node 22. Publication is
 blocked until that matrix is green for the reviewed release commit.
+
+Run
+[`30288016892`](https://github.com/elzobrito/conversation-esaa/actions/runs/30288016892)
+passed all four installer cells and GitGuardian for commit `6dd28e5`:
+
+- Ubuntu, Node 20: passed;
+- Ubuntu, Node 22 plus legacy/RAG suites: passed;
+- Windows, Node 20: passed;
+- Windows, Node 22 plus legacy/RAG suites: passed.

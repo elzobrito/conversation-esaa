@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 763,
-      "projection_hash_sha256": "04d7cb402401241cc71eb701c777d637ea4cbd83ce2e8947ff69ac4ee2740561",
+      "last_event_seq": 778,
+      "projection_hash_sha256": "6659fb4d60b2069ac5a2484b196b0bafe660e961e7f1dd34c3b3ec17311c0386",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-27T16:58:23Z"
+    "updated_at": "2026-07-27T17:14:32Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2368,7 +2368,7 @@
       "task_kind": "qa",
       "title": "Validate Conversation ESAA 1.3.1 release candidate end to end",
       "description": "Independently validate the corrected 1.3.1 tarball on Ubuntu and Windows with Node 20 and 22. Add the long-option PowerShell suite to CI, cover fresh installs and upgrades containing literal-pwsh, absolute-pwsh, and legacy duplicate hook variants, verify one canonical hook per event while preserving unrelated hooks, and exercise installed init, status, doctor, repair, update, and uninstall with private event store, projections, tasks, and RAG preserved. Inspect the tarball and record reproducible evidence in docs/qa/CONV-INSTALL-131-QA-001.md.",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-131-PACKAGE-001"
       ],
@@ -2397,14 +2397,22 @@
       ],
       "required_review_mode": "regression",
       "assigned_to": "agent-qa",
-      "started_at": "2026-07-27T16:58:23Z"
+      "started_at": "2026-07-27T16:58:23Z",
+      "verification": {
+        "checks": [
+          "GitHub Actions run 30288016892 passed Ubuntu and Windows with Node 20 and 22; GitGuardian passed.",
+          "Local npm test passed 21 tests; bootstrap and long-option contracts passed; legacy conv-test passed 77/77.",
+          "RAG adapter, command-contract, permissions, live managed-RAG path, tarball allowlist scan, diff check, and ESAA verify all passed."
+        ]
+      },
+      "completed_at": "2026-07-27T17:13:18Z"
     },
     {
       "task_id": "CONV-INSTALL-RC-131-001",
       "task_kind": "spec",
       "title": "Prepare Conversation ESAA 1.3.1 release candidate documentation",
       "description": "Update README.md, RELEASE.md, AGENTS.md, and .claude/CLAUDE.md for version 1.3.1 after QA passes. Keep npm/npx as the primary installation path and clone/bootstrap as fallback. Document identical GNU-style long-option behavior under pwsh -File and pwsh -Command, including --name=value for value parameters, and record the hook single-writer, installed bootstrap, lifecycle preservation, privacy, and operational limits. Keep AGENTS.md and .claude/CLAUDE.md byte-identical.",
-      "status": "todo",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-131-QA-001"
       ],
@@ -2437,7 +2445,17 @@
         "The PowerShell invocation contract and the 1.3.1 runtime fixes are documented without claiming npm availability before publication evidence exists.",
         "AGENTS.md and .claude/CLAUDE.md are byte-identical and privacy rules remain unchanged."
       ],
-      "required_review_mode": "release"
+      "required_review_mode": "release",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-07-27T17:13:37Z",
+      "verification": {
+        "checks": [
+          "README.md and the canonical agent contracts now target 1.3.1; current docs contain no 1.3.0 references outside the historical RELEASE section.",
+          "AGENTS.md and .claude/CLAUDE.md are byte-identical; git diff --check and ESAA verify pass.",
+          "npm pack --dry-run reports conversation-esaa@1.3.1 with the intended 24-file public allowlist; RELEASE explicitly defers availability claims to PUBLISH-002 evidence."
+        ]
+      },
+      "completed_at": "2026-07-27T17:14:32Z"
     },
     {
       "task_id": "CONV-INSTALL-PUBLISH-002",
@@ -2473,9 +2491,9 @@
   ],
   "indexes": {
     "by_status": {
-      "done": 52,
-      "in_progress": 2,
-      "todo": 9
+      "done": 54,
+      "in_progress": 1,
+      "todo": 8
     },
     "by_kind": {
       "impl": 50,
