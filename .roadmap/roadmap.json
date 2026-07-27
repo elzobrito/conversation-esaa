@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 778,
-      "projection_hash_sha256": "6659fb4d60b2069ac5a2484b196b0bafe660e961e7f1dd34c3b3ec17311c0386",
+      "last_event_seq": 784,
+      "projection_hash_sha256": "3d55a5090524b88885aec8074749ed2ba69daa1b253fb378e5c7d51fef11da7e",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-27T17:14:32Z"
+    "updated_at": "2026-07-27T17:22:35Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2462,7 +2462,7 @@
       "task_kind": "qa",
       "title": "Publish and publicly verify conversation-esaa 1.3.1",
       "description": "Publish the reviewed 1.3.1 candidate only after CI is green, the exact commit is identified, npm view confirms 1.3.1 is absent, and npm whoami confirms authentication. Build and inspect a clean tarball, record SHA-256, publish that tarball with public access, verify npm view and npx from the registry in a clean workspace, smoke-test -Command long options, hook convergence, installed bootstrap, and doctor, then create GitHub tag and Release v1.3.1 on the reviewed commit with checksum. Close GitHub issues 3 and 4 only after public verification and resolve ISS-CONV-PUBLISH-130-BLOCKED-001 with this task as evidence. If authentication is absent, report the blocker without publishing or tagging.",
-      "status": "todo",
+      "status": "in_progress",
       "depends_on": [
         "CONV-INSTALL-RC-131-001"
       ],
@@ -2486,14 +2486,16 @@
       "required_review_mode": "release",
       "supersedes": [
         "CONV-INSTALL-PUBLISH-001"
-      ]
+      ],
+      "assigned_to": "agent-qa",
+      "started_at": "2026-07-27T17:22:35Z"
     }
   ],
   "indexes": {
     "by_status": {
       "done": 54,
-      "in_progress": 1,
-      "todo": 8
+      "in_progress": 2,
+      "todo": 7
     },
     "by_kind": {
       "impl": 50,

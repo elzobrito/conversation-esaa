@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 778,
-    "updated_at": "2026-07-27T17:14:32Z"
+    "last_event_seq": 784,
+    "updated_at": "2026-07-27T17:22:35Z"
   },
   "issues": [
     {
@@ -458,6 +458,31 @@
         "created_event_seq": 713,
         "resolved_event_seq": null
       }
+    },
+    {
+      "issue_id": "ISS-CONV-PUBLISH-131-AUTH-001",
+      "status": "open",
+      "severity": "high",
+      "title": "npm authentication is required to publish conversation-esaa 1.3.1",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Commit 80c98bb2b5524b5be2c818a415e3d50e69ff18ae and CI run 30288625483 are reviewed and green; the final conversation-esaa-1.3.1.tgz has SHA-256 f0a2a9ccd24c94fb0ab20c49280f1ac9a8234b796747ac98d337ca5ee9b9b245 and passes local install/doctor, but npm whoami returns ENEEDAUTH. Publication, tag, GitHub Release, and closure of issues #3/#4 were intentionally not performed.",
+        "repro_steps": [
+          "Run npm view conversation-esaa@1.3.1 version --json; it returns E404, confirming the version is free.",
+          "Run npm whoami; it returns ENEEDAUTH and requires npm adduser/login."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-PUBLISH-002",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 782,
+        "resolved_event_seq": null
+      }
     }
   ],
   "indexes": {
@@ -469,7 +494,8 @@
         "CLOSE-T-2003",
         "CLOSE-T-2004",
         "CLOSE-T-2005",
-        "ISS-CONV-PUBLISH-130-BLOCKED-001"
+        "ISS-CONV-PUBLISH-130-BLOCKED-001",
+        "ISS-CONV-PUBLISH-131-AUTH-001"
       ]
     }
   }
