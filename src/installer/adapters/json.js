@@ -20,14 +20,18 @@ export async function writeJson(file, value, dryRun = false) {
   await writeFile(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-export function appendUniqueHook(config, event, hook) {
+export function replaceMatchingHook(config, event, hook, matches) {
   config.hooks ||= {};
   const groups = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];
-  const commands = groups.flatMap((group) =>
-    Array.isArray(group?.hooks) ? group.hooks.map((entry) => entry?.command) : [],
-  );
-  if (!commands.includes(hook.command)) {
-    groups.push({ hooks: [hook] });
+  const retained = [];
+  for (const group of groups) {
+    if (!Array.isArray(group?.hooks)) {
+      retained.push(group);
+      continue;
+    }
+    const hooks = group.hooks.filter((entry) => !matches(entry));
+    if (hooks.length) retained.push({ ...group, hooks });
   }
-  config.hooks[event] = groups;
+  retained.push({ hooks: [hook] });
+  config.hooks[event] = retained;
 }

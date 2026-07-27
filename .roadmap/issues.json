@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 712,
-    "updated_at": "2026-07-24T17:07:31Z"
+    "last_event_seq": 778,
+    "updated_at": "2026-07-27T17:14:32Z"
   },
   "issues": [
     {
@@ -433,6 +433,31 @@
         "created_event_seq": 690,
         "resolved_event_seq": 707
       }
+    },
+    {
+      "issue_id": "ISS-CONV-PUBLISH-130-BLOCKED-001",
+      "status": "open",
+      "severity": "high",
+      "title": "The 1.3.0 publication candidate is obsolete and unauthenticated",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "The task targets 1.3.0, but npm authentication is absent and confirmed CLI and installer defects require a corrected 1.3.1 candidate before publication.",
+        "repro_steps": [
+          "npm whoami returns ENEEDAUTH and npm view conversation-esaa returns E404.",
+          "The documented PowerShell CLI fails to bind long options under -Command; clean npm installs create duplicate hooks and omit the installed conv-bootstrap.ps1 runtime."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "CONV-INSTALL-PUBLISH-001",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 713,
+        "resolved_event_seq": null
+      }
     }
   ],
   "indexes": {
@@ -443,7 +468,8 @@
         "CLOSE-T-2002",
         "CLOSE-T-2003",
         "CLOSE-T-2004",
-        "CLOSE-T-2005"
+        "CLOSE-T-2005",
+        "ISS-CONV-PUBLISH-130-BLOCKED-001"
       ]
     }
   }

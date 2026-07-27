@@ -38,6 +38,9 @@ jobs:
       - name: Bootstrap contract
         shell: pwsh
         run: ./tests/test-installer-bootstrap.ps1
+      - name: GNU long-option contract
+        shell: pwsh
+        run: ./tests/test-cli-long-options.ps1
       - name: Legacy and RAG regression suites
         if: matrix.node == 22
         shell: pwsh

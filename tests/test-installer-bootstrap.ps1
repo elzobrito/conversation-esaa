@@ -51,6 +51,37 @@ try {
         throw 'dry-run changed the filesystem'
     }
 
+    $skipWorkspace = Join-Path $workspace 'skip-integrations'
+    $skipClaude = Join-Path $skipWorkspace '.claude/settings.json'
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $skipClaude) |
+        Out-Null
+    [System.IO.File]::WriteAllText(
+        $skipClaude,
+        "{`"permissions`":{`"allow`":[`"Read`"]}}`n",
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $skipBefore = (Get-FileHash -Algorithm SHA256 -LiteralPath $skipClaude).Hash
+    $skip = & pwsh -NoProfile -File $bootstrap `
+        -WorkspaceRoot $skipWorkspace `
+        -Agents grok,claude,antigravity `
+        -SkipAgentIntegrations `
+        -Json | ConvertFrom-Json
+    if (-not $skip.ok) { throw 'skip-integrations bootstrap did not return ok' }
+    if ($skipBefore -ne (Get-FileHash -Algorithm SHA256 -LiteralPath $skipClaude).Hash) {
+        throw 'skip-integrations changed existing Claude configuration'
+    }
+    if (Test-Path (Join-Path $skipWorkspace '.grok/hooks/conversation-esaa.json')) {
+        throw 'skip-integrations created a Grok hook'
+    }
+    if (Test-Path (Join-Path $skipWorkspace '.agents/hooks.json')) {
+        throw 'skip-integrations created an Antigravity hook'
+    }
+    if (-not (Test-Path (
+        Join-Path $skipWorkspace '.conversation-esaa/bin/conv-bootstrap.ps1'
+    ))) {
+        throw 'bootstrap did not install itself into the runtime'
+    }
+
     Write-Output 'test-installer-bootstrap: PASS'
 } finally {
     if (Test-Path -LiteralPath $workspace) {

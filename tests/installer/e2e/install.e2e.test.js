@@ -4,6 +4,7 @@ import {
   mkdtemp,
   mkdir,
   readFile,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import os from "node:os";
@@ -11,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
+import { findExecutable } from "../../../src/installer/adapters/index.js";
 
 const repo = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -103,6 +105,7 @@ test("packed CLI installs every agent alone and all agents together", async () =
       ]),
     );
     assert.equal(result.ok, true);
+    assert.equal(result.version, "1.3.1");
     assert.deepEqual(result.agents, [agent]);
     if (expected[agent]) {
       assert.equal(await fileExists(path.join(workspace, expected[agent])), true);
@@ -110,6 +113,12 @@ test("packed CLI installs every agent alone and all agents together", async () =
     assert.equal(
       await fileExists(
         path.join(workspace, ".conversation-esaa", "install-manifest.json"),
+      ),
+      true,
+    );
+    assert.equal(
+      await fileExists(
+        path.join(workspace, ".conversation-esaa", "bin", "conv-bootstrap.ps1"),
       ),
       true,
     );
@@ -136,15 +145,109 @@ test("packed CLI installs every agent alone and all agents together", async () =
     await readFile(path.join(workspace, ".claude", "settings.json"), "utf8"),
   );
   assert.deepEqual(claude.permissions, { allow: ["Read"] });
+  for (const event of ["UserPromptSubmit", "Stop", "PreCompact"]) {
+    const commands = claude.hooks[event].flatMap((group) =>
+      group.hooks.map((hook) => hook.command));
+    assert.equal(
+      commands.filter((command) =>
+        command.includes("conversation-esaa.ps1") &&
+        /--agent(?:=|\s+)claude/.test(command)).length,
+      1,
+    );
+  }
 
   const status = JSON.parse(
     run(cli, ["status", "--workspace", workspace, "--json"]),
   );
+  assert.equal(status.version, "1.3.1");
   assert.equal(status.healthy, true);
   const doctor = JSON.parse(
     run(cli, ["doctor", "--workspace", workspace, "--json"]),
   );
   assert.equal(doctor.ok, true);
+  assert.equal(
+    status.files.some((entry) =>
+      entry.path === ".conversation-esaa/bin/conv-bootstrap.ps1" &&
+      entry.kind === "owned" &&
+      entry.state === "intact"),
+    true,
+  );
+
+  const installedCli = path.join(
+    workspace,
+    ".conversation-esaa",
+    "bin",
+    "conversation-esaa.ps1",
+  );
+  run(findExecutable(), [
+    "-NoProfile",
+    "-File",
+    installedCli,
+    "init",
+    "--workspace",
+    workspace,
+  ]);
+  assert.equal(
+    await fileExists(
+      path.join(workspace, ".conversation-esaa", "bin", "conv-bootstrap.ps1"),
+    ),
+    true,
+  );
+});
+
+test("packed upgrade converges legacy Claude hooks without touching unrelated hooks", async () => {
+  const { root, cli } = await packedCli();
+  const workspace = path.join(root, "legacy-hooks");
+  const settings = path.join(workspace, ".claude", "settings.json");
+  const installedCli = path.join(
+    workspace,
+    ".conversation-esaa",
+    "bin",
+    "conversation-esaa.ps1",
+  );
+  await mkdir(path.dirname(settings), { recursive: true });
+  await writeFile(
+    settings,
+    JSON.stringify({
+      permissions: { allow: ["Read"] },
+      hooks: {
+        Stop: [
+          { hooks: [{ type: "command", command: "unrelated-stop" }] },
+          {
+            hooks: [{
+              type: "command",
+              command: `pwsh -NoProfile -File "${installedCli}" sync --agent claude --workspace "${workspace}"`,
+            }],
+          },
+          {
+            hooks: [{
+              type: "command",
+              command: `"/legacy/pwsh" -NoProfile -File "${installedCli}" sync --agent=claude --workspace "${workspace}"`,
+            }],
+          },
+        ],
+      },
+    }),
+  );
+  run(cli, [
+    "install",
+    "--workspace",
+    workspace,
+    "--agent",
+    "claude",
+    "--non-interactive",
+    "--json",
+  ]);
+  const value = JSON.parse(await readFile(settings, "utf8"));
+  const commands = value.hooks.Stop.flatMap((group) =>
+    group.hooks.map((hook) => hook.command));
+  assert.equal(commands.includes("unrelated-stop"), true);
+  assert.equal(
+    commands.filter((command) =>
+      command.includes("conversation-esaa.ps1") &&
+      /--agent(?:=|\s+)claude/.test(command)).length,
+    1,
+  );
 });
 
 test("dry-run and workspace metacharacters cannot execute commands", async () => {
@@ -184,13 +287,31 @@ test("repair, update, and uninstall preserve conversation history", async () => 
     "--json",
   ]);
   const activity = path.join(workspace, ".conversation-esaa", "activity.jsonl");
+  const bootstrap = path.join(
+    workspace,
+    ".conversation-esaa",
+    "bin",
+    "conv-bootstrap.ps1",
+  );
   await writeFile(activity, "PRIVATE-HISTORY\n");
+  await unlink(bootstrap);
+  const unhealthy = JSON.parse(
+    run(cli, ["status", "--workspace", workspace, "--json"]),
+  );
+  assert.equal(unhealthy.healthy, false);
+  assert.equal(
+    unhealthy.files.some((entry) =>
+      entry.path === ".conversation-esaa/bin/conv-bootstrap.ps1" &&
+      entry.state === "missing"),
+    true,
+  );
   for (const command of ["repair", "update"]) {
     const value = JSON.parse(
       run(cli, [command, "--workspace", workspace, "--json"]),
     );
     assert.equal(value.ok, true);
     assert.equal(await readFile(activity, "utf8"), "PRIVATE-HISTORY\n");
+    assert.equal(await fileExists(bootstrap), true);
   }
   const removed = JSON.parse(
     run(cli, ["uninstall", "--workspace", workspace, "--json"]),
@@ -203,6 +324,7 @@ test("repair, update, and uninstall preserve conversation history", async () => 
     ),
     false,
   );
+  assert.equal(await fileExists(bootstrap), false);
 });
 
 test(

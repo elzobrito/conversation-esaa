@@ -54,6 +54,158 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+function ConvertTo-LongOptionKey {
+    param([string]$Name)
+    return (($Name -replace '[-_]', '').ToLowerInvariant())
+}
+
+function Convert-LongOptionValue {
+    param(
+        [System.Management.Automation.ParameterMetadata]$Metadata,
+        [string]$Option,
+        [string]$Value
+    )
+
+    $targetType = $Metadata.ParameterType
+    if ($targetType.IsArray) {
+        $targetType = $targetType.GetElementType()
+    }
+    try {
+        $converted = [System.Management.Automation.LanguagePrimitives]::ConvertTo(
+            $Value,
+            $targetType,
+            [System.Globalization.CultureInfo]::InvariantCulture
+        )
+    } catch {
+        throw "Option --$Option has invalid value '$Value'."
+    }
+
+    foreach ($attribute in $Metadata.Attributes) {
+        if (
+            $attribute -is [System.Management.Automation.ValidateSetAttribute] -and
+            $attribute.ValidValues -inotcontains [string]$converted
+        ) {
+            $expected = $attribute.ValidValues -join ', '
+            throw "Option --$Option has invalid value '$Value'. Expected one of: $expected."
+        }
+    }
+    return $converted
+}
+
+function Initialize-LongOptions {
+    param(
+        [System.Collections.IDictionary]$Parameters,
+        [System.Collections.IDictionary]$NativeBound
+    )
+
+    if (-not $script:Rest) { return }
+
+    $optionMap = @{}
+    foreach ($entry in $Parameters.GetEnumerator()) {
+        $canonical = [string]$entry.Key
+        if ($canonical -in @('Command', 'Rest')) { continue }
+        foreach ($spelling in @($canonical) + @($entry.Value.Aliases)) {
+            $key = ConvertTo-LongOptionKey $spelling
+            if (-not $optionMap.ContainsKey($key)) {
+                $optionMap[$key] = $canonical
+            }
+        }
+    }
+    foreach ($override in @{
+        source  = 'SourceEvent'
+        command = 'CommandPath'
+        timeout = 'TimeoutSeconds'
+    }.GetEnumerator()) {
+        $optionMap[$override.Key] = $override.Value
+    }
+
+    $remaining = [System.Collections.Generic.List[string]]::new()
+    $normalized = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    for ($index = 0; $index -lt $script:Rest.Count; $index++) {
+        $token = [string]$script:Rest[$index]
+        if ($token -notmatch '^--([^=]+)(?:=(.*))?$') {
+            $remaining.Add($token)
+            continue
+        }
+
+        $option = $Matches[1]
+        $hasAttachedValue = $token.Contains('=')
+        $attachedValue = if ($hasAttachedValue) { $Matches[2] } else { $null }
+        $key = ConvertTo-LongOptionKey $option
+        if (-not $optionMap.ContainsKey($key)) {
+            $remaining.Add($token)
+            continue
+        }
+
+        $canonical = $optionMap[$key]
+        $metadata = $Parameters[$canonical]
+        $isSwitch = (
+            $metadata.ParameterType -eq
+            [System.Management.Automation.SwitchParameter]
+        )
+        if ($NativeBound.Contains($canonical)) {
+            throw "Option --$option conflicts with PowerShell parameter -$canonical."
+        }
+        if ($isSwitch) {
+            if ($hasAttachedValue) {
+                throw "Option --$option does not accept a value."
+            }
+            if (-not $normalized.Add($canonical)) {
+                throw "Option --$option was specified more than once."
+            }
+            Set-Variable -Scope Script -Name $canonical -Value $true
+            continue
+        }
+
+        if ($hasAttachedValue) {
+            if ([string]::IsNullOrEmpty($attachedValue)) {
+                throw "Option --$option requires a value."
+            }
+            $rawValue = $attachedValue
+        } else {
+            if (
+                ($index + 1) -ge $script:Rest.Count -or
+                [string]$script:Rest[$index + 1] -like '--*'
+            ) {
+                throw "Option --$option requires a value."
+            }
+            $rawValue = [string]$script:Rest[++$index]
+        }
+
+        $converted = Convert-LongOptionValue `
+            -Metadata $metadata `
+            -Option $option `
+            -Value $rawValue
+        if ($metadata.ParameterType.IsArray) {
+            $existing = @(Get-Variable -Scope Script -Name $canonical -ValueOnly)
+            if ($existing.Count -eq 1 -and $null -eq $existing[0]) {
+                $existing = @()
+            }
+            Set-Variable `
+                -Scope Script `
+                -Name $canonical `
+                -Value @($existing + $converted)
+            [void]$normalized.Add($canonical)
+        } else {
+            if (-not $normalized.Add($canonical)) {
+                throw "Option --$option was specified more than once."
+            }
+            Set-Variable -Scope Script -Name $canonical -Value $converted
+        }
+    }
+    $script:Rest = @($remaining)
+}
+
+$nativeBoundParameters = @{}
+foreach ($key in $PSBoundParameters.Keys) {
+    $nativeBoundParameters[$key] = $true
+}
+Initialize-LongOptions `
+    -Parameters $MyInvocation.MyCommand.Parameters `
+    -NativeBound $nativeBoundParameters
+
 $binDir = $PSScriptRoot
 $convCli = Join-Path $binDir 'conversation-esaa.ps1'
 $convSync = Join-Path $binDir 'conv-sync.ps1'
@@ -123,19 +275,6 @@ function Invoke-ConvRag {
 }
 
 $sub = if ($Rest -and $Rest.Count -ge 1) { $Rest[0] } else { $null }
-
-function Get-RestOptionValues {
-    param([string[]]$Names)
-    $values = @()
-    if (-not $Rest) { return $values }
-    for ($i = 0; $i -lt $Rest.Count; $i++) {
-        if ($Rest[$i] -in $Names -and ($i + 1) -lt $Rest.Count) {
-            $values += $Rest[$i + 1]
-            $i++
-        }
-    }
-    return $values
-}
 
 switch ($Command) {
     'help' { Show-Help }
@@ -259,10 +398,6 @@ switch ($Command) {
     }
     'context' {
         $extra = @()
-        if (-not $TopicId) {
-            $restTopicIds = @(Get-RestOptionValues @('--topic-id', '-topic-id'))
-            if ($restTopicIds.Count -gt 0) { $TopicId = $restTopicIds[0] }
-        }
         if ($Agent) { $extra += '-ContextAgent', $Agent }
         if ($Last -gt 0) { $extra += '-ContextLast', "$Last" }
         if ($Before) { $extra += '-ContextBefore', $Before }
@@ -339,10 +474,6 @@ switch ($Command) {
                 if (-not $TopicId -and $Rest.Count -ge 2) { $TopicId = $Rest[1] }
                 if (-not $TopicId) { throw 'topics link requires topic id' }
                 $extra += '-TopicId', $TopicId
-                if (-not $TopicEventId) {
-                    $restEventIds = @(Get-RestOptionValues @('--event-id', '-event-id', '--events', '-events'))
-                    if ($restEventIds.Count -gt 0) { $TopicEventId = $restEventIds }
-                }
                 if ($TopicEventId) { $extra += '-TopicEventIds', ($TopicEventId -join ',') }
             }
             'close' {
@@ -365,43 +496,14 @@ switch ($Command) {
         if ($Force) { $extra += '-Force' }
         if ($Purge) { $extra += '-Purge' }
         if ($Json) { $extra += '-Json' }
-        # parse remaining flags from Rest after sub
-        if ($Rest -and $Rest.Count -ge 2) {
-            for ($i = 1; $i -lt $Rest.Count; $i++) {
-                switch -Regex ($Rest[$i]) {
-                    '^--command$' { if ($i + 1 -lt $Rest.Count) { $extra += '-CommandPath', $Rest[++$i] } }
-                    '^--base-url$' { if ($i + 1 -lt $Rest.Count) { $extra += '-BaseUrl', $Rest[++$i] } }
-                    '^--model$' { if ($i + 1 -lt $Rest.Count) { $extra += '-Model', $Rest[++$i] } }
-                    '^--timeout$' { if ($i + 1 -lt $Rest.Count) { $extra += '-TimeoutSeconds', $Rest[++$i] } }
-                    '^--force$' { $extra += '-Force' }
-                    '^--purge$' { $extra += '-Purge' }
-                    '^--json$' { $extra += '-Json' }
-                }
-            }
-        }
         Invoke-ConvRag -Extra $extra
     }
     'search' {
         $q = if ($Rest -and $Rest.Count -ge 1) { ($Rest -join ' ').Trim() } else { $Title }
-        # strip flags from free text if present
         if ([string]::IsNullOrWhiteSpace($q)) { throw 'search requires query text' }
-        # clean leading flags-only junk
-        $parts = @($q -split '\s+')
-        $queryParts = [System.Collections.Generic.List[string]]::new()
         $tk = if ($TopK -gt 0) { $TopK } else { 5 }
         $ms = if ($MinScore -ge 0) { $MinScore } else { 0.25 }
-        for ($i = 0; $i -lt $parts.Count; $i++) {
-            switch -Regex ($parts[$i]) {
-                '^--top-k$' { if ($i + 1 -lt $parts.Count) { $tk = [int]$parts[++$i] }; continue }
-                '^--min-score$' { if ($i + 1 -lt $parts.Count) { $ms = [double]$parts[++$i] }; continue }
-                '^--json$' { continue }
-                '^--workspace$' { $i++; continue }
-                default { $queryParts.Add($parts[$i]) }
-            }
-        }
-        $q2 = ($queryParts -join ' ').Trim()
-        if ([string]::IsNullOrWhiteSpace($q2)) { throw 'search requires query text' }
-        $extra = @('-Action', 'search', '-Query', $q2, '-TopK', "$tk", '-MinScore', "$ms", '-Json')
+        $extra = @('-Action', 'search', '-Query', $q, '-TopK', "$tk", '-MinScore', "$ms", '-Json')
         Invoke-ConvRag -Extra $extra
     }
     default { throw "Unknown command: $Command" }

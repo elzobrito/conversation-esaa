@@ -7,11 +7,45 @@ import { configureAgents } from "../../../src/installer/adapters/index.js";
 
 test("Claude and Antigravity preserve unrelated configuration", async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "conv-adapters-"));
+  const cli = path.join(
+    workspace,
+    ".conversation-esaa",
+    "bin",
+    "conversation-esaa.ps1",
+  );
   await mkdir(path.join(workspace, ".claude"), { recursive: true });
   await mkdir(path.join(workspace, ".agents"), { recursive: true });
   await writeFile(
     path.join(workspace, ".claude", "settings.json"),
-    JSON.stringify({ permissions: { allow: ["Read"] }, hooks: { Stop: [] } }),
+    JSON.stringify({
+      permissions: { allow: ["Read"] },
+      hooks: {
+        Stop: [
+          { hooks: [{ type: "command", command: "custom-stop", timeout: 9 }] },
+          {
+            hooks: [{
+              type: "command",
+              command: `pwsh -NoProfile -File "${cli}" sync --agent claude --workspace "${workspace}"`,
+              timeout: 20,
+            }],
+          },
+          {
+            hooks: [{
+              type: "command",
+              command: `"/old/pwsh" -NoProfile -File "${cli}" sync --agent=claude --workspace "${workspace}"`,
+              timeout: 20,
+            }],
+          },
+          {
+            hooks: [{
+              type: "command",
+              command: `pwsh -NoProfile -File "${cli}" sync --agent grok --workspace "${workspace}"`,
+              timeout: 20,
+            }],
+          },
+        ],
+      },
+    }),
   );
   await writeFile(
     path.join(workspace, ".agents", "hooks.json"),
@@ -33,9 +67,24 @@ test("Claude and Antigravity preserve unrelated configuration", async () => {
     await readFile(path.join(workspace, ".agents", "hooks.json"), "utf8"),
   );
   assert.deepEqual(claude.permissions, { allow: ["Read"] });
+  const stopCommands = claude.hooks.Stop.flatMap((group) =>
+    group.hooks.map((hook) => hook.command));
   assert.equal(
-    claude.hooks.Stop[0].hooks[0].command.includes("/opt/powershell/pwsh"),
+    stopCommands.filter((command) =>
+      command.includes("/opt/powershell/pwsh") &&
+      command.includes("--agent claude")).length,
+    1,
+  );
+  assert.equal(stopCommands.includes("custom-stop"), true);
+  assert.equal(
+    stopCommands.some((command) => command.includes("--agent grok")),
     true,
+  );
+  assert.equal(
+    stopCommands.filter((command) =>
+      command.includes("conversation-esaa.ps1") &&
+      /--agent(?:=|\s+)claude/.test(command)).length,
+    1,
   );
   assert.equal(antigravity.custom.Stop[0].command, "custom");
   assert.equal(antigravity["conversation-esaa"].Stop[0].timeout, 60);
