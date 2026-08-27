@@ -1,0 +1,13 @@
+{
+  "after_sha256": "d7cd55272eda7d770be3791d4a26aa2fdd3d4b315305c6e99d097aaf2de9dcc2",
+  "artifact_id": "ART-d7cd55272eda7d770be3791d4a26aa2fdd3d4b315305c6e99d097aaf2de9dcc2",
+  "artifact_sha256": "4f24dbb7356437c2bd32e6e61faba4fa645839c1d06b250a8c5bee84c4264e17",
+  "before_sha256": null,
+  "bytes": 922,
+  "content": "# CONV-INSTALL-PUBLISH-002 — evidência de bloqueio de autenticação\n\nA descrição da tarefa manda reportar o blocker sem publicar ou taguear se a autenticação npm estiver ausente.\n\n## Checagens (2026-08-25)\n\n- `npm whoami` → `ENEEDAUTH` / `need auth This command requires you to be logged in.`\n- `npm view conversation-esaa@1.3.1` → 404 (`conversation-esaa@*` not in registry).\n- `gh release view v1.3.1` no repositório conversation-esaa → release not found.\n- Issue aberta: `ISS-CONV-PUBLISH-131-AUTH-001` (high) — npm authentication is required to publish conversation-esaa 1.3.1.\n- Versão local revisada: `package.json` = 1.3.1.\n\nNenhum tarball foi publicado, nenhum tag `v1.3.1` foi criado, issues GitHub 3/4 não foram fechadas por publicação pública.\n\nRetomada: autenticar `npm adduser`/`npm login`, repetir whoami, então republicar via nova tarefa (esta fica encerrada como blocker reportado).\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/CONV-INSTALL-PUBLISH-002.md",
+  "source_path": "docs/qa/CONV-INSTALL-PUBLISH-002.md",
+  "ts": "2026-08-25T14:31:26Z"
+}

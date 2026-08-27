@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 784,
-      "projection_hash_sha256": "3d55a5090524b88885aec8074749ed2ba69daa1b253fb378e5c7d51fef11da7e",
+      "last_event_seq": 832,
+      "projection_hash_sha256": "b10f44d878bb4c5dc3da3071a8e7f6a3765821cdcc8fc5ee0f26a20022ef7264",
       "verify_status": "ok"
     },
-    "updated_at": "2026-07-27T17:22:35Z"
+    "updated_at": "2026-08-27T18:30:07Z"
   },
   "project": {
     "name": "esaa-core",
@@ -1709,7 +1709,7 @@
       "task_kind": "qa",
       "title": "Publish conversation-esaa 1.3.0 to npm and GitHub",
       "description": "Using human-terminal with authenticated npm and gh, publish conversation-esaa@1.3.0 to npm and the matching GitHub Release from the reviewed commit. Do not modify source files. Verify the public registry and npx path after publication.",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-RC-001"
       ],
@@ -1733,7 +1733,13 @@
       "started_at": "2026-07-24T17:07:31Z",
       "superseded_by": [
         "CONV-INSTALL-PUBLISH-002"
-      ]
+      ],
+      "verification": {
+        "checks": [
+          "ISS-CONV-PUBLISH-130-BLOCKED-001 open high; npm view 404; tarefa superseded_by CONV-INSTALL-PUBLISH-002."
+        ]
+      },
+      "completed_at": "2026-08-25T14:31:28Z"
     },
     {
       "task_id": "HF-ISS-CONV-INSTALL-001",
@@ -2462,7 +2468,7 @@
       "task_kind": "qa",
       "title": "Publish and publicly verify conversation-esaa 1.3.1",
       "description": "Publish the reviewed 1.3.1 candidate only after CI is green, the exact commit is identified, npm view confirms 1.3.1 is absent, and npm whoami confirms authentication. Build and inspect a clean tarball, record SHA-256, publish that tarball with public access, verify npm view and npx from the registry in a clean workspace, smoke-test -Command long options, hook convergence, installed bootstrap, and doctor, then create GitHub tag and Release v1.3.1 on the reviewed commit with checksum. Close GitHub issues 3 and 4 only after public verification and resolve ISS-CONV-PUBLISH-130-BLOCKED-001 with this task as evidence. If authentication is absent, report the blocker without publishing or tagging.",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "CONV-INSTALL-RC-131-001"
       ],
@@ -2488,17 +2494,66 @@
         "CONV-INSTALL-PUBLISH-001"
       ],
       "assigned_to": "agent-qa",
-      "started_at": "2026-07-27T17:22:35Z"
+      "started_at": "2026-07-27T17:22:35Z",
+      "verification": {
+        "checks": [
+          "npm whoami retorna ENEEDAUTH; npm view conversation-esaa 404; gh release v1.3.1 inexistente."
+        ]
+      },
+      "completed_at": "2026-08-25T14:31:27Z"
+    },
+    {
+      "task_id": "CONV-MOTOR-LOCK-VERIFY-001",
+      "task_kind": "impl",
+      "title": "Portar lock exclusivo, skip-if-locked e verify de tópicos no motor do produto",
+      "description": "O runtime global (~/.conversation-esaa/bin) já tem FileStream exclusivo, Save-SyncState antes do verify e comparação estável de topics.json. O motor versionado em desenvolvimento/conversation-esaa/.conversation-esaa/bin ainda fecha o lock após gravar o JSON, apaga lock por JSON parcial, salva sync-state depois do verify e compara tópicos com ConvertTo-Json+Sort-Object id. Portar o conserto para o produto: conv-sync.ps1, testes em conv-test.ps1 (lock ao vivo deve segurar FileStream) e SkipIfLocked nos hooks grok/claude em conversation-esaa.ps1. Não mutar activity.jsonl de workspaces. Não tocar o store global.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conv-test.ps1",
+          ".conversation-esaa/bin/conversation-esaa.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-test.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Acquire-PipelineLock mantém FileStream exclusivo aberto; JSON parcial não apaga lock de writer vivo.",
+        "Save-SyncState ocorre antes de project/verify nos quatro sync-*.",
+        "verify compara topics por campos (id/title/summary/status/key_event_ids) usando Get-WorkspaceEvents.",
+        "SkipIfLocked faz sync/project sair 0 com lock ocupado; enable-hooks grok/claude passam --SkipIfLocked.",
+        "conv-test.ps1: stale lock (PID morto, arquivo solto) é reconquistado; live lock segura FileStream e bloqueia até timeout."
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-08-27T18:16:09Z",
+      "verification": {
+        "checks": [
+          "Smoke: project -SkipIfLocked com lock presente imprime pipeline lock busy; skip project e exit 0.",
+          "acquired -ne $true evita que output extra do pipeline execute o Body sem lock."
+        ]
+      },
+      "completed_at": "2026-08-27T18:30:07Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 54,
-      "in_progress": 2,
+      "done": 57,
       "todo": 7
     },
     "by_kind": {
-      "impl": 50,
+      "impl": 51,
       "qa": 7,
       "spec": 6
     }
