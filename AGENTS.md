@@ -25,11 +25,13 @@ Mecanismos de **captura** (hooks vs watcher) diferem; o **contrato operacional**
 
 ## 2.1 Instalação e ciclo de vida
 
-Caminho principal:
+Caminho suportado hoje (o pacote ainda não está no npm; `npx` devolve E404):
 
 ```powershell
-npx conversation-esaa@1.3.1 install --workspace . --agents grok,claude,codex,antigravity --non-interactive
-npx conversation-esaa@1.3.1 doctor --workspace .
+git clone https://github.com/elzobrito/conversation-esaa
+cd conversation-esaa
+node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity --non-interactive
+node src/cli.js doctor --workspace <projeto>
 ```
 
 - Agentes suportados: `grok`, `claude`, `codex`, `antigravity`.

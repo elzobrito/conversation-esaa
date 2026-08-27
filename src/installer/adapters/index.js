@@ -35,6 +35,7 @@ function syncCommand(pwsh, cli, workspace, agent, extra = []) {
     "--workspace",
     quoteCommandPart(workspace),
     ...extra,
+    "--SkipIfLocked",
   ].join(" ");
 }
 

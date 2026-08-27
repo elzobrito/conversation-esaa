@@ -1,5 +1,8 @@
 # Release notes — Conversation ESAA
 
+> O pacote **ainda não está** no npm (`npm view conversation-esaa` → 404).
+> Até a publicação, instale com `git clone` + `node src/cli.js` (ver README).
+
 ## v1.3.1 — opções portáveis e instalador convergente
 
 Release de correção do primeiro candidato npm. A publicação pública só deve ser

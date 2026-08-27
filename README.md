@@ -17,23 +17,22 @@ Quando você troca de agente ou a janela de contexto acaba, o próximo assistent
 
 ## Instalação rápida
 
-No diretório do projeto, selecione os agentes e deixe o instalador configurar
-runtime, hooks, watcher e manifesto:
+O pacote **ainda não está no npm** (`npm view conversation-esaa` responde 404).
+`npx conversation-esaa@…` não funciona até a publicação. O caminho suportado
+hoje é clonar o repositório e chamar a CLI:
 
 ```powershell
-npx conversation-esaa@1.3.1 install `
-  --workspace . `
-  --agents grok,claude,codex,antigravity `
-  --non-interactive
-
-npx conversation-esaa@1.3.1 doctor --workspace .
+git clone https://github.com/elzobrito/conversation-esaa
+cd conversation-esaa
+node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity --non-interactive
+node src/cli.js doctor --workspace <projeto>
 ```
 
 Também é possível instalar um agente por vez:
 
 ```powershell
-npx conversation-esaa@1.3.1 install --workspace . --agent codex --non-interactive
-npx conversation-esaa@1.3.1 install --workspace . --agent claude --non-interactive
+node src/cli.js install --workspace <projeto> --agent codex --non-interactive
+node src/cli.js install --workspace <projeto> --agent claude --non-interactive
 ```
 
 Use `--yes` no lugar de `--agents` para selecionar todos. O instalador mescla
@@ -73,15 +72,9 @@ O instalador mantém o RAG desligado por padrão. Os modos são:
 | `--rag managed` | baixa a release fixada, valida SHA-256 e habilita o adaptador |
 
 ```powershell
-npx conversation-esaa@1.3.1 install `
-  --workspace . `
-  --agent codex `
-  --rag existing `
-  --rag-command /caminho/para/rag-sqlite `
-  --non-interactive
-
-# ou instalação gerenciada da release fixada
-npx conversation-esaa@1.3.1 install --workspace . --agent codex --rag managed --non-interactive
+# a partir do clone deste repositório
+node src/cli.js install --workspace <projeto> --agent codex --rag existing --rag-command /caminho/para/rag-sqlite --non-interactive
+node src/cli.js install --workspace <projeto> --agent codex --rag managed --non-interactive
 ```
 
 O RAG requer Python 3.10+, Ollama local e o modelo `embeddinggemma`. Ele é uma
@@ -98,12 +91,14 @@ continuam funcionando se o RAG estiver desligado ou indisponível.
 - [PowerShell 7+](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows);
 - Git, apenas para o fluxo normal do projeto.
 
-### Caminho recomendado: npx
+### Caminho suportado hoje: clone + CLI
+
+No diretório deste repositório:
 
 ```powershell
-npx conversation-esaa@1.3.1 install --workspace . --agents grok,claude --non-interactive
-npx conversation-esaa@1.3.1 status --workspace .
-npx conversation-esaa@1.3.1 doctor --workspace .
+node src/cli.js install --workspace <projeto> --agents grok,claude --non-interactive
+node src/cli.js status --workspace <projeto>
+node src/cli.js doctor --workspace <projeto>
 ```
 
 Para o Codex, o watcher é manual por padrão. Use
@@ -111,17 +106,26 @@ Para o Codex, o watcher é manual por padrão. Use
 de usuário no Linux ou uma Scheduled Task no Windows.
 
 ```powershell
-npx conversation-esaa@1.3.1 install `
-  --workspace . `
-  --agent codex `
-  --codex-service user `
-  --non-interactive
+node src/cli.js install --workspace <projeto> --agent codex --codex-service user --non-interactive
 ```
+
+### Após publicação no npm
+
+Quando `npm view conversation-esaa` deixar de devolver 404, o atalho passa a ser:
+
+```powershell
+npx conversation-esaa@1.3.1 install --workspace . --agents grok,claude --non-interactive
+npx conversation-esaa@1.3.1 doctor --workspace .
+```
+
+Até lá, `npx conversation-esaa@…` falha com E404.
 
 ### Fallback PowerShell
 
-Use este caminho para desenvolvimento a partir de um clone ou quando npm/npx
-não estiver disponível:
+Use este caminho quando `.conversation-esaa/bin/` já existir no projeto
+(após um install pela CLI Node). O bootstrap sozinho grava hooks com o token
+`pwsh`; o instalador Node (`node src/cli.js install`) é o writer canônico de
+uma entrada por evento.
 
 ```powershell
 $root = 'C:\caminho\do\seu\projeto'
@@ -213,11 +217,12 @@ Comandos adicionais: `context --before`, `--around`, `task update`, `project`. R
 ### Manutenção da instalação
 
 ```powershell
-npx conversation-esaa@1.3.1 status --workspace . --json
-npx conversation-esaa@1.3.1 doctor --workspace . --json
-npx conversation-esaa@1.3.1 update --workspace . --json
-npx conversation-esaa@1.3.1 repair --workspace . --json
-npx conversation-esaa@1.3.1 uninstall --workspace . --json
+# a partir do clone
+node src/cli.js status --workspace <projeto> --json
+node src/cli.js doctor --workspace <projeto> --json
+node src/cli.js update --workspace <projeto> --json
+node src/cli.js repair --workspace <projeto> --json
+node src/cli.js uninstall --workspace <projeto> --json
 ```
 
 `update` e `repair` recusam substituir arquivos gerenciados modificados, salvo

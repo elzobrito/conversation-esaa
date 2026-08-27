@@ -195,6 +195,76 @@ test("packed CLI installs every agent alone and all agents together", async () =
   );
 });
 
+
+function conversationHookCommands(settings, event) {
+  const groups = settings?.hooks?.[event] || [];
+  return groups.flatMap((group) =>
+    (group.hooks || [])
+      .map((hook) => hook.command)
+      .filter((command) =>
+        typeof command === "string" && command.includes("conversation-esaa.ps1")),
+  );
+}
+
+test("clean claude install writes one SkipIfLocked hook per event", async () => {
+  const { root, cli } = await packedCli();
+  const workspace = path.join(root, "clean-claude");
+  run(cli, [
+    "install",
+    "--workspace",
+    workspace,
+    "--agent",
+    "claude",
+    "--non-interactive",
+    "--json",
+  ]);
+  const settings = JSON.parse(
+    await readFile(path.join(workspace, ".claude", "settings.json"), "utf8"),
+  );
+  for (const event of ["UserPromptSubmit", "Stop", "PreCompact"]) {
+    const commands = conversationHookCommands(settings, event);
+    assert.equal(commands.length, 1, event);
+    assert.match(commands[0], /--SkipIfLocked/);
+  }
+});
+
+test("bootstrap without SkipAgentIntegrations then adapter keeps one claude hook", async () => {
+  const { root, cli } = await packedCli();
+  const workspace = path.join(root, "double-writer");
+  await mkdir(workspace, { recursive: true });
+  const bootstrap = path.join(
+    repo,
+    ".conversation-esaa",
+    "bin",
+    "conv-bootstrap.ps1",
+  );
+  run(findExecutable(), [
+    "-NoProfile",
+    "-File",
+    bootstrap,
+    "-WorkspaceRoot",
+    workspace,
+    "-Agents",
+    "claude",
+    "-Json",
+  ]);
+  run(cli, [
+    "install",
+    "--workspace",
+    workspace,
+    "--agent",
+    "claude",
+    "--non-interactive",
+    "--json",
+  ]);
+  const settings = JSON.parse(
+    await readFile(path.join(workspace, ".claude", "settings.json"), "utf8"),
+  );
+  for (const event of ["UserPromptSubmit", "Stop", "PreCompact"]) {
+    assert.equal(conversationHookCommands(settings, event).length, 1, event);
+  }
+});
+
 test("packed upgrade converges legacy Claude hooks without touching unrelated hooks", async () => {
   const { root, cli } = await packedCli();
   const workspace = path.join(root, "legacy-hooks");
@@ -242,12 +312,11 @@ test("packed upgrade converges legacy Claude hooks without touching unrelated ho
   const commands = value.hooks.Stop.flatMap((group) =>
     group.hooks.map((hook) => hook.command));
   assert.equal(commands.includes("unrelated-stop"), true);
-  assert.equal(
-    commands.filter((command) =>
-      command.includes("conversation-esaa.ps1") &&
-      /--agent(?:=|\s+)claude/.test(command)).length,
-    1,
-  );
+  const synced = commands.filter((command) =>
+    command.includes("conversation-esaa.ps1") &&
+    /--agent(?:=|\s+)claude/.test(command));
+  assert.equal(synced.length, 1);
+  assert.match(synced[0], /--SkipIfLocked/);
 });
 
 test("dry-run and workspace metacharacters cannot execute commands", async () => {

@@ -191,8 +191,15 @@ foreach ($name in $privateSeeds.Keys) {
 }
 
 $convCli = Join-Path $binDir 'conversation-esaa.ps1'
+function Quote-CommandPart([string]$Value) {
+    return '"' + ($Value -replace '"', '"') + '"'
+}
+function Get-PwshExecutable {
+    return [string](Get-Command pwsh -ErrorAction Stop).Source
+}
 function New-SyncCommand([string]$Agent, [string]$Extra = '') {
-    $command = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent $Agent --workspace `"$WorkspaceRoot`""
+    $pwshExe = Get-PwshExecutable
+    $command = "$(Quote-CommandPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-CommandPart $convCli) sync --agent $Agent --workspace $(Quote-CommandPart $WorkspaceRoot) --SkipIfLocked"
     if ($Extra) { $command += " $Extra" }
     return $command
 }
