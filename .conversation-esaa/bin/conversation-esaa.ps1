@@ -18,6 +18,7 @@ param(
     [string]$Mode = 'normal',
     [switch]$Trust,
     [switch]$Watcher,
+    [switch]$SkipIfLocked,
     [int]$Last = 0,
     [string]$Before,
     [string]$Around,
@@ -289,6 +290,7 @@ switch ($Command) {
         if ($Agent -notin $map.Keys) { throw "Unknown agent: $Agent" }
         $extra = @()
         if ($Mode -eq 'compact') { $extra += '-Mode', 'compact' }
+        if ($SkipIfLocked) { $extra += '-SkipIfLocked' }
         if ($GrokSessionId) { $extra += '-GrokSessionId', $GrokSessionId }
         if ($CodexSessionPath) { $extra += '-CodexSessionPath', $CodexSessionPath }
         if ($ClaudeSessionPath) { $extra += '-ClaudeSessionPath', $ClaudeSessionPath }
@@ -305,9 +307,9 @@ switch ($Command) {
         $claudeDir = Join-Path $ws '.claude'
         $agentsDir = Join-Path $ws '.agents'
         New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir, $agentsDir | Out-Null
-        $cmdGrok = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent grok --workspace `"$ws`""
+        $cmdGrok = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent grok --workspace `"$ws`" --SkipIfLocked"
         $cmdGrokCompact = "$cmdGrok --Mode compact"
-        $cmdClaude = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent claude --workspace `"$ws`""
+        $cmdClaude = "pwsh -NoProfile -ExecutionPolicy Bypass -File `"$convCli`" sync --agent claude --workspace `"$ws`" --SkipIfLocked"
         $cmdClaudeCompact = "$cmdClaude --Mode compact"
         if ($Agent -eq 'grok') {
             $grokCfg = [ordered]@{

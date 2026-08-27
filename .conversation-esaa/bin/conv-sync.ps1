@@ -14,6 +14,7 @@ param(
     [string]$Mode = 'normal',
 
     [int]$LockTimeoutSeconds = 30,
+    [switch]$SkipIfLocked,
 
     [string]$ContextAgent,
     [int]$ContextLast = 0,
@@ -52,25 +53,59 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+$script:PipelineSkipIfLocked = [bool]$SkipIfLocked
 $script:PipelineLockPath = $null
 $script:PipelineLockOwned = $false
+$script:PipelineLockStream = $null
 
 function Get-PipelineLockPath {
     param([string]$WorkspaceRoot)
     Join-Path (Join-Path (Join-Path $WorkspaceRoot '.conversation-esaa') 'run') 'conversation-esaa.lock'
 }
 
-function Test-PipelineLockStale {
-    param($LockData)
-    if (-not $LockData -or -not $LockData.pid) { return $true }
-    return -not (Get-Process -Id ([int]$LockData.pid) -ErrorAction SilentlyContinue)
+function Write-PipelineLockMetadata {
+    param(
+        [System.IO.FileStream]$Stream,
+        [string]$CommandName,
+        [string]$WorkspaceRoot
+    )
+    $lock = [ordered]@{
+        pid = $PID
+        command = $CommandName
+        started_at = (Get-IsoTimestamp)
+        workspace_root = $WorkspaceRoot
+    }
+    $json = (($lock | ConvertTo-Json -Compress) + "`n")
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    $Stream.SetLength(0)
+    $Stream.Position = 0
+    $Stream.Write($bytes, 0, $bytes.Length)
+    $Stream.Flush()
+}
+
+function Try-OpenExclusiveLockFile {
+    param(
+        [string]$LockPath,
+        [System.IO.FileMode]$Mode
+    )
+    try {
+        return [System.IO.FileStream]::new(
+            $LockPath,
+            $Mode,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+    } catch [System.IO.IOException] {
+        return $null
+    }
 }
 
 function Acquire-PipelineLock {
     param(
         [string]$WorkspaceRoot,
         [string]$CommandName,
-        [int]$TimeoutSeconds
+        [int]$TimeoutSeconds,
+        [switch]$SkipIfLocked
     )
     $runDir = Join-Path (Join-Path $WorkspaceRoot '.conversation-esaa') 'run'
     New-Item -ItemType Directory -Force -Path $runDir | Out-Null
@@ -78,46 +113,54 @@ function Acquire-PipelineLock {
     $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
 
     while ([datetime]::UtcNow -lt $deadline) {
-        if (-not (Test-Path -LiteralPath $lockPath)) {
+        if ($SkipIfLocked -and (Test-Path -LiteralPath $lockPath)) {
+            return $false
+        }
+        $created = Try-OpenExclusiveLockFile -LockPath $lockPath -Mode ([System.IO.FileMode]::CreateNew)
+        if ($created) {
             try {
-                $lock = [ordered]@{
-                    pid = $PID
-                    command = $CommandName
-                    started_at = (Get-IsoTimestamp)
-                    workspace_root = $WorkspaceRoot
-                }
-                $json = (($lock | ConvertTo-Json -Compress) + "`n")
-                $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-                $fs = [System.IO.FileStream]::new(
-                    $lockPath,
-                    [System.IO.FileMode]::CreateNew,
-                    [System.IO.FileAccess]::Write,
-                    [System.IO.FileShare]::None
-                )
-                try {
-                    $fs.Write($bytes, 0, $bytes.Length)
-                } finally {
-                    $fs.Close()
-                }
+                Write-PipelineLockMetadata -Stream $created -CommandName $CommandName -WorkspaceRoot $WorkspaceRoot
+                $script:PipelineLockStream = $created
                 $script:PipelineLockPath = $lockPath
                 $script:PipelineLockOwned = $true
-                return
-            } catch [System.IO.IOException] {
-                # Another process created the lock; retry.
-            }
-        } else {
-            try {
-                $existing = Get-Content -LiteralPath $lockPath -Raw -Encoding UTF8 | ConvertFrom-Json
-                if (Test-PipelineLockStale $existing) {
-                    Write-Warning "removing stale pipeline lock (pid=$($existing.pid))"
-                    Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
-                    continue
-                }
+                return $true
             } catch {
-                Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
-                continue
+                $created.Dispose()
+                throw
             }
         }
+
+        # Exclusive Open succeeds only when no process holds the stream
+        # (crash leftover or old metadata-only lock). Never delete a lock we
+        # cannot open exclusively: that file is held by a live writer.
+        $existingStream = Try-OpenExclusiveLockFile -LockPath $lockPath -Mode ([System.IO.FileMode]::Open)
+        if ($existingStream) {
+            $existingPid = $null
+            try {
+                $existingStream.Position = 0
+                $reader = New-Object System.IO.StreamReader($existingStream, [System.Text.UTF8Encoding]::new($false), $false, 1024, $true)
+                $raw = $reader.ReadToEnd()
+                $reader.Dispose()
+                if (-not [string]::IsNullOrWhiteSpace($raw)) {
+                    $parsed = $raw | ConvertFrom-Json
+                    if ($parsed.pid) { $existingPid = [int]$parsed.pid }
+                }
+            } catch {
+                $existingPid = $null
+            }
+            Write-Warning "reclaiming unheld pipeline lock (pid=$existingPid)"
+            try {
+                Write-PipelineLockMetadata -Stream $existingStream -CommandName $CommandName -WorkspaceRoot $WorkspaceRoot
+                $script:PipelineLockStream = $existingStream
+                $script:PipelineLockPath = $lockPath
+                $script:PipelineLockOwned = $true
+                return $true
+            } catch {
+                $existingStream.Dispose()
+                throw
+            }
+        }
+
         Start-Sleep -Milliseconds 200
     }
     throw "Pipeline lock timeout after ${TimeoutSeconds}s: $lockPath"
@@ -127,6 +170,10 @@ function Release-PipelineLock {
     param([string]$WorkspaceRoot)
     if (-not $script:PipelineLockOwned) { return }
     $lockPath = if ($script:PipelineLockPath) { $script:PipelineLockPath } else { Get-PipelineLockPath $WorkspaceRoot }
+    if ($script:PipelineLockStream) {
+        try { $script:PipelineLockStream.Dispose() } catch { }
+        $script:PipelineLockStream = $null
+    }
     if (Test-Path -LiteralPath $lockPath) {
         try {
             $existing = Get-Content -LiteralPath $lockPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -148,8 +195,14 @@ function Invoke-WithPipelineLock {
         [int]$TimeoutSeconds,
         [scriptblock]$Body
     )
+    $acquired = Acquire-PipelineLock -WorkspaceRoot $WorkspaceRoot -CommandName $CommandName -TimeoutSeconds $TimeoutSeconds -SkipIfLocked:$script:PipelineSkipIfLocked
+    if ($acquired -ne $true) {
+        if ($script:PipelineSkipIfLocked) {
+            Write-Output "pipeline lock busy; skip $CommandName"
+        }
+        return
+    }
     try {
-        Acquire-PipelineLock -WorkspaceRoot $WorkspaceRoot -CommandName $CommandName -TimeoutSeconds $TimeoutSeconds
         & $Body
     } finally {
         Release-PipelineLock -WorkspaceRoot $WorkspaceRoot
@@ -1718,6 +1771,48 @@ function Invoke-Project {
     Write-Output 'project: regenerated state.md, handoff.md, tasks.json, and decisions.md'
 }
 
+
+function Get-TopicFieldValue {
+    param($Topic, [string]$Name)
+    if ($Topic -is [System.Collections.IDictionary]) {
+        if ($Topic.Contains($Name)) { return $Topic[$Name] }
+        return $null
+    }
+    if ($Topic.PSObject.Properties.Name -contains $Name) { return $Topic.$Name }
+    return $null
+}
+
+function Test-TopicsProjectionMatch {
+    param($ActualTopics, $ProjectedTopics)
+    $aMap = @{}
+    foreach ($t in @($ActualTopics)) {
+        $id = [string](Get-TopicFieldValue $t 'id')
+        if (-not $id) { return $false }
+        $aMap[$id] = $t
+    }
+    $pMap = @{}
+    foreach ($t in @($ProjectedTopics)) {
+        $id = [string](Get-TopicFieldValue $t 'id')
+        if (-not $id) { return $false }
+        $pMap[$id] = $t
+    }
+    if ($aMap.Count -ne $pMap.Count) { return $false }
+    foreach ($id in @($aMap.Keys)) {
+        if (-not $pMap.ContainsKey($id)) { return $false }
+        $a = $aMap[$id]
+        $p = $pMap[$id]
+        foreach ($field in @('title', 'summary', 'status')) {
+            if ([string](Get-TopicFieldValue $a $field) -ne [string](Get-TopicFieldValue $p $field)) {
+                return $false
+            }
+        }
+        $aKeys = @($(Get-TopicFieldValue $a 'key_event_ids')) | ForEach-Object { [string]$_ }
+        $pKeys = @($(Get-TopicFieldValue $p 'key_event_ids')) | ForEach-Object { [string]$_ }
+        if (($aKeys -join '|') -ne ($pKeys -join '|')) { return $false }
+    }
+    return $true
+}
+
 function Invoke-Verify {
     param($Paths)
 
@@ -1909,11 +2004,9 @@ function Invoke-Verify {
         }
     }
 
-    $projectedTopics = Project-TopicsFromEvents @($allEvents)
+    $projectedTopics = Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
     $projectedTopics.workspace_root = $Paths.Root
-    $actualComparable = @($topicsPayload.topics | Sort-Object id | ConvertTo-Json -Depth 8 -Compress)
-    $projectedComparable = @($projectedTopics.topics | Sort-Object id | ConvertTo-Json -Depth 8 -Compress)
-    if (($actualComparable -join "`n") -ne ($projectedComparable -join "`n")) {
+    if (-not (Test-TopicsProjectionMatch -ActualTopics $topicsPayload.topics -ProjectedTopics $projectedTopics.topics)) {
         throw 'topics.json is not consistent with activity.jsonl'
     }
 
@@ -1949,9 +2042,9 @@ switch ($Command) {
             Repair-ActivityContract $paths.Activity
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncGrok -Paths $paths -SyncState $state
+            Save-SyncState $state $paths.SyncState
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
-            Save-SyncState $state $paths.SyncState
         }
         try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
@@ -1960,9 +2053,9 @@ switch ($Command) {
             Repair-ActivityContract $paths.Activity
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncCodex -Paths $paths -SyncState $state
+            Save-SyncState $state $paths.SyncState
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
-            Save-SyncState $state $paths.SyncState
         }
         try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
@@ -1971,9 +2064,9 @@ switch ($Command) {
             Repair-ActivityContract $paths.Activity
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncClaude -Paths $paths -SyncState $state
+            Save-SyncState $state $paths.SyncState
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
-            Save-SyncState $state $paths.SyncState
         }
         try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }
@@ -1982,9 +2075,9 @@ switch ($Command) {
             Repair-ActivityContract $paths.Activity
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncAntigravity -Paths $paths -SyncState $state
+            Save-SyncState $state $paths.SyncState
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
-            Save-SyncState $state $paths.SyncState
         }
         try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
     }

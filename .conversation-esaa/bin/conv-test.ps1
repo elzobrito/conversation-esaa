@@ -308,21 +308,33 @@ try {
     Assert-True ($staleProject.Output -match 'project: regenerated') 'stale_lock_removed_and_sync_succeeds' $staleProject.Output
     Assert-True (-not (Test-Path -LiteralPath $lockPath)) 'stale_lock_cleaned_after_success'
 
-    $liveLock = [ordered]@{
-        pid = $PID
-        command = 'live-test'
-        started_at = '2026-06-21T00:00:00-03:00'
-        workspace_root = $ws
+    $holder = $null
+    try {
+        $holder = [System.IO.FileStream]::new(
+            $lockPath,
+            [System.IO.FileMode]::Create,
+            [System.IO.FileAccess]::ReadWrite,
+            [System.IO.FileShare]::None
+        )
+        $liveLock = [ordered]@{
+            pid = $PID
+            command = 'live-test'
+            started_at = '2026-06-21T00:00:00-03:00'
+            workspace_root = $ws
+        }
+        $liveBytes = [System.Text.Encoding]::UTF8.GetBytes((($liveLock | ConvertTo-Json -Compress) + "`n"))
+        $holder.Write($liveBytes, 0, $liveBytes.Length)
+        $holder.Flush()
+        $blocked = Invoke-ConvSync -Workspace $ws -Command 'project' -Extra @('-LockTimeoutSeconds', '2')
+        Assert-True ($blocked.ExitCode -ne 0 -or $blocked.Output -match 'lock timeout') `
+            'live_lock_blocks_until_timeout' $blocked.Output
+        $skipped = Invoke-ConvSync -Workspace $ws -Command 'project' -Extra @('-SkipIfLocked')
+        Assert-True ($skipped.ExitCode -eq 0 -and $skipped.Output -match 'pipeline lock busy') `
+            'skip_if_locked_exits_zero_when_lock_held' $skipped.Output
+    } finally {
+        if ($holder) { $holder.Dispose() }
+        Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
     }
-    [System.IO.File]::WriteAllText(
-        $lockPath,
-        (($liveLock | ConvertTo-Json -Compress) + "`n"),
-        [System.Text.UTF8Encoding]::new($false)
-    )
-    $blocked = Invoke-ConvSync -Workspace $ws -Command 'project' -Extra @('-LockTimeoutSeconds', '2')
-    Assert-True ($blocked.ExitCode -ne 0 -or $blocked.Output -match 'lock timeout') `
-        'live_lock_blocks_until_timeout' $blocked.Output
-    Remove-Item -LiteralPath $lockPath -Force -ErrorAction SilentlyContinue
 
     # verify rejects synced events missing workspace_root
     $syncedSample = @(Get-SyncedActivityEvents $activity | Select-Object -First 1)
