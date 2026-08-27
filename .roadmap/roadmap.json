@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 832,
-      "projection_hash_sha256": "b10f44d878bb4c5dc3da3071a8e7f6a3765821cdcc8fc5ee0f26a20022ef7264",
+      "last_event_seq": 858,
+      "projection_hash_sha256": "a664695037105a5c3fbf0c18f12164ee55d012a78a876a9507aa6b8fb64b499e",
       "verify_status": "ok"
     },
-    "updated_at": "2026-08-27T18:30:07Z"
+    "updated_at": "2026-08-27T18:48:33Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2545,17 +2545,108 @@
         ]
       },
       "completed_at": "2026-08-27T18:30:07Z"
+    },
+    {
+      "task_id": "CONV-DOCS-NPX-HONEST-001",
+      "task_kind": "spec",
+      "title": "Documentar install via git/node até o pacote existir no npm",
+      "description": "README, AGENTS.md e .claude/CLAUDE.md apresentam npx conversation-esaa@1.3.1 como caminho principal, mas o registry devolve 404 (GitHub #3). Trocar a instalação rápida para git clone + node src/cli.js. npx vira seção após publicação, com E404 explícito. Manter AGENTS.md idêntico a CLAUDE.md. Nota curta no topo do RELEASE.md. Sem publish npm.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "README.md"
+      ],
+      "outputs": {
+        "files": [
+          "README.md",
+          "AGENTS.md",
+          ".claude/CLAUDE.md",
+          "RELEASE.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "README.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md",
+        "RELEASE.md"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Instalação rápida usa git clone + node src/cli.js, não npx como único caminho.",
+        "README declara que o pacote ainda não está no npm (E404).",
+        "diff AGENTS.md .claude/CLAUDE.md vazio."
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-08-27T18:45:36Z",
+      "verification": {
+        "checks": [
+          "README instalação rápida usa git clone e node src/cli.js.",
+          "README declara npm view 404 / npx E404 até o publish.",
+          "diff AGENTS.md .claude/CLAUDE.md vazio após aplicar os file_updates."
+        ]
+      },
+      "completed_at": "2026-08-27T18:46:29Z"
+    },
+    {
+      "task_id": "CONV-HOOK-CANONICAL-001",
+      "task_kind": "impl",
+      "title": "Unificar comando de hook: pwsh absoluto e SkipIfLocked",
+      "description": "Adapter JS, conv-bootstrap New-SyncCommand e enable-hooks devem emitir a mesma linha: path absoluto de pwsh, -File absoluto do CLI, sync --agent --workspace, --SkipIfLocked. Manter replaceMatchingHook. Testes e2e: install limpo 1 hook/evento; bootstrap sem SkipAgentIntegrations + adapter ainda 1; legado converge para 1.",
+      "status": "done",
+      "depends_on": [
+        "CONV-DOCS-NPX-HONEST-001"
+      ],
+      "targets": [
+        "src/installer"
+      ],
+      "outputs": {
+        "files": [
+          "src/installer/adapters/index.js",
+          ".conversation-esaa/bin/conv-bootstrap.ps1",
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          "tests/installer/e2e/install.e2e.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "src/installer/adapters/index.js",
+        ".conversation-esaa/bin/conv-bootstrap.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        "tests/installer/e2e/install.e2e.test.js"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "syncCommand JS inclui --SkipIfLocked; bootstrap e enable-hooks usam path absoluto de pwsh.",
+        "e2e: install limpo claude/grok tem 1 command conversation-esaa.ps1 por evento.",
+        "e2e: bootstrap sem SkipAgentIntegrations + adapter não deixa 2 hooks."
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-08-27T18:46:51Z",
+      "verification": {
+        "checks": [
+          "syncCommand JS inclui --SkipIfLocked; bootstrap New-SyncCommand e enable-hooks usam Get-Command pwsh Source.",
+          "e2e: install limpo e sequência bootstrap+adapter com 1 hook conversation-esaa.ps1 por evento (a rodar após complete)."
+        ]
+      },
+      "completed_at": "2026-08-27T18:48:33Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 57,
+      "done": 59,
       "todo": 7
     },
     "by_kind": {
-      "impl": 51,
+      "impl": 52,
       "qa": 7,
-      "spec": 6
+      "spec": 7
     }
   }
 }
