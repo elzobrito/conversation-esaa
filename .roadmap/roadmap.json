@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 858,
-      "projection_hash_sha256": "a664695037105a5c3fbf0c18f12164ee55d012a78a876a9507aa6b8fb64b499e",
+      "last_event_seq": 877,
+      "projection_hash_sha256": "bffb040f28df1e7b30f8e2ea852e6dfa1e3559d5088e257ad246d44bd3b71d26",
       "verify_status": "ok"
     },
-    "updated_at": "2026-08-27T18:48:33Z"
+    "updated_at": "2026-09-18T19:33:13Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2636,17 +2636,89 @@
         ]
       },
       "completed_at": "2026-08-27T18:48:33Z"
+    },
+    {
+      "task_id": "CONV-INSTALL-PUBLISH-003",
+      "task_kind": "qa",
+      "title": "Publish conversation-esaa 1.3.1 to npm and verify npx",
+      "description": "npm whoami is elzobrito. Publish conversation-esaa@1.3.1 from the reviewed main commit. Pack, record SHA-256, npm publish --access public, verify npm view and npx in a clean workspace, create GitHub tag/release v1.3.1, close GitHub issues 3 and 4, resolve ISS-CONV-PUBLISH-130-BLOCKED-001 and ISS-CONV-PUBLISH-131-AUTH-001. Do not bump version. Do not reopen CONV-INSTALL-PUBLISH-002.",
+      "status": "in_progress",
+      "depends_on": [],
+      "targets": [
+        "docs/qa"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-INSTALL-PUBLISH-003.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/qa/CONV-INSTALL-PUBLISH-003.md"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "npm view conversation-esaa version is 1.3.1.",
+        "npx conversation-esaa@1.3.1 --help succeeds in a clean workspace.",
+        "GitHub release/tag v1.3.1 exists; issues 3 and 4 closed."
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-08-27T18:55:00Z"
+    },
+    {
+      "task_id": "CONV-PRD-DX-001",
+      "task_kind": "spec",
+      "title": "PRD: atualização DX P0–P3 com invariante zero-token",
+      "description": "Documentar o PRD da evolução do Conversation ESAA: captura canônica no hook de envio de mensagem; P0 install+cold-start; P1 context/search+MCP; P2 CLI portátil+goldens; P3 suggest/compaction opcional; invariante zero-token em P0–P2 (sem LLM no caminho feliz).",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "docs/spec/PRD-DX-P0-P3-ZERO-TOKEN.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/spec/PRD-DX-P0-P3-ZERO-TOKEN.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/spec/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "PRD cobre problema, metas, não-metas, invariante zero-token, captura via hook de envio, fases P0–P3 com entregáveis e critérios de aceite",
+        "PRD deixa explícito que activity.jsonl é fonte de verdade e projeções não se editam à mão",
+        "PRD distingue token do host/agent ao ler handoff vs custo zero do conversation-esaa"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "cursor-agent",
+      "started_at": "2026-09-18T19:32:17Z",
+      "verification": {
+        "checks": [
+          "arquivo docs/spec/PRD-DX-P0-P3-ZERO-TOKEN.md existe e cobre P0-P3",
+          "invariante zero-token explícito para P0-P2; P3 opcional",
+          "captura canônica = hook de message-send; projeções não editáveis à mão",
+          "nuance: token de leitura do handoff é do agent/host"
+        ]
+      },
+      "completed_at": "2026-09-18T19:33:13Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 59,
+      "done": 60,
+      "in_progress": 1,
       "todo": 7
     },
     "by_kind": {
       "impl": 52,
-      "qa": 7,
-      "spec": 7
+      "qa": 8,
+      "spec": 8
     }
   }
 }
