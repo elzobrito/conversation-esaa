@@ -145,6 +145,11 @@ try {
     $handoffPath = Join-Path $ws '.conversation-esaa\handoff.md'
     Assert-True ((Test-Path -LiteralPath $statePath) -and (Test-Path -LiteralPath $handoffPath)) `
         'bootstrap_projects_baseline'
+    $baselineHandoff = Get-Content -LiteralPath $handoffPath -Raw
+    Assert-True ($baselineHandoff -match 'Nenhum objetivo conversacional foi projetado') `
+        'handoff_empty_workspace_has_explicit_objective_fallback'
+    Assert-True ($baselineHandoff -match 'context --last 20') `
+        'handoff_empty_workspace_explains_filtered_context_fallback'
 
     $grokHook = Get-Content -LiteralPath (Join-Path $ws '.grok\hooks\conversation-esaa.json') -Raw
     $hookCmd = ($grokHook | ConvertFrom-Json).hooks.UserPromptSubmit[0].hooks[0].command
@@ -414,11 +419,6 @@ try {
     Assert-True ($null -ne $createdId) 'task_create_returns_id' $taskCreate2.Output
     $taskUpdate = Invoke-ConvSync -Workspace $ws -Command 'task' -Extra @('-TaskAction', 'update', '-TaskId', $createdId, '-TaskStatus', 'in_progress', '-TaskNextStep', 'add tests')
     Assert-True ($taskUpdate.Output -match 'task: updated') 'task_update_event' $taskUpdate.Output
-    $taskClose = Invoke-ConvSync -Workspace $ws -Command 'task' -Extra @('-TaskAction', 'close', '-TaskId', $createdId, '-TaskEvidence', 'context tests pass')
-    Assert-True ($taskClose.Output -match 'task: closed') 'task_close_event' $taskClose.Output
-    $tasksJson = Get-Content -LiteralPath (Join-Path $ws '.conversation-esaa\tasks.json') -Raw | ConvertFrom-Json
-    $closed = @($tasksJson.tasks | Where-Object { $_.id -eq $createdId })
-    Assert-True (($closed.Count -eq 1) -and ($closed[0].status -eq 'completed')) 'tasks_json_projected_from_events'
 
     # ADR-009 topic memory layer
     $topicCreate = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('create', 'Assunto de teste') -Params @{
@@ -429,6 +429,18 @@ try {
     $topicsJson = Get-Content -LiteralPath $topicsPath -Raw | ConvertFrom-Json
     $createdTopic = @($topicsJson.topics | Where-Object { $_.id -eq 'TOP-001' })
     Assert-True (($createdTopic.Count -eq 1) -and ($createdTopic[0].title -eq 'Assunto de teste')) 'topics_json_projected_from_events'
+
+    $continuityHandoff = Get-Content -LiteralPath $handoffPath -Raw
+    Assert-True ($continuityHandoff -match 'Implementar context --agent.*add tests') `
+        'handoff_objective_prioritizes_open_task'
+    Assert-True ($continuityHandoff -match 'Usar context --agent para handoff seletivo') `
+        'handoff_includes_active_decision'
+    Assert-True ($continuityHandoff -match 'TOP-001.*Assunto de teste.*Resumo do assunto de teste') `
+        'handoff_includes_active_topic'
+    Assert-True ($continuityHandoff -match "\*\*$([regex]::Escape($createdId))\*\*.*Implementar context --agent") `
+        'handoff_includes_open_task'
+    Assert-True ($continuityHandoff -match '## Eventos recentes' -and $continuityHandoff -match '\[.*\] assistant \(grok\).*Resumo do assunto de teste') `
+        'handoff_includes_recent_events'
 
     $topicList = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('list')
     Assert-True ($topicList.Output -match 'TOP-001') 'topics_list_outputs_topic' $topicList.Output
@@ -447,6 +459,12 @@ try {
     Assert-True ($topicLink.Output -match 'topic: linked event to TOP-001') 'topic_link_event' $topicLink.Output
     $topicContext = Invoke-ConvCli -Workspace $ws -Command 'context' -Params @{ TopicId = 'TOP-001' }
     Assert-True (($topicContext.Output -match 'topic_id=TOP-001') -and ($topicContext.Output -match $topicCreatedEvent.event_id)) 'context_topic_id_returns_linked_event' $topicContext.Output
+
+    $taskClose = Invoke-ConvSync -Workspace $ws -Command 'task' -Extra @('-TaskAction', 'close', '-TaskId', $createdId, '-TaskEvidence', 'context tests pass')
+    Assert-True ($taskClose.Output -match 'task: closed') 'task_close_event' $taskClose.Output
+    $tasksJson = Get-Content -LiteralPath (Join-Path $ws '.conversation-esaa\tasks.json') -Raw | ConvertFrom-Json
+    $closed = @($tasksJson.tasks | Where-Object { $_.id -eq $createdId })
+    Assert-True (($closed.Count -eq 1) -and ($closed[0].status -eq 'completed')) 'tasks_json_projected_from_events'
 
     $topicClose = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('close', 'TOP-001') -Params @{
         Evidence = 'done'

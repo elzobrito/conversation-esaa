@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 877,
-    "updated_at": "2026-09-18T19:33:13Z"
+    "last_event_seq": 925,
+    "updated_at": "2026-09-18T22:58:57Z"
   },
   "issues": [
     {
@@ -436,7 +436,7 @@
     },
     {
       "issue_id": "ISS-CONV-PUBLISH-130-BLOCKED-001",
-      "status": "open",
+      "status": "resolved",
       "severity": "high",
       "title": "The 1.3.0 publication candidate is obsolete and unauthenticated",
       "baseline_id": null,
@@ -448,7 +448,9 @@
           "The documented PowerShell CLI fails to bind long options under -Command; clean npm installs create duplicate hooks and omit the installed conv-bootstrap.ps1 runtime."
         ]
       },
-      "resolution": null,
+      "resolution": {
+        "status": "resolved_by_command"
+      },
       "links": {
         "reported_by_task_id": "CONV-INSTALL-PUBLISH-001",
         "fixes_task_id": null,
@@ -456,12 +458,12 @@
       },
       "timeline": {
         "created_event_seq": 713,
-        "resolved_event_seq": null
+        "resolved_event_seq": 917
       }
     },
     {
       "issue_id": "ISS-CONV-PUBLISH-131-AUTH-001",
-      "status": "open",
+      "status": "resolved",
       "severity": "high",
       "title": "npm authentication is required to publish conversation-esaa 1.3.1",
       "baseline_id": null,
@@ -473,7 +475,9 @@
           "Run npm whoami; it returns ENEEDAUTH and requires npm adduser/login."
         ]
       },
-      "resolution": null,
+      "resolution": {
+        "status": "resolved_by_command"
+      },
       "links": {
         "reported_by_task_id": "CONV-INSTALL-PUBLISH-002",
         "fixes_task_id": null,
@@ -481,7 +485,7 @@
       },
       "timeline": {
         "created_event_seq": 782,
-        "resolved_event_seq": null
+        "resolved_event_seq": 914
       }
     }
   ],
@@ -493,9 +497,7 @@
         "CLOSE-T-2002",
         "CLOSE-T-2003",
         "CLOSE-T-2004",
-        "CLOSE-T-2005",
-        "ISS-CONV-PUBLISH-130-BLOCKED-001",
-        "ISS-CONV-PUBLISH-131-AUTH-001"
+        "CLOSE-T-2005"
       ]
     }
   }

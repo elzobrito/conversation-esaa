@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 877,
-      "projection_hash_sha256": "bffb040f28df1e7b30f8e2ea852e6dfa1e3559d5088e257ad246d44bd3b71d26",
+      "last_event_seq": 925,
+      "projection_hash_sha256": "8ad88720c9e02ea97124f54ebc4726f2eedb040219643d3ab08ba5b487147d89",
       "verify_status": "ok"
     },
-    "updated_at": "2026-09-18T19:33:13Z"
+    "updated_at": "2026-09-18T22:58:57Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2642,7 +2642,7 @@
       "task_kind": "qa",
       "title": "Publish conversation-esaa 1.3.1 to npm and verify npx",
       "description": "npm whoami is elzobrito. Publish conversation-esaa@1.3.1 from the reviewed main commit. Pack, record SHA-256, npm publish --access public, verify npm view and npx in a clean workspace, create GitHub tag/release v1.3.1, close GitHub issues 3 and 4, resolve ISS-CONV-PUBLISH-130-BLOCKED-001 and ISS-CONV-PUBLISH-131-AUTH-001. Do not bump version. Do not reopen CONV-INSTALL-PUBLISH-002.",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [],
       "targets": [
         "docs/qa"
@@ -2666,7 +2666,16 @@
       ],
       "required_review_mode": "release",
       "assigned_to": "agent-qa",
-      "started_at": "2026-08-27T18:55:00Z"
+      "started_at": "2026-08-27T18:55:00Z",
+      "verification": {
+        "checks": [
+          "npm view reports version 1.3.1 with shasum 3e2ce201fb80f7157fb19bf691f5fa34eb873b04 and matching integrity.",
+          "Clean public npx execution of conversation-esaa@1.3.1 --help exited successfully.",
+          "GitHub release/tag v1.3.1 exists at the published candidate commit and includes the tarball.",
+          "GitHub issues 3 and 4 are closed; ESAA issues ISS-CONV-PUBLISH-130-BLOCKED-001 and ISS-CONV-PUBLISH-131-AUTH-001 are resolved."
+        ]
+      },
+      "completed_at": "2026-09-18T22:58:57Z"
     },
     {
       "task_id": "CONV-PRD-DX-001",
@@ -2707,18 +2716,145 @@
         ]
       },
       "completed_at": "2026-09-18T19:33:13Z"
+    },
+    {
+      "task_id": "CONV-HANDOFF-COLDSTART-SPEC-001",
+      "task_kind": "spec",
+      "title": "Definir contrato de cold-start orientado por handoff",
+      "description": "Explicitar os gatilhos de início e retomada, tornar .conversation-esaa/handoff.md o ponto de entrada obrigatório, definir consultas complementares por lacuna, diagnóstico com verify e comportamento pós-leitura sem confirmação redundante.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "handoff",
+        "cold-start"
+      ],
+      "outputs": {
+        "files": [
+          "AGENTS.md",
+          ".claude/CLAUDE.md",
+          "README.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "AGENTS.md",
+        ".claude/CLAUDE.md",
+        "README.md"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "AGENTS.md define gatilhos sem depender de frase exata e exige leitura inicial de .conversation-esaa/handoff.md.",
+        "Consultas a state, topics, decisions, tasks e context têm critérios objetivos; handoff ausente, vazio ou inconsistente leva a verify.",
+        "Após a leitura o agente enuncia objetivo e próximo passo, prossegue quando autorizado e só pede esclarecimento diante de decisão humana pendente.",
+        "README fica alinhado e diff AGENTS.md .claude/CLAUDE.md permanece vazio."
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-09-18T20:14:35Z",
+      "verification": {
+        "checks": [
+          "diff AGENTS.md .claude/CLAUDE.md retornou vazio",
+          "git diff --check passou para AGENTS.md, .claude/CLAUDE.md e README.md"
+        ]
+      },
+      "completed_at": "2026-09-18T20:15:43Z"
+    },
+    {
+      "task_id": "CONV-HANDOFF-COLDSTART-IMPL-001",
+      "task_kind": "impl",
+      "title": "Tornar o handoff gerado suficiente para retomada",
+      "description": "Evoluir Invoke-Project para projetar no handoff objetivo derivado do estado conversacional, decisões vigentes, tópicos, eventos recentes, tarefas abertas e próxima ação, mantendo contexto filtrado como fallback e cobrindo o contrato com testes.",
+      "status": "done",
+      "depends_on": [
+        "CONV-HANDOFF-COLDSTART-SPEC-001"
+      ],
+      "targets": [
+        "handoff",
+        "project",
+        "context"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conv-test.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-test.ps1"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "handoff.md gerado contém objetivo atual derivado, decisões, tópicos, eventos recentes, tarefas abertas e próxima ação em um único ponto de entrada.",
+        "Objetivo não é uma descrição fixa do produto: prioriza tarefa aberta, tópico ativo e evento recente, com fallback explícito.",
+        "Teste automatizado comprova projeção e mantém activity.jsonl/read models sob escrita exclusiva do motor."
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-09-18T20:16:35Z",
+      "verification": {
+        "checks": [
+          "conv-test.ps1: 85 passed, 0 failed",
+          "Workspace sintético projetou objetivo com next_step, decisão, tópico, tarefa e eventos recentes",
+          "git diff --check passou nos arquivos do motor e teste"
+        ]
+      },
+      "completed_at": "2026-09-18T20:22:27Z"
+    },
+    {
+      "task_id": "CONV-HANDOFF-COLDSTART-QA-001",
+      "task_kind": "qa",
+      "title": "Validar retomada por handoff de ponta a ponta",
+      "description": "Validar contrato, paridade dos harnesses, projeção do handoff, critérios de fallback context/verify e regressão da suíte Conversation ESAA.",
+      "status": "done",
+      "depends_on": [
+        "CONV-HANDOFF-COLDSTART-IMPL-001"
+      ],
+      "targets": [
+        "handoff",
+        "qa"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-HANDOFF-COLDSTART-QA-001.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "Cenário com tarefa, decisão, tópico e evento recente produz handoff autossuficiente e coerente.",
+        "Cenário vazio usa fallback explícito; context --topic-id continua restrito a tópico identificado.",
+        "diff AGENTS.md .claude/CLAUDE.md vazio, verify ESAA ok e testes relevantes passam."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-09-18T20:22:40Z",
+      "verification": {
+        "checks": [
+          "conv-test.ps1: 85 passed, 0 failed em execução independente",
+          "context --topic-id TOP-999 falhou com Unknown topic_id e exit code 1",
+          "diff AGENTS.md .claude/CLAUDE.md vazio; git diff --check passou; ESAA verify ok"
+        ]
+      },
+      "completed_at": "2026-09-18T20:24:55Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 60,
-      "in_progress": 1,
+      "done": 64,
       "todo": 7
     },
     "by_kind": {
-      "impl": 52,
-      "qa": 8,
-      "spec": 8
+      "impl": 53,
+      "qa": 9,
+      "spec": 9
     }
   }
 }

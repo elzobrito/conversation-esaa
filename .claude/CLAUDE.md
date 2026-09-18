@@ -80,16 +80,31 @@ hook/watcher → sync → lock → append activity.jsonl → project → verify 
 | `sync-state.json` | dedupe (reconstruível) | não editar |
 | `bin/`, `plans/`, README, PRIVACY, RELEASE | código/docs do produto | ok **neste repo** |
 
-## 5. Handoff — ordem para agente frio
+## 5. Handoff — início e retomada do trabalho
 
-1. `handoff.md`
-2. `state.md`
-3. `topics.md` / `topics.json`
-4. `decisions.md`
-5. `tasks.json`
-6. Se precisar: `context --agent <id> --last N` ou `--topic-id TOP-xxx`
+Ao entrar no projeto sem contexto suficiente, trocar de agente ou receber um
+pedido de retomada, leia primeiro `.conversation-esaa/handoff.md`, antes de
+formular uma resposta substantiva ou executar o trabalho.
 
-Não reconstruir contexto lendo o `activity.jsonl` inteiro sem filtro.
+Consulte as demais projeções somente conforme a informação que faltar:
+
+1. `state.md` para estado e eventos recentes;
+2. `topics.md` / `topics.json` para identificar o assunto ativo;
+3. `decisions.md` para decisões vigentes;
+4. `tasks.json` para pendências conversacionais.
+
+Se o objetivo, as decisões aplicáveis ou o próximo passo continuarem
+indefinidos ou contraditórios, use `context --last 20`. Acrescente
+`--topic-id TOP-xxx` quando houver um tópico identificado; use
+`--agent <id>` somente quando precisar restringir a consulta a um agente.
+
+Se o handoff estiver ausente, vazio ou inconsistente, execute `verify` e
+informe o impedimento encontrado. Não invente contexto, não edite projeções
+manualmente e não leia o `activity.jsonl` inteiro sem filtro.
+
+Após a leitura, enuncie brevemente o objetivo atual e o próximo passo. Prossiga
+quando estiverem claros e autorizados; peça esclarecimento somente quando a
+escolha depender do humano. Para implementação, siga também a seção 13.
 
 ## 6. CLI canônica
 

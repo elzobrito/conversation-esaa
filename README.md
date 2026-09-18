@@ -234,14 +234,21 @@ tarefas e dados RAG.
 
 ## Handoff entre agentes
 
-Quando um agente novo entra no projeto, leia nesta ordem:
+Ao entrar sem contexto suficiente, trocar de agente ou receber um pedido de
+retomada, leia primeiro `.conversation-esaa/handoff.md`. Ele é o ponto de
+entrada para identificar o objetivo atual e o próximo passo.
 
-1. `.conversation-esaa/handoff.md`
-2. `.conversation-esaa/state.md`
-3. `.conversation-esaa/decisions.md`
-4. `.conversation-esaa/tasks.json`
+Consulte `state.md`, `topics.md` / `topics.json`, `decisions.md` e `tasks.json`
+somente quando faltarem, respectivamente, estado recente, assunto ativo,
+decisões vigentes ou pendências conversacionais. Se ainda houver lacunas ou
+contradições, use `context --last 20`; acrescente `--topic-id TOP-xxx` quando o
+tópico estiver identificado e `--agent <id>` somente para restringir por agente.
 
-**Regra:** não edite esses arquivos à mão. Toda escrita passa pela CLI (`sync`, `decide`, `task`).
+Se o handoff estiver ausente, vazio ou inconsistente, execute `verify`. Não
+edite as projeções à mão; toda escrita passa pela CLI (`sync`, `decide`,
+`task`, `topics`, `project`). Após a leitura, enuncie brevemente o objetivo e o
+próximo passo, prossiga quando estiverem claros e peça esclarecimento apenas
+quando houver uma decisão pendente do usuário.
 
 ---
 

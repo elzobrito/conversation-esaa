@@ -1027,6 +1027,10 @@ function Get-NextTopicId {
 
 function Get-EventField {
     param($Event, [string]$Name)
+    if ($Event -is [System.Collections.IDictionary]) {
+        if ($Event.Contains($Name)) { return $Event[$Name] }
+        return $null
+    }
     if ($Name -in $Event.PSObject.Properties.Name) { return $Event.$Name }
     return $null
 }
@@ -1635,7 +1639,6 @@ function Invoke-Project {
     $topicsMdPath = Join-Path $Paths.Esaa 'topics.md'
     [System.IO.File]::WriteAllText($topicsMdPath, $topicsMd, [System.Text.UTF8Encoding]::new($false))
 
-    $objective = 'Evoluir o ESAA conversacional para gravacao automatica e handoff entre agentes sem gastar tokens na sincronizacao mecanica.'
     $recordedDecisions = @($events | Where-Object { $_.event -eq 'decision.recorded' } | Select-Object -Last 5)
     $decisions = @($recordedDecisions | ForEach-Object { $_.decision })
     if ($decisions.Count -eq 0) {
@@ -1650,6 +1653,8 @@ function Invoke-Project {
         Where-Object { ('summary' -in $_.PSObject.Properties.Name) -and $_.summary } |
         Select-Object -Last 5
 
+    $activeTopics = @($topicsPayload.topics | Where-Object { $_.status -eq 'active' })
+
     $openTasks = @()
     $doneTasks = @()
     if ($tasks -and $tasks.tasks) {
@@ -1657,12 +1662,36 @@ function Invoke-Project {
         $doneTasks = @($tasks.tasks | Where-Object { $_.status -eq 'completed' })
     }
 
+    $recentUserTurns = @($events |
+        Where-Object { $_.event -eq 'conversation_turn' -and $_.actor -eq 'user' -and $_.summary } |
+        Select-Object -Last 1)
+    $recentConversationTurns = @($events |
+        Where-Object { $_.event -eq 'conversation_turn' -and $_.summary } |
+        Select-Object -Last 1)
+
+    $objective = if (@($openTasks).Count -ge 1) {
+        $t = $openTasks[0]
+        $step = Get-EventField $t 'next_step'
+        if ($step) { "$($t.title) — $step" } else { $t.title }
+    } elseif ($activeTopics.Count -ge 1) {
+        $topic = $activeTopics[0]
+        if ($topic.summary) { "$($topic.id) — $($topic.title): $($topic.summary)" } else { "$($topic.id) — $($topic.title)" }
+    } elseif ($recentUserTurns.Count -ge 1) {
+        $recentUserTurns[0].summary
+    } elseif ($recentConversationTurns.Count -ge 1) {
+        $recentConversationTurns[0].summary
+    } else {
+        'Nenhum objetivo conversacional foi projetado; solicite orientação antes de agir.'
+    }
+
     $nextAction = if (@($openTasks).Count -ge 1) {
         $t = $openTasks[0]
         $step = Get-EventField $t 'next_step'
         if ($step) { $step } else { "Trabalhar em $($t.id): $($t.title)" }
+    } elseif ($activeTopics.Count -ge 1) {
+        "Retomar $($activeTopics[0].id): $($activeTopics[0].title)"
     } else {
-        'Continuar a conversa; sync automatico mantem .conversation-esaa/ atualizado.'
+        'Confirmar com o humano qual trabalho deve ser iniciado ou retomado.'
     }
 
     $recentLines = @(foreach ($e in $recent) {
@@ -1671,6 +1700,7 @@ function Invoke-Project {
         $id = if ($hasAgent) { " ($($e.agent_id))" } else { '' }
         "- [$($e.ts)] $who$id — $($e.summary)"
     })
+    if ($recentLines.Count -eq 0) { $recentLines = @('- Nenhum evento recente.') }
 
     $openLines = @(foreach ($t in $openTasks) {
         "- **$($t.id)** — $($t.title)"
@@ -1681,8 +1711,11 @@ function Invoke-Project {
     $recentBlock = $recentLines -join [Environment]::NewLine
     $openBlock = $openLines -join [Environment]::NewLine
 
-    $topicsBlock = if ($topicsPayload -and $topicsPayload.topics -and $topicsPayload.topics.Count -gt 0) {
-        ($topicsPayload.topics | ForEach-Object { "- **$($_.id)** [$($_.status)] — $($_.title)" }) -join [Environment]::NewLine
+    $topicsBlock = if ($activeTopics.Count -gt 0) {
+        ($activeTopics | ForEach-Object {
+            $suffix = if ($_.summary) { " — $($_.summary)" } else { '' }
+            "- **$($_.id)** — $($_.title)$suffix"
+        }) -join [Environment]::NewLine
     } else { '- Nenhum tópico ativo.' }
 
     $state = @(
@@ -1721,49 +1754,46 @@ function Invoke-Project {
     $handoff = @(
         '# Handoff para o Proximo Agente'
         ''
-        '> Gerado automaticamente por conv-sync.ps1 project. Contrato fixo abaixo.'
+        '> Gerado automaticamente por conv-sync.ps1 project. Nao edite manualmente.'
         ''
         'Este diretorio usa um ESAA conversacional, nao o ESAA runtime formal.'
         ''
-        '## Ordem de leitura'
+        '## Objetivo atual'
         ''
-        '1. state.md — objetivo, decisoes, tópicos e estado atual (projetado).'
-        '2. topics.json / topics.md — memória intermediária por assuntos.'
-        '3. tasks.json — tarefas abertas, concluidas e bloqueadas.'
-        '4. activity.jsonl — historico cronologico com event_id e source.'
-        '5. plans/v1-conversation-esaa-sync.md — plano de implementacao da sync v1.'
+        $objective
         ''
-        '## Contrato operacional'
+        '## Proxima acao recomendada'
         ''
-        '- Nao edite activity.jsonl, state.md ou handoff.md manualmente durante sync v1.'
-        '- Grok: hooks em .grok/hooks/conversation-esaa.json disparam sync-grok automaticamente.'
-        '- Codex: rode bin/codex-watch.ps1 (auto-sync) ou sync-codex manualmente apos cada sessao.'
-        '- Claude Code: hooks em .claude/settings.json disparam sync-claude automaticamente.'
-        '- Eventos sincronizados incluem agent_id em assistant (grok/codex/claude/antigravity) e agent_id null em user.'
-        '- Nao trate .conversation-esaa como .roadmap.'
-        '- PRIVACIDADE: activity.jsonl/state.md/handoff.md contem texto bruto das conversas. Nao commite dados reais em repo publico. Ver PRIVACY.md e .gitignore.'
+        $nextAction
         ''
-        '## Comandos de sync'
+        '## Decisoes vigentes'
         ''
-        '```powershell'
-        'pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-sync.ps1 verify -WorkspaceRoot C:\xampp\htdocs\esaa-conversational-lab'
-        'pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-sync.ps1 sync-grok -WorkspaceRoot C:\xampp\htdocs\esaa-conversational-lab -GrokSessionId <session-id>'
-        'pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-sync.ps1 sync-codex -WorkspaceRoot C:\xampp\htdocs\esaa-conversational-lab'
-        'pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-sync.ps1 sync-claude -WorkspaceRoot C:\xampp\htdocs\esaa-conversational-lab'
-        'pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-sync.ps1 project -WorkspaceRoot C:\xampp\htdocs\esaa-conversational-lab'
-        '```'
+        $decisionBlock
         ''
-        '## Trust Grok hooks'
+        '## Topicos ativos'
         ''
-        'Adicione o projeto em ~/.grok/trusted-hook-projects e recarregue com /hooks → r.'
+        $topicsBlock
         ''
         '## Tarefas abertas'
         ''
         $openBlock
         ''
-        '## Proxima acao recomendada'
+        '## Eventos recentes'
         ''
-        $nextAction
+        $recentBlock
+        ''
+        '## Se o resumo nao for suficiente'
+        ''
+        '- Consulte state.md, topics.md/topics.json, decisions.md ou tasks.json conforme a lacuna.'
+        '- Use context --last 20 para uma janela filtrada; acrescente --topic-id TOP-xxx apenas com topico identificado.'
+        '- Use --agent <id> somente quando precisar restringir a consulta a um agente.'
+        '- Se este handoff estiver vazio ou inconsistente, execute verify e informe o impedimento.'
+        ''
+        '## Contrato operacional'
+        ''
+        '- Nao edite activity.jsonl nem os read models manualmente.'
+        '- Nao trate .conversation-esaa como .roadmap.'
+        '- activity.jsonl e os read models contem texto bruto das conversas; nao commite dados reais em repositorio publico.'
     ) -join [Environment]::NewLine
 
     [System.IO.File]::WriteAllText($Paths.State, $state.TrimEnd() + "`n", [System.Text.UTF8Encoding]::new($false))
