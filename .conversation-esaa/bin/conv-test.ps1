@@ -177,6 +177,18 @@ try {
     Assert-True ($enableAntigravity.ExitCode -eq 0) 'enable_hooks_antigravity_ok' $enableAntigravity.Output
     Assert-True ($mergedAntigravityHooks.ContainsKey('custom-preserved')) 'enable_hooks_antigravity_preserves_existing'
 
+    $cursorHooksPath = Join-Path $ws '.cursor\hooks.json'
+    Assert-True (Test-Path -LiteralPath $cursorHooksPath) 'bootstrap_creates_cursor_hooks'
+    $cursorHooks = Get-Content -LiteralPath $cursorHooksPath -Raw | ConvertFrom-Json
+    foreach ($eventName in @('sessionStart', 'beforeSubmitPrompt', 'afterAgentResponse')) {
+        $commands = @($cursorHooks.hooks.$eventName | ForEach-Object { [string]$_.command })
+        Assert-True ((@($commands | Where-Object { $_ -match 'cursor-hook\.ps1' }).Count) -eq 1) `
+            "bootstrap_cursor_hook_$eventName" ($commands -join ' | ')
+    }
+    $cursorSubmit = [string](@($cursorHooks.hooks.beforeSubmitPrompt)[0].command)
+    Assert-True ($cursorSubmit.Contains($ws) -and $cursorSubmit.Contains('-Event beforeSubmitPrompt')) `
+        'bootstrap_cursor_hook_uses_target_workspace'
+
     $boot2 = & pwsh -NoProfile -ExecutionPolicy Bypass -File $bootstrap -WorkspaceRoot $ws 2>&1 | Out-String
     Assert-True ($boot2 -match 'skip \(existe') 'bootstrap_idempotent_without_force'
 
@@ -400,6 +412,9 @@ try {
     Assert-True (Test-Path -LiteralPath (Join-Path $ws '.claude\settings.json')) 'enable_hooks_claude_settings'
     $ehCodex = Invoke-ConvCli -Workspace $ws -Command 'enable-hooks' -Params @{ Agent = 'codex'; Watcher = $true }
     Assert-True ($ehCodex.Output -match 'codex-watch') 'enable_hooks_codex_watcher_hint' $ehCodex.Output
+    $ehCursor = Invoke-ConvCli -Workspace $ws -Command 'enable-hooks' -Params @{ Agent = 'cursor' }
+    Assert-True ($ehCursor.ExitCode -eq 0) 'enable_hooks_cursor_ok' $ehCursor.Output
+    Assert-True (Test-Path -LiteralPath (Join-Path $ws '.cursor\hooks.json')) 'enable_hooks_cursor_settings'
 
     # decide + task projection
     $decide = Invoke-ConvCli -Workspace $ws -Command 'decide' -Params @{
@@ -534,6 +549,106 @@ try {
     Assert-True ($ctxTopic.Output -match '\(legacy\)') 'context_topic_handles_legacy_event_without_id' $ctxTopic.Output
 } finally {
     Remove-Item -LiteralPath $ctxWs -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# --- Cursor adapter, pack budget, session-start read-only ----------------
+$cursorWs = New-TestWorkspace
+try {
+    $cursorWs = (Resolve-Path -LiteralPath $cursorWs).Path
+    & pwsh -NoProfile -ExecutionPolicy Bypass -File $bootstrap -WorkspaceRoot $cursorWs -Agents cursor | Out-Null
+    $cursorActivity = Join-Path $cursorWs '.conversation-esaa\activity.jsonl'
+    $cursorHook = Join-Path $cursorWs '.conversation-esaa\bin\cursor-hook.ps1'
+    $beforeCursor = Count-ActivityEvents $cursorActivity
+
+    $sessionPayload = (@{ conversation_id = 'cursor-session-1' } | ConvertTo-Json -Compress)
+    $sessionOut = $sessionPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $cursorHook -WorkspaceRoot $cursorWs -Event sessionStart
+    $sessionJson = $sessionOut | ConvertFrom-Json
+    Assert-True ($LASTEXITCODE -eq 0) 'cursor_session_start_fail_open_zero'
+    Assert-True ($null -ne $sessionJson.additional_context) 'cursor_session_start_injects_pack' ($sessionOut | Out-String)
+    Assert-True ([string]$sessionJson.additional_context -match 'cold-start v1') 'cursor_session_start_pack_marker'
+    Assert-True ((Count-ActivityEvents $cursorActivity) -eq $beforeCursor) `
+        'cursor_session_start_does_not_write_ledger' "before=$beforeCursor after=$(Count-ActivityEvents $cursorActivity)"
+
+    $handoffPath = Join-Path $cursorWs '.conversation-esaa\handoff.md'
+    [System.IO.File]::WriteAllText(
+        $handoffPath,
+        ("Objetivo atual: " + ('x' * 4000) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $packTiny = Invoke-ConvCli -Workspace $cursorWs -Command 'pack' -Params @{ BudgetTokens = 40 }
+    Assert-True ($packTiny.ExitCode -eq 0) 'cursor_pack_cli_ok' $packTiny.Output
+    Assert-True ((Count-ActivityEvents $cursorActivity) -eq $beforeCursor) 'cursor_pack_does_not_write_ledger'
+    $packChars = [System.Text.Encoding]::UTF8.GetByteCount($packTiny.Output)
+    Assert-True (([int][Math]::Ceiling($packChars / 4.0)) -le 40) `
+        'cursor_pack_respects_token_budget' "bytes=$packChars tokens=$([int][Math]::Ceiling($packChars / 4.0))"
+    Assert-True ($packTiny.Output -match 'truncated to budget|omitted to fit budget|cold-start v1') `
+        'cursor_pack_truncates_bottom_first'
+
+    $cursorFixture = Join-Path $fixtureRoot 'cursor\session.jsonl'
+    $syncCursor = Invoke-ConvSync -Workspace $cursorWs -Command 'sync-cursor' -Extra @(
+        '-CursorTranscriptPath', $cursorFixture,
+        '-CursorSessionId', 'fixture-cursor'
+    )
+    $cursorCount = Count-ActivityEvents $cursorActivity
+    Assert-True ($syncCursor.Output -match 'verify: ok') 'sync_cursor_pipeline_ok' $syncCursor.Output
+    Assert-True (($cursorCount - $beforeCursor) -eq 2) 'sync_cursor_parses_fixture' "delta=$($cursorCount - $beforeCursor)"
+    $cursorEvents = @(Get-SyncedActivityEvents $cursorActivity | Where-Object { $_.source -eq 'cursor' })
+    $cursorUser = @($cursorEvents | Where-Object { $_.actor -eq 'user' })
+    $cursorAssistant = @($cursorEvents | Where-Object { $_.actor -eq 'assistant' })
+    Assert-True ($cursorUser.Count -eq 1 -and $null -eq $cursorUser[0].agent_id) 'sync_cursor_user_agent_null'
+    Assert-True ($cursorUser.Count -eq 1 -and $cursorUser[0].text -eq 'Pergunta visível do Cursor') `
+        'sync_cursor_extracts_user_request'
+    Assert-True ($cursorAssistant.Count -eq 1 -and $cursorAssistant[0].agent_id -eq 'cursor') `
+        'sync_cursor_assistant_agent_id'
+
+    $syncCursorAgain = Invoke-ConvSync -Workspace $cursorWs -Command 'sync-cursor' -Extra @(
+        '-CursorTranscriptPath', $cursorFixture,
+        '-CursorSessionId', 'fixture-cursor'
+    )
+    Assert-True ((Count-ActivityEvents $cursorActivity) -eq $cursorCount) 'sync_cursor_idempotent'
+
+    $promptPayload = (@{
+        conversation_id = 'cursor-live-1'
+        prompt = 'Pergunta ao vivo do Cursor'
+    } | ConvertTo-Json -Compress)
+    $promptOut = $promptPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $cursorHook -WorkspaceRoot $cursorWs -Event beforeSubmitPrompt
+    $promptJson = $promptOut | ConvertFrom-Json
+    Assert-True ($LASTEXITCODE -eq 0 -and $promptJson.continue -eq $true) 'cursor_before_submit_fail_open' ($promptOut | Out-String)
+    $afterPrompt = Count-ActivityEvents $cursorActivity
+    Assert-True (($afterPrompt - $cursorCount) -eq 1) 'cursor_before_submit_appends_user' "delta=$($afterPrompt - $cursorCount)"
+
+    $replyPayload = (@{
+        conversation_id = 'cursor-live-1'
+        text = 'Resposta ao vivo do Cursor'
+    } | ConvertTo-Json -Compress)
+    $replyOut = $replyPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $cursorHook -WorkspaceRoot $cursorWs -Event afterAgentResponse
+    Assert-True ($LASTEXITCODE -eq 0) 'cursor_after_response_exit_zero' ($replyOut | Out-String)
+    $afterReply = Count-ActivityEvents $cursorActivity
+    Assert-True (($afterReply - $afterPrompt) -eq 1) 'cursor_after_response_appends_assistant' "delta=$($afterReply - $afterPrompt)"
+
+    $emptyWs = New-TestWorkspace
+    try {
+        $badPayload = (@{ conversation_id = 'missing'; prompt = 'x' } | ConvertTo-Json -Compress)
+        $badOut = $badPayload | & pwsh -NoProfile -ExecutionPolicy Bypass -File $cursorHook -WorkspaceRoot $emptyWs -Event beforeSubmitPrompt
+        $badJson = $badOut | ConvertFrom-Json
+        Assert-True ($LASTEXITCODE -eq 0 -and $badJson.continue -eq $true) `
+            'cursor_hook_fail_open_returns_json' ($badOut | Out-String)
+    } finally {
+        Remove-Item -LiteralPath $emptyWs -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $brokenHooks = Get-Content -LiteralPath (Join-Path $cursorWs '.cursor\hooks.json') -Raw | ConvertFrom-Json -AsHashtable
+    $brokenHooks['hooks']['beforeSubmitPrompt'] = @()
+    [System.IO.File]::WriteAllText(
+        (Join-Path $cursorWs '.cursor\hooks.json'),
+        (($brokenHooks | ConvertTo-Json -Depth 10) + "`n"),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    $brokenVerify = Invoke-ConvSync -Workspace $cursorWs -Command 'verify'
+    Assert-True ($brokenVerify.ExitCode -ne 0 -or $brokenVerify.Output -notmatch 'verify: ok') `
+        'verify_rejects_missing_cursor_capture_hook' $brokenVerify.Output
+} finally {
+    Remove-Item -LiteralPath $cursorWs -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # --- Report --------------------------------------------------------------

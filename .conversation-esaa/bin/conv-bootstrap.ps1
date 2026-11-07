@@ -106,9 +106,9 @@ function Merge-Gitignore {
     }
 }
 
-$supportedAgents = @('grok', 'claude', 'codex', 'antigravity')
+$supportedAgents = @('grok', 'claude', 'codex', 'antigravity', 'cursor')
 if (-not $Agents -or $Agents.Count -eq 0) {
-    $Agents = @('grok', 'claude', 'codex', 'antigravity')
+    $Agents = @('grok', 'claude', 'codex', 'antigravity', 'cursor')
 } else {
     $Agents = @($Agents | ForEach-Object { $_ -split ',' } | ForEach-Object {
         $_.Trim().ToLowerInvariant()
@@ -150,6 +150,7 @@ foreach ($engine in @(
     'conv-bootstrap.ps1',
     'codex-watch.ps1',
     'antigravity-hook-sync.ps1',
+    'cursor-hook.ps1',
     'conv-rag.ps1'
 )) {
     $source = Join-Path $srcBin $engine
@@ -257,6 +258,50 @@ if (-not $SkipAgentIntegrations -and $Agents -contains 'antigravity') {
     Write-Utf8 $path (($hooks | ConvertTo-Json -Depth 12) + "`n")
 }
 
+if (-not $SkipAgentIntegrations -and $Agents -contains 'cursor') {
+    $path = Join-Path $WorkspaceRoot '.cursor/hooks.json'
+    Assert-JsonFile -Path $path -Label 'Cursor hooks'
+    $cursorCfg = [ordered]@{ version = 1; hooks = [ordered]@{} }
+    if (Test-Path -LiteralPath $path) {
+        $existing = Get-Content -LiteralPath $path -Raw -Encoding UTF8 |
+            ConvertFrom-Json -AsHashtable
+        foreach ($key in $existing.Keys) { $cursorCfg[$key] = $existing[$key] }
+        if (-not $cursorCfg.Contains('hooks') -or $null -eq $cursorCfg['hooks']) {
+            $cursorCfg['hooks'] = [ordered]@{}
+        }
+    }
+    $wrapper = Join-Path $binDir 'cursor-hook.ps1'
+    $pwshExe = Get-PwshExecutable
+    $cursorHooks = $cursorCfg['hooks']
+    if ($cursorHooks -isnot [System.Collections.IDictionary]) {
+        $cursorHooks = [ordered]@{}
+        $cursorCfg['hooks'] = $cursorHooks
+    }
+    foreach ($pair in @(
+        @{ Name = 'sessionStart'; Timeout = 20 },
+        @{ Name = 'beforeSubmitPrompt'; Timeout = 20 },
+        @{ Name = 'afterAgentResponse'; Timeout = 20 }
+    )) {
+        $eventName = $pair.Name
+        $command = "$(Quote-CommandPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-CommandPart $wrapper) -WorkspaceRoot $(Quote-CommandPart $WorkspaceRoot) -Event $eventName"
+        $kept = [System.Collections.Generic.List[object]]::new()
+        foreach ($entry in @($cursorHooks[$eventName] | Where-Object { $null -ne $_ })) {
+            $existingCommand = if ($entry -is [System.Collections.IDictionary]) {
+                [string]$entry['command']
+            } else {
+                [string]$entry.command
+            }
+            if ($existingCommand -and $existingCommand -notmatch 'cursor-hook\.ps1') {
+                [void]$kept.Add($entry)
+            }
+        }
+        [void]$kept.Add(@{ command = $command; timeout = $pair.Timeout })
+        $cursorHooks[$eventName] = @($kept)
+    }
+    $cursorCfg['version'] = 1
+    Write-Utf8 $path (($cursorCfg | ConvertTo-Json -Depth 12) + "`n")
+}
+
 $gitignore = Join-Path $WorkspaceRoot '.gitignore'
 Merge-Gitignore -Path $gitignore -Entries @(
     '# Conversation ESAA - dados privados gerados (NAO COMMITAR). Ver PRIVACY.md',
@@ -270,7 +315,10 @@ Merge-Gitignore -Path $gitignore -Entries @(
     '.conversation-esaa/vendor/',
     '.claude/settings.json',
     '.claude/settings.local.json',
-    '.agents/hooks.json'
+    '.agents/hooks.json',
+    '.cursor/hooks.json',
+    '.conversation-esaa/cursor-hook.log',
+    '.conversation-esaa/run/cursor-injected.json'
 )
 
 if (-not $DryRun -and -not (Test-Path -LiteralPath (Join-Path $esaaDir 'topics.json'))) {
@@ -310,6 +358,9 @@ if ($Agents -contains 'codex') {
 }
 if ($Agents -contains 'antigravity') {
     [void]$result.warnings.Add('Restart Antigravity to reload hooks.')
+}
+if ($Agents -contains 'cursor') {
+    [void]$result.warnings.Add('Reload Cursor project hooks (.cursor/hooks.json). Cloud Agents pick them up from the repo after install.')
 }
 
 if ($Json) {

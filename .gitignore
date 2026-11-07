@@ -14,5 +14,8 @@
 .codex/
 .claude/settings.json
 .claude/settings.local.json
+.cursor/hooks.json
+.conversation-esaa/cursor-hook.log
+.conversation-esaa/run/cursor-injected.json
 Thumbs.db
 .DS_Store

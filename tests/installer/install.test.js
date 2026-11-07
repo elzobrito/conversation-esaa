@@ -3,7 +3,16 @@ import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { install } from "../../src/installer/install.js";
+import { install, resolveAgents } from "../../src/installer/install.js";
+import { SUPPORTED_AGENTS } from "../../src/installer/args.js";
+
+test("--yes selects every supported agent including cursor", async () => {
+  assert.deepEqual(
+    await resolveAgents({ agents: [], yes: true, nonInteractive: true }),
+    SUPPORTED_AGENTS,
+  );
+  assert.equal(SUPPORTED_AGENTS.includes("cursor"), true);
+});
 
 test("dry-run forwards argument arrays and writes no manifest", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "conversation-esaa-test-"));

@@ -14,6 +14,14 @@ param(
     [string]$ClaudeSessionPath,
     [string]$AntigravityTranscriptPath,
     [string]$AntigravityConversationId,
+    [string]$CursorSessionId,
+    [string]$CursorTranscriptPath,
+    [string]$CursorPrompt,
+    [ValidateSet('user', 'assistant')]
+    [string]$CursorRole,
+    [int]$CursorSourceIndex = -1,
+    [int]$BudgetTokens = 0,
+    [int]$BudgetChars = 0,
     [ValidateSet('normal', 'compact')]
     [string]$Mode = 'normal',
     [switch]$Trust,
@@ -213,6 +221,7 @@ $convSync = Join-Path $binDir 'conv-sync.ps1'
 $convBootstrap = Join-Path $binDir 'conv-bootstrap.ps1'
 $codexWatch = Join-Path $binDir 'codex-watch.ps1'
 $antigravityHook = Join-Path $binDir 'antigravity-hook-sync.ps1'
+$cursorHook = Join-Path $binDir 'cursor-hook.ps1'
 $convRag = Join-Path $binDir 'conv-rag.ps1'
 
 function Resolve-WorkspacePath {
@@ -243,8 +252,9 @@ Conversation ESAA v1.1
 
 Usage:
   conversation-esaa init --workspace <path>
-  conversation-esaa enable-hooks --agent <grok|claude|codex|antigravity> --workspace <path> [--trust] [--watcher]
-  conversation-esaa sync --agent <grok|claude|codex|antigravity> --workspace <path>
+  conversation-esaa enable-hooks --agent <grok|claude|codex|antigravity|cursor> --workspace <path> [--trust] [--watcher]
+  conversation-esaa sync --agent <grok|claude|codex|antigravity|cursor> --workspace <path>
+  conversation-esaa pack --workspace <path> [--budget-tokens N] [--budget-chars N]
   conversation-esaa project --workspace <path>
   conversation-esaa verify --workspace <path>
   conversation-esaa context --workspace <path> [--agent <id>] [--last N] [--before <event_id>] [--around <event_id>] [--window N] [--topic <text>] [--topic-id TOP-001] [--json]
@@ -285,8 +295,8 @@ switch ($Command) {
         if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
     'sync' {
-        if (-not $Agent) { throw 'sync requires --agent grok|claude|codex|antigravity' }
-        $map = @{ grok = 'sync-grok'; codex = 'sync-codex'; claude = 'sync-claude'; antigravity = 'sync-antigravity' }
+        if (-not $Agent) { throw 'sync requires --agent grok|claude|codex|antigravity|cursor' }
+        $map = @{ grok = 'sync-grok'; codex = 'sync-codex'; claude = 'sync-claude'; antigravity = 'sync-antigravity'; cursor = 'sync-cursor' }
         if ($Agent -notin $map.Keys) { throw "Unknown agent: $Agent" }
         $extra = @()
         if ($Mode -eq 'compact') { $extra += '-Mode', 'compact' }
@@ -296,17 +306,29 @@ switch ($Command) {
         if ($ClaudeSessionPath) { $extra += '-ClaudeSessionPath', $ClaudeSessionPath }
         if ($AntigravityTranscriptPath) { $extra += '-AntigravityTranscriptPath', $AntigravityTranscriptPath }
         if ($AntigravityConversationId) { $extra += '-AntigravityConversationId', $AntigravityConversationId }
+        if ($CursorSessionId) { $extra += '-CursorSessionId', $CursorSessionId }
+        if ($CursorTranscriptPath) { $extra += '-CursorTranscriptPath', $CursorTranscriptPath }
+        if ($CursorPrompt) { $extra += '-CursorPrompt', $CursorPrompt }
+        if ($CursorRole) { $extra += '-CursorRole', $CursorRole }
+        if ($CursorSourceIndex -ge 0) { $extra += '-CursorSourceIndex', "$CursorSourceIndex" }
         Invoke-ConvSyncCli -SyncCommand $map[$Agent] -Extra $extra
     }
     'project' { Invoke-ConvSyncCli -SyncCommand 'project' }
     'verify' { Invoke-ConvSyncCli -SyncCommand 'verify' }
+    'pack' {
+        $extra = @()
+        if ($BudgetTokens -gt 0) { $extra += '-BudgetTokens', "$BudgetTokens" }
+        if ($BudgetChars -gt 0) { $extra += '-BudgetChars', "$BudgetChars" }
+        Invoke-ConvSyncCli -SyncCommand 'pack' -Extra $extra
+    }
     'enable-hooks' {
-        if (-not $Agent) { throw 'enable-hooks requires --agent grok|claude|codex|antigravity' }
+        if (-not $Agent) { throw 'enable-hooks requires --agent grok|claude|codex|antigravity|cursor' }
         $ws = Resolve-WorkspacePath
         $grokDir = Join-Path $ws '.grok\hooks'
         $claudeDir = Join-Path $ws '.claude'
         $agentsDir = Join-Path $ws '.agents'
-        New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir, $agentsDir | Out-Null
+        $cursorDir = Join-Path $ws '.cursor'
+        New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir, $agentsDir, $cursorDir | Out-Null
         $pwshExe = [string](Get-Command pwsh -ErrorAction Stop).Source
         function Quote-HookPart([string]$Value) { return '"' + ($Value -replace '"', '"') + '"' }
         $cmdGrok = "$(Quote-HookPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-HookPart $convCli) sync --agent grok --workspace $(Quote-HookPart $ws) --SkipIfLocked"
@@ -397,6 +419,63 @@ switch ($Command) {
                 [System.Text.UTF8Encoding]::new($false)
             )
             Write-Output 'enable-hooks: merged conversation-esaa into .agents/hooks.json'
+        }
+        if ($Agent -eq 'cursor') {
+            if (-not (Test-Path -LiteralPath $cursorHook)) {
+                throw "Cursor hook wrapper not found: $cursorHook"
+            }
+            $hooksPath = Join-Path $cursorDir 'hooks.json'
+            $hooksConfig = [ordered]@{ version = 1; hooks = [ordered]@{} }
+            if (Test-Path -LiteralPath $hooksPath) {
+                try {
+                    $existing = Get-Content -LiteralPath $hooksPath -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+                    foreach ($key in $existing.Keys) { $hooksConfig[$key] = $existing[$key] }
+                    if (-not $hooksConfig.Contains('hooks') -or $null -eq $hooksConfig['hooks']) {
+                        $hooksConfig['hooks'] = [ordered]@{}
+                    }
+                } catch {
+                    throw "Invalid existing Cursor hooks file: $hooksPath"
+                }
+            }
+            $pwshExe = [string](Get-Command pwsh -ErrorAction Stop).Source
+            function New-CursorHookCommand([string]$EventName) {
+                return "$(Quote-HookPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-HookPart $cursorHook) -WorkspaceRoot $(Quote-HookPart $ws) -Event $EventName"
+            }
+            $cursorHooks = $hooksConfig['hooks']
+            if ($cursorHooks -isnot [System.Collections.IDictionary]) {
+                $cursorHooks = [ordered]@{}
+                $hooksConfig['hooks'] = $cursorHooks
+            }
+            foreach ($pair in @(
+                @{ Name = 'sessionStart'; Timeout = 20 },
+                @{ Name = 'beforeSubmitPrompt'; Timeout = 20 },
+                @{ Name = 'afterAgentResponse'; Timeout = 20 }
+            )) {
+                $eventName = $pair.Name
+                $kept = [System.Collections.Generic.List[object]]::new()
+                foreach ($entry in @($cursorHooks[$eventName] | Where-Object { $null -ne $_ })) {
+                    $command = if ($entry -is [System.Collections.IDictionary]) {
+                        [string]$entry['command']
+                    } else {
+                        [string]$entry.command
+                    }
+                    if ($command -and $command -notmatch 'cursor-hook\.ps1') {
+                        [void]$kept.Add($entry)
+                    }
+                }
+                [void]$kept.Add(@{
+                    command = (New-CursorHookCommand $eventName)
+                    timeout = $pair.Timeout
+                })
+                $cursorHooks[$eventName] = @($kept)
+            }
+            $hooksConfig['version'] = 1
+            [System.IO.File]::WriteAllText(
+                $hooksPath,
+                (($hooksConfig | ConvertTo-Json -Depth 10) + "`n"),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Write-Output 'enable-hooks: merged conversation-esaa into .cursor/hooks.json'
         }
         Invoke-ConvSyncCli -SyncCommand 'verify'
     }

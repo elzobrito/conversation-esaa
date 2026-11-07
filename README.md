@@ -1,6 +1,6 @@
  Conversation ESAA
 
-**Memória conversacional compartilhada entre agentes de IA** — Grok, Codex, Claude Code e Google Antigravity.
+**Memória conversacional compartilhada entre agentes de IA** — Grok, Codex, Claude Code, Google Antigravity e Cursor.
 
 Quando você troca de agente ou a janela de contexto acaba, o próximo assistente perde objetivos, decisões e tarefas abertas. O Conversation ESAA captura os turnos visíveis automaticamente (hooks e watchers), grava em um log append-only local e projeta read models compactos para handoff — **sem gastar tokens do LLM na cópia mecânica**.
 
@@ -24,7 +24,7 @@ hoje é clonar o repositório e chamar a CLI:
 ```powershell
 git clone https://github.com/elzobrito/conversation-esaa
 cd conversation-esaa
-node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity --non-interactive
+node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity,cursor --non-interactive
 node src/cli.js doctor --workspace <projeto>
 ```
 
@@ -186,6 +186,18 @@ O wrapper usa `conversationId`, `workspacePaths` e `transcriptPath` recebidos
 via stdin. Como fallback, lê
 `~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl`.
 
+**Cursor** — o instalador mescla `sessionStart`, `beforeSubmitPrompt` e
+`afterAgentResponse` em `.cursor/hooks.json`. Recarregue os hooks do projeto.
+Cloud Agents gerenciados pelo Cursor **não** disparam `sessionStart`; o pack
+de cold start entra no primeiro `beforeSubmitPrompt` via `additional_context`.
+`sessionStart` e `pack` só lêem o ledger — não gravam em `activity.jsonl`.
+
+```powershell
+node src/cli.js install --workspace $root --agent cursor --non-interactive
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli enable-hooks --agent cursor --workspace $root
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli pack --workspace $root --budget-tokens 4000
+```
+
 ---
 
 ## Uso diário
@@ -197,6 +209,8 @@ $cli  = Join-Path $root '.conversation-esaa\bin\conversation-esaa.ps1'
 # Sincronizar após conversar
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync --agent grok --workspace $root
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync --agent antigravity --workspace $root
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync --agent cursor --workspace $root
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli pack --workspace $root --budget-tokens 4000
 
 # Validar integridade
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli verify --workspace $root

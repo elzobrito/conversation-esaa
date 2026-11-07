@@ -1,0 +1,13 @@
+{
+  "after_sha256": "909b1722cbd0464629f56af209bfe8d61e40df67b8ce304adfb0bd12cb577bed",
+  "artifact_id": "ART-909b1722cbd0464629f56af209bfe8d61e40df67b8ce304adfb0bd12cb577bed",
+  "artifact_sha256": "8a752dd4d5a93c0b56c64c03bdda0c2d07511adb3f4b24f155129e4d9659b905",
+  "before_sha256": "909b1722cbd0464629f56af209bfe8d61e40df67b8ce304adfb0bd12cb577bed",
+  "bytes": 663,
+  "content": "# Conversation ESAA — dados privados gerados (NAO COMMITAR). Ver PRIVACY.md.\n.conversation-esaa/activity.jsonl\n.conversation-esaa/sync-state.json\n.conversation-esaa/state.md\n.conversation-esaa/handoff.md\n.conversation-esaa/decisions.md\n.conversation-esaa/tasks.json\n.conversation-esaa/codex-watch.log\n.conversation-esaa/run/*.lock\n.conversation-esaa/run/test-battery-report.json\n# Optional rag-sqlite projection (v1.2) — fully reconstructible, private\n.conversation-esaa/rag/\n.grok/\n.codex/\n.claude/settings.json\n.claude/settings.local.json\n.cursor/hooks.json\n.conversation-esaa/cursor-hook.log\n.conversation-esaa/run/cursor-injected.json\nThumbs.db\n.DS_Store\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".gitignore",
+  "source_path": ".gitignore",
+  "ts": "2026-11-07T21:28:49Z"
+}

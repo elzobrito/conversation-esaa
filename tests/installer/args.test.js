@@ -32,3 +32,8 @@ test("rejects unsupported agents", () => {
     /unsupported agent/,
   );
 });
+
+test("accepts cursor in the closed agent list", () => {
+  const value = parseArgs(["install", "--agent", "cursor"], path.resolve("/tmp"));
+  assert.deepEqual(value.agents, ["cursor"]);
+});

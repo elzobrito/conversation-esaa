@@ -161,6 +161,42 @@ export async function doctor(options, dependencies = {}) {
           : failDetail || `failed (exit ${execution.status ?? "null"})`,
     });
   }
+  const cursorSelected = Array.isArray(report.agents) && report.agents.includes("cursor");
+  if (cursorSelected) {
+    const wrapper = path.join(
+      report.workspace,
+      ".conversation-esaa",
+      "bin",
+      "cursor-hook.ps1",
+    );
+    const hooksFile = path.join(report.workspace, ".cursor", "hooks.json");
+    const wrapperOk = await exists(wrapper);
+    let hooksOk = false;
+    let hooksDetail = "missing .cursor/hooks.json";
+    if (await exists(hooksFile)) {
+      try {
+        const hooks = JSON.parse(await readFile(hooksFile, "utf8"));
+        const submit = Array.isArray(hooks?.hooks?.beforeSubmitPrompt)
+          ? hooks.hooks.beforeSubmitPrompt
+          : [];
+        hooksOk = submit.some((entry) =>
+          String(entry?.command || "").includes("cursor-hook.ps1"),
+        );
+        hooksDetail = hooksOk
+          ? "beforeSubmitPrompt capture wired"
+          : "beforeSubmitPrompt capture hook missing; repair: install --agent cursor";
+      } catch (error) {
+        hooksDetail = `invalid .cursor/hooks.json (${error.message}); repair: install --agent cursor`;
+      }
+    }
+    checks.push({
+      name: "cursor-hooks",
+      ok: wrapperOk && hooksOk,
+      detail: !wrapperOk
+        ? "cursor-hook.ps1 missing; repair: install --agent cursor / repair"
+        : hooksDetail,
+    });
+  }
   checks.push({
     name: "rag",
     ok: !report.rag?.mode || report.rag.mode === "off" || report.rag.enabled === true,
@@ -234,6 +270,16 @@ async function cleanMergedHook(workspace, relative, dryRun) {
   const value = JSON.parse(await readFile(file, "utf8"));
   if (relative === ".agents/hooks.json") {
     delete value["conversation-esaa"];
+  } else if (relative === ".cursor/hooks.json" && value.hooks && typeof value.hooks === "object") {
+    for (const event of Object.keys(value.hooks)) {
+      const list = value.hooks[event];
+      if (!Array.isArray(list)) continue;
+      value.hooks[event] = list.filter((entry) => {
+        const command = String(entry?.command || "");
+        return !command.includes("cursor-hook.ps1") &&
+          !command.includes(".conversation-esaa");
+      });
+    }
   } else if (value.hooks && typeof value.hooks === "object") {
     for (const event of Object.keys(value.hooks)) {
       value.hooks[event] = removeConversationCommands(value.hooks[event]);
@@ -287,6 +333,7 @@ export async function uninstall(options, dependencies = {}) {
         ".grok/hooks/conversation-esaa.json",
         ".claude/settings.json",
         ".agents/hooks.json",
+        ".cursor/hooks.json",
       ].includes(entry.path)
     ) {
       if (await cleanMergedHook(workspace, entry.path, options.dryRun)) {

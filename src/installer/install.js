@@ -19,6 +19,7 @@ const runtimeNames = [
   "conv-bootstrap.ps1",
   "codex-watch.ps1",
   "antigravity-hook-sync.ps1",
+  "cursor-hook.ps1",
   "conv-rag.ps1",
 ];
 
@@ -58,6 +59,7 @@ export async function install(options, dependencies = {}) {
     grok: ".grok/hooks/conversation-esaa.json",
     claude: ".claude/settings.json",
     antigravity: ".agents/hooks.json",
+    cursor: ".cursor/hooks.json",
   };
   const existing = new Set();
   for (const agent of agents) {

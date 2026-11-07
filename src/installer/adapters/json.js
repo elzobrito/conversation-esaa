@@ -35,3 +35,12 @@ export function replaceMatchingHook(config, event, hook, matches) {
   retained.push({ hooks: [hook] });
   config.hooks[event] = retained;
 }
+
+export function replaceMatchingCursorHook(config, event, hook, matches) {
+  config.version = 1;
+  config.hooks ||= {};
+  const entries = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];
+  const retained = entries.filter((entry) => !matches(entry));
+  retained.push(hook);
+  config.hooks[event] = retained;
+}

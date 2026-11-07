@@ -28,8 +28,9 @@ with `--yes` or `--non-interactive`.
 
 Options:
 
-- `--agent <grok|claude|codex|antigravity>` repeatable, or
-  `--agents <comma-list>`;
+- `--agent <grok|claude|codex|antigravity|cursor>` repeatable, or
+  `--agents <comma-list>`; `--yes` selects every supported agent including
+  `cursor`;
 - `--rag <off|existing|managed>`; default `off` non-interactively;
 - `--rag-command <path>` required by `existing` unless discoverable on PATH;
 - `--codex-service <off|user>`; default `off`; `user` is an explicit
@@ -48,8 +49,9 @@ Exit `0` even when optional components are absent; use `doctor` for health.
 
 ### `doctor`
 
-Checks Node, `pwsh`, runtime presence, manifest hashes, hook wiring, private
-gitignore rules, Conversation ESAA `verify`, and configured RAG availability.
+Checks Node, `pwsh`, runtime presence, manifest hashes, hook wiring (including
+Cursor `.cursor/hooks.json` when selected), private gitignore rules,
+Conversation ESAA `verify`, and configured RAG availability.
 No network is used unless `--network` is passed. Exit `0` when healthy, `2` for
 actionable drift, and `3` for unusable prerequisites or corrupted state.
 
