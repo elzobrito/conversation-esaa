@@ -31,6 +31,9 @@ try {
     if (Test-Path (Join-Path $workspace '.agents/hooks.json')) {
         throw 'unselected Antigravity integration was created'
     }
+    if (Test-Path (Join-Path $workspace '.cursor/hooks.json')) {
+        throw 'unselected Cursor integration was created'
+    }
     if ((Get-Content -LiteralPath $activity -Raw) -notmatch 'private-sentinel') {
         throw 'private activity was overwritten'
     }

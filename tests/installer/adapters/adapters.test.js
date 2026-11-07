@@ -111,6 +111,74 @@ test("invalid JSON fails closed and remains unchanged", async () => {
   assert.equal(await readFile(file, "utf8"), "{invalid");
 });
 
+test("Cursor preserves unrelated hooks and is idempotent", async () => {
+  const workspace = await mkdtemp(path.join(os.tmpdir(), "conv-adapters-"));
+  await mkdir(path.join(workspace, ".cursor"), { recursive: true });
+  await writeFile(
+    path.join(workspace, ".cursor", "hooks.json"),
+    JSON.stringify({
+      version: 1,
+      hooks: {
+        afterFileEdit: [{ command: "custom-format", timeout: 5 }],
+        beforeSubmitPrompt: [
+          { command: "unrelated-prompt-hook", timeout: 10 },
+          {
+            command: `pwsh -NoProfile -File "${workspace}/.conversation-esaa/bin/cursor-hook.ps1" -Event beforeSubmitPrompt`,
+            timeout: 9,
+          },
+        ],
+      },
+    }),
+  );
+  const first = await configureAgents(
+    {
+      workspace,
+      agents: ["cursor"],
+      dryRun: false,
+      codexService: "off",
+    },
+    { pwsh: "/opt/powershell/pwsh" },
+  );
+  const second = await configureAgents(
+    {
+      workspace,
+      agents: ["cursor"],
+      dryRun: false,
+      codexService: "off",
+    },
+    { pwsh: "/opt/powershell/pwsh" },
+  );
+  const cursor = JSON.parse(
+    await readFile(path.join(workspace, ".cursor", "hooks.json"), "utf8"),
+  );
+  assert.equal(
+    path.normalize(first.configured[0]),
+    path.normalize(path.join(workspace, ".cursor", "hooks.json")),
+  );
+  assert.equal(second.configured[0], first.configured[0]);
+  assert.equal(cursor.version, 1);
+  assert.equal(cursor.hooks.afterFileEdit[0].command, "custom-format");
+  const submit = cursor.hooks.beforeSubmitPrompt.map((entry) => entry.command);
+  assert.equal(submit.includes("unrelated-prompt-hook"), true);
+  assert.equal(
+    submit.filter((command) =>
+      command.includes("cursor-hook.ps1") &&
+      /(?:^|\s)-Event(?:\s+|=)beforeSubmitPrompt(?:\s|$)/i.test(command)).length,
+    1,
+  );
+  assert.equal(
+    submit.some((command) => command.includes("/opt/powershell/pwsh")),
+    true,
+  );
+  for (const event of ["sessionStart", "beforeSubmitPrompt", "afterAgentResponse"]) {
+    assert.equal(
+      cursor.hooks[event].filter((entry) =>
+        String(entry.command || "").includes("cursor-hook.ps1")).length,
+      1,
+    );
+  }
+});
+
 test("Codex service is manual unless explicitly requested", async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "conv-adapters-"));
   const manual = await configureAgents(

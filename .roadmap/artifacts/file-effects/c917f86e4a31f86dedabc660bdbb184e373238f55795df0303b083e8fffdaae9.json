@@ -1,0 +1,13 @@
+{
+  "after_sha256": "b9680671f370e2b6cf88e9fc0e1a15d267a51d5f10bf0f34a86d0a1be4636484",
+  "artifact_id": "ART-b9680671f370e2b6cf88e9fc0e1a15d267a51d5f10bf0f34a86d0a1be4636484",
+  "artifact_sha256": "c917f86e4a31f86dedabc660bdbb184e373238f55795df0303b083e8fffdaae9",
+  "before_sha256": "b9680671f370e2b6cf88e9fc0e1a15d267a51d5f10bf0f34a86d0a1be4636484",
+  "bytes": 1610,
+  "content": "import { mkdir, readFile, writeFile } from \"node:fs/promises\";\nimport path from \"node:path\";\n\nexport async function readJsonObject(file, fallback = {}) {\n  try {\n    const value = JSON.parse(await readFile(file, \"utf8\"));\n    if (!value || Array.isArray(value) || typeof value !== \"object\") {\n      throw new Error(\"root must be an object\");\n    }\n    return value;\n  } catch (error) {\n    if (error.code === \"ENOENT\") return structuredClone(fallback);\n    throw new Error(`invalid existing JSON; refusing to overwrite ${file}: ${error.message}`);\n  }\n}\n\nexport async function writeJson(file, value, dryRun = false) {\n  if (dryRun) return;\n  await mkdir(path.dirname(file), { recursive: true });\n  await writeFile(file, `${JSON.stringify(value, null, 2)}\\n`, \"utf8\");\n}\n\nexport function replaceMatchingHook(config, event, hook, matches) {\n  config.hooks ||= {};\n  const groups = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];\n  const retained = [];\n  for (const group of groups) {\n    if (!Array.isArray(group?.hooks)) {\n      retained.push(group);\n      continue;\n    }\n    const hooks = group.hooks.filter((entry) => !matches(entry));\n    if (hooks.length) retained.push({ ...group, hooks });\n  }\n  retained.push({ hooks: [hook] });\n  config.hooks[event] = retained;\n}\n\nexport function replaceMatchingCursorHook(config, event, hook, matches) {\n  config.version = 1;\n  config.hooks ||= {};\n  const entries = Array.isArray(config.hooks[event]) ? config.hooks[event] : [];\n  const retained = entries.filter((entry) => !matches(entry));\n  retained.push(hook);\n  config.hooks[event] = retained;\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "src/installer/adapters/json.js",
+  "source_path": "src/installer/adapters/json.js",
+  "ts": "2026-11-07T21:28:49Z"
+}

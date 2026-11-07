@@ -30,11 +30,11 @@ Caminho suportado hoje (o pacote ainda não está no npm; `npx` devolve E404):
 ```powershell
 git clone https://github.com/elzobrito/conversation-esaa
 cd conversation-esaa
-node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity --non-interactive
+node src/cli.js install --workspace <projeto> --agents grok,claude,codex,antigravity,cursor --non-interactive
 node src/cli.js doctor --workspace <projeto>
 ```
 
-- Agentes suportados: `grok`, `claude`, `codex`, `antigravity`.
+- Agentes suportados: `grok`, `claude`, `codex`, `antigravity`, `cursor`.
 - `--yes` seleciona todos; `--agent` pode ser repetido.
 - RAG: `--rag off` (padrão), `existing` ou `managed`.
 - Codex: watcher manual por padrão; `--codex-service user` é opt-in.
@@ -118,6 +118,8 @@ $pwsh = if (Test-Path "$HOME/.local/bin/pwsh") { "$HOME/.local/bin/pwsh" } else 
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent codex -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent claude -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent antigravity -Workspace $root
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sync    --agent cursor -Workspace $root
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli pack    -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli project -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli context --last 20 -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli decide  "..." -Workspace $root
@@ -135,6 +137,7 @@ Detalhes de install/hooks: [README.md](README.md).
 | Claude | hooks em `.claude/settings.json` (aprovação no projeto) |
 | Codex | `codex-watch.ps1` (poll) e/ou unit systemd user — sem hook nativo |
 | Google Antigravity | `.agents/hooks.json` (`Stop`, timeout 60s) com wrapper fail-open |
+| Cursor | `.cursor/hooks.json` (`sessionStart`, `beforeSubmitPrompt`, `afterAgentResponse`); Cloud Agents não disparam `sessionStart` — o pack entra no primeiro `beforeSubmitPrompt`. Captura canônica = envio de mensagem. `sessionStart`/`pack` só lê o ledger. |
 
 ## 8. Topics (ADR-009)
 

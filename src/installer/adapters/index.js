@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { readJsonObject, replaceMatchingHook, writeJson } from "./json.js";
+import { readJsonObject, replaceMatchingCursorHook, replaceMatchingHook, writeJson } from "./json.js";
 
 function quoteCommandPart(value) {
   return `"${String(value).replaceAll('"', '\\"')}"`;
@@ -76,6 +76,70 @@ async function configureHookAgent(agent, file, events, context) {
         timeout,
       },
       (entry) => isInstalledSyncHook(entry, context, agent),
+    );
+  }
+  await writeJson(file, config, context.dryRun);
+  return file;
+}
+
+function isInstalledCursorHook(entry, context, eventName) {
+  const command = normalCommand(entry?.command);
+  const wrapper = normalCommand(
+    path.join(
+      context.workspace,
+      ".conversation-esaa",
+      "bin",
+      "cursor-hook.ps1",
+    ),
+  );
+  if (!command.includes("cursor-hook.ps1") && !command.includes(wrapper)) {
+    return false;
+  }
+  const escaped = String(eventName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|\\s)-event(?:=|\\s+)${escaped}(?:\\s|$)`, "i").test(
+    command,
+  );
+}
+
+function cursorHookCommand(context, eventName) {
+  const wrapper = path.join(
+    context.workspace,
+    ".conversation-esaa",
+    "bin",
+    "cursor-hook.ps1",
+  );
+  return [
+    quoteCommandPart(context.pwsh),
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    quoteCommandPart(wrapper),
+    "-WorkspaceRoot",
+    quoteCommandPart(context.workspace),
+    "-Event",
+    eventName,
+  ].join(" ");
+}
+
+async function configureCursor(context) {
+  const file = path.join(context.workspace, ".cursor", "hooks.json");
+  const config = await readJsonObject(file, { version: 1, hooks: {} });
+  config.version = 1;
+  const events = [
+    ["sessionStart", 20],
+    ["beforeSubmitPrompt", 20],
+    ["afterAgentResponse", 20],
+  ];
+  for (const [event, timeout] of events) {
+    replaceMatchingCursorHook(
+      config,
+      event,
+      {
+        command: cursorHookCommand(context, event),
+        timeout,
+      },
+      (entry) => isInstalledCursorHook(entry, context, event),
     );
   }
   await writeJson(file, config, context.dryRun);
@@ -219,6 +283,8 @@ export async function configureAgents(options, dependencies = {}) {
       ));
     } else if (agent === "antigravity") {
       configured.push(await configureAntigravity(context));
+    } else if (agent === "cursor") {
+      configured.push(await configureCursor(context));
     } else if (agent === "codex") {
       codex = await configureCodexService(context);
     }

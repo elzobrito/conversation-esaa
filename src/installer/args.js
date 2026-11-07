@@ -1,6 +1,6 @@
 import path from "node:path";
 
-export const SUPPORTED_AGENTS = ["grok", "claude", "codex", "antigravity"];
+export const SUPPORTED_AGENTS = ["grok", "claude", "codex", "antigravity", "cursor"];
 
 function takeValue(argv, index, option) {
   const value = argv[index + 1];

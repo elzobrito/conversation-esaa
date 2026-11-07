@@ -9,6 +9,18 @@ Release de correção do primeiro candidato npm. A publicação pública só dev
 considerada disponível depois da evidência registrada pela tarefa
 `CONV-INSTALL-PUBLISH-002`.
 
+### Cursor adapter (P0, CONV-PRD-DX-001)
+
+- `--agent cursor` no instalador Node, no bootstrap e em `enable-hooks`;
+  `--yes` passa a incluir Cursor na lista fechada;
+- captura canônica no envio de mensagem (`beforeSubmitPrompt` +
+  `afterAgentResponse`) com `source=cursor`;
+- injector de cold start só leitura: `sessionStart` (desktop/self-hosted) e o
+  primeiro `beforeSubmitPrompt` (Cloud Agents, que não disparam `sessionStart`);
+- `pack --budget-tokens` / `--budget-chars` (padrão 4000 tokens, truncamento
+  mecânico handoff → decisions → tasks → eventos recentes);
+- `verify` e `doctor` diagnosticam wrapper/hooks Cursor ausentes ou quebrados.
+
 ### Correções
 
 - opções GNU da CLI PowerShell funcionam igualmente por `pwsh -File` e pelo

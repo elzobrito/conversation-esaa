@@ -94,3 +94,22 @@ test("doctor reports verification and manifest health", async () => {
   assert.equal(report.ok, true);
   assert.equal(report.exit_code, 0);
 });
+
+test("doctor reports missing Cursor capture hook", async () => {
+  const { workspace } = await fixture();
+  const manifestPath = path.join(workspace, ".conversation-esaa", "install-manifest.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  manifest.agents = ["cursor"];
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  const report = await doctor(
+    { workspace },
+    {
+      pwsh: "/usr/bin/pwsh",
+      spawnSync: () => ({ status: 0, stdout: "verify: ok", stderr: "" }),
+    },
+  );
+  const cursor = report.checks.find((check) => check.name === "cursor-hooks");
+  assert.equal(report.ok, false);
+  assert.equal(cursor.ok, false);
+  assert.match(cursor.detail, /cursor-hook\.ps1 missing|beforeSubmitPrompt|install --agent cursor/);
+});

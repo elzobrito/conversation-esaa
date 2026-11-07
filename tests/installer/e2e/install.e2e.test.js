@@ -90,8 +90,9 @@ test("packed CLI installs every agent alone and all agents together", async () =
     grok: ".grok/hooks/conversation-esaa.json",
     claude: ".claude/settings.json",
     antigravity: ".agents/hooks.json",
+    cursor: ".cursor/hooks.json",
   };
-  for (const agent of ["grok", "claude", "codex", "antigravity"]) {
+  for (const agent of ["grok", "claude", "codex", "antigravity", "cursor"]) {
     const workspace = path.join(root, `workspace-${agent}`);
     const result = JSON.parse(
       run(cli, [
@@ -153,6 +154,19 @@ test("packed CLI installs every agent alone and all agents together", async () =
         command.includes("conversation-esaa.ps1") &&
         /--agent(?:=|\s+)claude/.test(command)).length,
       1,
+    );
+  }
+
+  const cursor = JSON.parse(
+    await readFile(path.join(workspace, ".cursor", "hooks.json"), "utf8"),
+  );
+  assert.equal(cursor.version, 1);
+  for (const event of ["sessionStart", "beforeSubmitPrompt", "afterAgentResponse"]) {
+    assert.equal(
+      cursor.hooks[event].filter((entry) =>
+        String(entry.command || "").includes("cursor-hook.ps1")).length,
+      1,
+      event,
     );
   }
 

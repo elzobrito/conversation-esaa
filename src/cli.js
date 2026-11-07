@@ -19,7 +19,7 @@ Usage:
 Install options:
   --workspace <path>          workspace (default: current directory)
   --agent <name>              repeatable agent selection
-  --agents <comma-list>       grok, claude, codex, antigravity
+  --agents <comma-list>       grok, claude, codex, antigravity, cursor
   --rag <off|existing|managed>
   --json                      machine-readable output
   --dry-run                   plan without changes

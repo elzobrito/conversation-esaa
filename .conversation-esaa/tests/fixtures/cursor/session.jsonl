@@ -1,0 +1,4 @@
+{"role":"user","timestamp":"2026-11-07T12:00:00Z","text":"Pergunta visível do Cursor"}
+{"role":"assistant","timestamp":"2026-11-07T12:00:01Z","text":"Resposta visível do Cursor"}
+{"role":"thinking","text":"raciocínio oculto deve ser ignorado"}
+{"type":"tool","text":"tool output must be skipped"}

@@ -1,7 +1,7 @@
 #requires -Version 7.0
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'project', 'verify', 'context', 'decide', 'task', 'topic')]
+    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'sync-cursor', 'project', 'verify', 'context', 'decide', 'task', 'topic', 'pack')]
     [string]$Command,
 
     [string]$WorkspaceRoot,
@@ -10,6 +10,14 @@ param(
     [string]$ClaudeSessionPath,
     [string]$AntigravityTranscriptPath,
     [string]$AntigravityConversationId,
+    [string]$CursorSessionId,
+    [string]$CursorTranscriptPath,
+    [string]$CursorPrompt,
+    [ValidateSet('user', 'assistant')]
+    [string]$CursorRole,
+    [int]$CursorSourceIndex = -1,
+    [int]$BudgetTokens = 0,
+    [int]$BudgetChars = 0,
     [ValidateSet('normal', 'compact')]
     [string]$Mode = 'normal',
 
@@ -919,6 +927,297 @@ function Invoke-SyncAntigravity {
     return $imported
 }
 
+function Get-CursorTextFromEntry {
+    param($Entry)
+    if (-not $Entry) { return $null }
+    $role = $null
+    $text = $null
+    if (($Entry.PSObject.Properties.Name -contains 'role') -and $Entry.role) {
+        $role = [string]$Entry.role
+    } elseif (($Entry.PSObject.Properties.Name -contains 'type') -and $Entry.type) {
+        $role = [string]$Entry.type
+    }
+    if ($role -notin @('user', 'assistant')) { return $null }
+    if (($Entry.PSObject.Properties.Name -contains 'text') -and $Entry.text -is [string]) {
+        $text = $Entry.text
+    } elseif (($Entry.PSObject.Properties.Name -contains 'prompt') -and $Entry.prompt -is [string]) {
+        $text = $Entry.prompt
+    } elseif (($Entry.PSObject.Properties.Name -contains 'message') -and $Entry.message) {
+        if ($Entry.message -is [string]) {
+            $text = $Entry.message
+        } elseif (($Entry.message.PSObject.Properties.Name -contains 'content') -and $Entry.message.content -is [string]) {
+            $text = $Entry.message.content
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+    $timestamp = $null
+    if ($Entry.PSObject.Properties.Name -contains 'timestamp') {
+        $timestamp = [string]$Entry.timestamp
+    }
+    if ($role -eq 'user') {
+        return @{ Actor = 'user'; Text = $text.Trim(); AgentId = $null; Timestamp = $timestamp }
+    }
+    return @{ Actor = 'assistant'; Text = $text.Trim(); AgentId = 'cursor'; Timestamp = $timestamp }
+}
+
+function Invoke-SyncCursor {
+    param($Paths, $SyncState)
+
+    $imported = 0
+    $sessionId = if ($CursorSessionId) { $CursorSessionId } else { 'cursor-session' }
+
+    if ($CursorRole -and -not [string]::IsNullOrWhiteSpace($CursorPrompt)) {
+        $sourceIndex = if ($CursorSourceIndex -ge 0) { $CursorSourceIndex } else {
+            if ($CursorRole -eq 'user') { 0 } else { 1 }
+        }
+        $added = Import-Message `
+            -Paths $Paths `
+            -SyncState $SyncState `
+            -Source 'cursor' `
+            -SessionId $sessionId `
+            -SourcePath 'cursor-hook' `
+            -SourceIndex $sourceIndex `
+            -Actor $(if ($CursorRole -eq 'user') { 'user' } else { 'assistant' }) `
+            -Text $CursorPrompt.Trim() `
+            -AgentId $(if ($CursorRole -eq 'assistant') { 'cursor' } else { $null }) `
+            -EventName $(if ($Mode -eq 'compact') { 'pre_compact_sync' } else { 'conversation_turn' })
+        if ($added) { $imported++ }
+        Write-Output "sync-cursor: imported $imported new event(s) from $sessionId"
+        return $imported
+    }
+
+    $transcript = $CursorTranscriptPath
+    if (-not $transcript -or -not (Test-Path -LiteralPath $transcript)) {
+        throw 'Cursor transcript or prompt not found. Pass -CursorPrompt/-CursorRole from the hook or -CursorTranscriptPath.'
+    }
+    $transcript = (Resolve-Path -LiteralPath $transcript).Path
+    $index = 0
+    foreach ($line in (Read-JsonlLines $transcript)) {
+        if ([string]::IsNullOrWhiteSpace($line)) { $index++; continue }
+        try { $entry = $line | ConvertFrom-Json } catch { $index++; continue }
+        $parsed = Get-CursorTextFromEntry $entry
+        if ($parsed) {
+            $added = Import-Message `
+                -Paths $Paths `
+                -SyncState $SyncState `
+                -Source 'cursor' `
+                -SessionId $sessionId `
+                -SourcePath $transcript `
+                -SourceIndex $index `
+                -Actor $parsed.Actor `
+                -Text $parsed.Text `
+                -AgentId $parsed.AgentId `
+                -SourceTimestamp $(if ($parsed.ContainsKey('Timestamp')) { $parsed.Timestamp } else { $null }) `
+                -EventName $(if ($Mode -eq 'compact') { 'pre_compact_sync' } else { 'conversation_turn' })
+            if ($added) { $imported++ }
+        }
+        $index++
+    }
+
+    Write-Output "sync-cursor: imported $imported new event(s) from $sessionId"
+    return $imported
+}
+
+function Get-Utf8CharCount {
+    param([string]$Text)
+    if ($null -eq $Text) { return 0 }
+    return [System.Text.Encoding]::UTF8.GetByteCount($Text)
+}
+
+function Get-EstimatedTokenCount {
+    param([string]$Text)
+    $chars = Get-Utf8CharCount $Text
+    if ($chars -le 0) { return 0 }
+    return [int][Math]::Ceiling($chars / 4.0)
+}
+
+function Test-PackFitsBudget {
+    param(
+        [string]$Text,
+        [int]$TokenBudget,
+        [int]$CharBudget
+    )
+    $chars = Get-Utf8CharCount $Text
+    $tokens = Get-EstimatedTokenCount $Text
+    if ($CharBudget -gt 0 -and $chars -gt $CharBudget) { return $false }
+    if ($TokenBudget -gt 0 -and $tokens -gt $TokenBudget) { return $false }
+    return $true
+}
+
+function Invoke-Pack {
+    param($Paths)
+
+    $tokenBudget = $BudgetTokens
+    $charBudget = $BudgetChars
+    if ($tokenBudget -le 0 -and $charBudget -le 0) { $tokenBudget = 4000 }
+
+    $handoffBody = '_Handoff missing. Run verify._'
+    if (Test-Path -LiteralPath $Paths.Handoff) {
+        $rawHandoff = Get-Content -LiteralPath $Paths.Handoff -Raw -Encoding UTF8
+        if (-not [string]::IsNullOrWhiteSpace($rawHandoff)) { $handoffBody = $rawHandoff.Trim() }
+    }
+
+    $decisionLines = [System.Collections.Generic.List[string]]::new()
+    if (Test-Path -LiteralPath $Paths.Decisions) {
+        foreach ($line in [System.IO.File]::ReadLines($Paths.Decisions)) {
+            if ($line -match '^\s*-\s+\S') { [void]$decisionLines.Add($line.Trim()) }
+        }
+    }
+    if ($decisionLines.Count -eq 0) { [void]$decisionLines.Add('- None recorded.') }
+
+    $taskLines = [System.Collections.Generic.List[string]]::new()
+    if (Test-Path -LiteralPath $Paths.Tasks) {
+        try {
+            $tasksPayload = Get-Content -LiteralPath $Paths.Tasks -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($task in @($tasksPayload.tasks)) {
+                if ($task.status -in @('open', 'in_progress')) {
+                    [void]$taskLines.Add("- **$($task.id)** — $($task.title)")
+                }
+            }
+        } catch { }
+    }
+    if ($taskLines.Count -eq 0) { [void]$taskLines.Add('- Nenhuma tarefa aberta.') }
+
+    $topicId = 'none'
+    $recentLines = [System.Collections.Generic.List[string]]::new()
+    $keyIds = @()
+    if (Test-Path -LiteralPath $Paths.Topics) {
+        try {
+            $topicsPayload = Get-Content -LiteralPath $Paths.Topics -Raw -Encoding UTF8 | ConvertFrom-Json
+            $active = @($topicsPayload.topics | Where-Object { $_.status -eq 'active' })
+            if ($active.Count -ge 1) {
+                $topicId = [string]$active[0].id
+                $keyIds = @($active[0].key_event_ids)
+            }
+        } catch { }
+    }
+    $events = @(Get-WorkspaceEvents $Paths)
+    $selected = @()
+    if ($keyIds.Count -gt 0) {
+        $idSet = @{}
+        foreach ($id in $keyIds) { $idSet[[string]$id] = $true }
+        $selected = @($events | Where-Object {
+            $eid = Get-ContextEventId $_
+            $eid -and $idSet.ContainsKey($eid)
+        } | Select-Object -Last 8)
+    }
+    if ($selected.Count -eq 0) {
+        $selected = @($events |
+            Where-Object { $_.event -eq 'conversation_turn' -and $_.summary } |
+            Select-Object -Last 8)
+    }
+    foreach ($event in $selected) {
+        $who = if ($event.actor) { $event.actor } else { 'system' }
+        $summary = if ($event.summary) { $event.summary } else { $event.event }
+        [void]$recentLines.Add("- [$($event.ts)] $who — $summary")
+    }
+    if ($recentLines.Count -eq 0) { [void]$recentLines.Add('- Nenhum evento recente.') }
+
+    function Build-Pack([string]$Handoff, [string[]]$Decisions, [string[]]$Tasks, [string[]]$Recent) {
+        @(
+            '# cold-start v1 — mechanical, no LLM'
+            '## Handoff'
+            $Handoff
+            '## Decisions (active)'
+            ($Decisions -join [Environment]::NewLine)
+            '## Open tasks'
+            ($Tasks -join [Environment]::NewLine)
+            "## Recent events (topic=$topicId)"
+            ($Recent -join [Environment]::NewLine)
+        ) -join [Environment]::NewLine
+    }
+
+    $pack = Build-Pack $handoffBody @($decisionLines) @($taskLines) @($recentLines)
+    if (-not (Test-PackFitsBudget $pack $tokenBudget $charBudget)) {
+        $pack = Build-Pack $handoffBody @($decisionLines) @($taskLines) @('- (omitted to fit budget)')
+    }
+    if (-not (Test-PackFitsBudget $pack $tokenBudget $charBudget)) {
+        $pack = Build-Pack $handoffBody @($decisionLines) @('- (omitted to fit budget)') @('- (omitted to fit budget)')
+    }
+    if (-not (Test-PackFitsBudget $pack $tokenBudget $charBudget)) {
+        $pack = Build-Pack $handoffBody @('- (omitted to fit budget)') @('- (omitted to fit budget)') @('- (omitted to fit budget)')
+    }
+    if (-not (Test-PackFitsBudget $pack $tokenBudget $charBudget)) {
+        $prefix = "# cold-start v1 — mechanical, no LLM`n## Handoff`n"
+        $suffix = "`n…[truncated to budget]"
+        $limitChars = if ($charBudget -gt 0) { $charBudget } else { $tokenBudget * 4 }
+        $overhead = (Get-Utf8CharCount $prefix) + (Get-Utf8CharCount $suffix)
+        $available = $limitChars - $overhead
+        if ($available -lt 1) { $available = 1 }
+        $trimmed = $handoffBody
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($trimmed)
+        if ($bytes.Length -gt $available) {
+            $trimmed = [System.Text.Encoding]::UTF8.GetString($bytes, 0, $available)
+        }
+        $pack = $prefix + $trimmed + $suffix
+        while (-not (Test-PackFitsBudget $pack $tokenBudget $charBudget) -and $trimmed.Length -gt 0) {
+            $cut = [Math]::Max(1, [int][Math]::Ceiling($trimmed.Length * 0.15))
+            $trimmed = $trimmed.Substring(0, [Math]::Max(0, $trimmed.Length - $cut))
+            $pack = $prefix + $trimmed + $suffix
+        }
+    }
+
+    Write-Output $pack
+}
+
+function Test-CursorAdapter {
+    param($Paths)
+
+    $manifestPath = Join-Path $Paths.Esaa 'install-manifest.json'
+    $hooksPath = Join-Path $Paths.Root '.cursor\hooks.json'
+    $wrapperPath = Join-Path $Paths.Esaa 'bin\cursor-hook.ps1'
+    $expectCursor = $false
+    if (Test-Path -LiteralPath $manifestPath) {
+        try {
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            if (@($manifest.agents) -contains 'cursor') { $expectCursor = $true }
+        } catch { }
+    }
+    if (Test-Path -LiteralPath $hooksPath) { $expectCursor = $true }
+    if (-not $expectCursor) { return }
+
+    if (-not (Test-Path -LiteralPath $wrapperPath)) {
+        throw "Cursor adapter wrapper missing ($wrapperPath). Repair: install --agent cursor / repair."
+    }
+    if (-not (Test-Path -LiteralPath $hooksPath)) {
+        throw 'Cursor hooks missing (.cursor/hooks.json). Repair: install --agent cursor.'
+    }
+    try {
+        $hooks = Get-Content -LiteralPath $hooksPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    } catch {
+        throw 'Cursor hooks JSON is invalid (.cursor/hooks.json). Repair: install --agent cursor.'
+    }
+
+    function Get-CursorHookCommands([string]$EventName) {
+        if (-not $hooks.hooks) { return @() }
+        $entry = $hooks.hooks.$EventName
+        $commands = [System.Collections.Generic.List[string]]::new()
+        foreach ($item in @($entry)) {
+            if ($item -and ($item.PSObject.Properties.Name -contains 'command')) {
+                [void]$commands.Add([string]$item.command)
+            } elseif ($item -and ($item.PSObject.Properties.Name -contains 'hooks')) {
+                foreach ($nested in @($item.hooks)) {
+                    if ($nested.command) { [void]$commands.Add([string]$nested.command) }
+                }
+            }
+        }
+        return @($commands)
+    }
+
+    $submit = @(Get-CursorHookCommands 'beforeSubmitPrompt' | Where-Object { $_ -match 'cursor-hook\.ps1' })
+    $assistant = @(Get-CursorHookCommands 'afterAgentResponse' | Where-Object { $_ -match 'cursor-hook\.ps1' })
+    $session = @(Get-CursorHookCommands 'sessionStart' | Where-Object { $_ -match 'cursor-hook\.ps1' })
+    if ($submit.Count -eq 0) {
+        throw 'Cursor capture hook missing (beforeSubmitPrompt in .cursor/hooks.json). Repair: install --agent cursor.'
+    }
+    if ($assistant.Count -eq 0) {
+        throw 'Cursor capture hook missing (afterAgentResponse in .cursor/hooks.json). Repair: install --agent cursor.'
+    }
+    if ($session.Count -eq 0 -and $submit.Count -eq 0) {
+        throw 'Cursor inject hook missing (sessionStart or beforeSubmitPrompt in .cursor/hooks.json). Repair: install --agent cursor.'
+    }
+}
+
 function Read-ActivityEvents {
     param([string]$Path)
     $events = @()
@@ -1644,7 +1943,7 @@ function Invoke-Project {
     if ($decisions.Count -eq 0) {
         $decisions = @(
             'Usar estrutura separada do ESAA formal para nao poluir .roadmap.',
-            'Incluir agent_id nos eventos sincronizados (grok, codex, claude, antigravity em assistant; null em user).',
+            'Incluir agent_id nos eventos sincronizados (grok, codex, claude, antigravity, cursor em assistant; null em user).',
             'activity.jsonl e fonte de verdade; read models sao projetados via conversation-esaa.'
         )
     }
@@ -1885,7 +2184,7 @@ function Invoke-Verify {
             if ('agent_id' -notin $event.PSObject.Properties.Name) {
                 throw "Synced event missing agent_id property at line $lineNo"
             }
-            if ($event.actor -eq 'assistant' -and $event.source -in @('grok', 'codex', 'claude', 'antigravity')) {
+            if ($event.actor -eq 'assistant' -and $event.source -in @('grok', 'codex', 'claude', 'antigravity', 'cursor')) {
                 if (-not $event.agent_id) {
                     throw "Assistant synced event missing agent_id at line $lineNo"
                 }
@@ -2037,8 +2336,10 @@ function Invoke-Verify {
     $projectedTopics = Project-TopicsFromEvents @(Get-WorkspaceEvents $Paths)
     $projectedTopics.workspace_root = $Paths.Root
     if (-not (Test-TopicsProjectionMatch -ActualTopics $topicsPayload.topics -ProjectedTopics $projectedTopics.topics)) {
-        throw 'topics.json is not consistent with activity.jsonl'
+        throw 'topics.json is not consistent with activity.jsonl. Repair: conversation-esaa project --workspace <path> then verify.'
     }
+
+    Test-CursorAdapter -Paths $Paths
 
     Write-Output 'verify: ok'
 }
@@ -2110,6 +2411,20 @@ switch ($Command) {
             Invoke-Verify -Paths $paths
         }
         try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
+    }
+    'sync-cursor' {
+        Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            Repair-ActivityContract $paths.Activity
+            $state = Load-SyncState $paths.SyncState $paths.Activity
+            $null = Invoke-SyncCursor -Paths $paths -SyncState $state
+            Save-SyncState $state $paths.SyncState
+            Invoke-Project -Paths $paths
+            Invoke-Verify -Paths $paths
+        }
+        try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
+    }
+    'pack' {
+        Invoke-Pack -Paths $paths
     }
     'project' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {

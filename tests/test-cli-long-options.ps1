@@ -84,7 +84,8 @@ param(
     foreach ($name in @(
         'conv-bootstrap.ps1',
         'codex-watch.ps1',
-        'antigravity-hook-sync.ps1'
+        'antigravity-hook-sync.ps1',
+        'cursor-hook.ps1'
     )) {
         [System.IO.File]::WriteAllText(
             (Join-Path $bin $name),
@@ -107,6 +108,22 @@ param(
         )
         Assert-True ($equals.command -eq 'sync-codex') "$mode equals agent"
         Assert-ContainsSequence $equals.rest @('-Mode', 'compact') "$mode equals mode"
+
+        $cursor = Invoke-Cli -Mode $mode -Arguments @(
+            'sync', '--agent=cursor', "--workspace=$workspaceArgument",
+            '--cursor-prompt=hello', '--cursor-role=user'
+        )
+        Assert-True ($cursor.command -eq 'sync-cursor') "$mode cursor agent"
+        Assert-ContainsSequence $cursor.rest @('-CursorPrompt', 'hello') "$mode cursor prompt"
+        Assert-ContainsSequence $cursor.rest @('-CursorRole', 'user') "$mode cursor role"
+
+        $pack = Invoke-Cli -Mode $mode -Arguments @(
+            'pack', "--workspace=$workspaceArgument", '--budget-tokens=4000',
+            '--budget-chars=16000'
+        )
+        Assert-True ($pack.command -eq 'pack') "$mode pack command"
+        Assert-ContainsSequence $pack.rest @('-BudgetTokens', '4000') "$mode pack token budget"
+        Assert-ContainsSequence $pack.rest @('-BudgetChars', '16000') "$mode pack char budget"
 
         if ($mode -eq 'File') {
             $native = Invoke-Cli -Mode $mode -Arguments @(
