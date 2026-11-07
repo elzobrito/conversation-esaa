@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 964,
-      "projection_hash_sha256": "b9573ab8b3d0b105f1e4f70254b2165ae156ebf93287fe1f1febfbac39188271",
+      "last_event_seq": 977,
+      "projection_hash_sha256": "44a80dd0d7af05a4ca78e83960ca6f61c4919f247220071a9f1d0c68cf632df8",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-07T21:29:45Z"
+    "updated_at": "2026-11-07T22:01:57Z"
   },
   "project": {
     "name": "esaa-core",
@@ -2988,15 +2988,49 @@
         ]
       },
       "completed_at": "2026-11-07T21:29:45Z"
+    },
+    {
+      "task_id": "CONV-DX-P0-IMPL-002",
+      "task_kind": "impl",
+      "title": "Fix Windows Cursor adapter path assertion",
+      "description": "CI installer (windows-latest) fails adapters.test.js: first.configured[0].endsWith('.cursor/hooks.json') is false because Windows uses backslashes. Compare via path.join/path.normalize so the Cursor adapter unit test is path-separator agnostic. No product behavior change.",
+      "status": "done",
+      "depends_on": [
+        "CONV-DX-P0-IMPL-001"
+      ],
+      "targets": [
+        "tests/installer/**"
+      ],
+      "outputs": {
+        "files": [
+          "tests/installer/adapters/adapters.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "hotfix",
+      "acceptance_criteria": [
+        "Cursor adapter unit test identifies .cursor/hooks.json with path.join and does not assume forward slashes."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-07T22:01:45Z",
+      "verification": {
+        "checks": [
+          "Cursor adapter unit test identifies .cursor/hooks.json with path.join and does not assume forward slashes."
+        ]
+      },
+      "completed_at": "2026-11-07T22:01:57Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 67,
+      "done": 68,
       "todo": 7
     },
     "by_kind": {
-      "impl": 54,
+      "impl": 55,
       "qa": 10,
       "spec": 10
     }

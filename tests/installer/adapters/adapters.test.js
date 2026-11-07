@@ -151,7 +151,10 @@ test("Cursor preserves unrelated hooks and is idempotent", async () => {
   const cursor = JSON.parse(
     await readFile(path.join(workspace, ".cursor", "hooks.json"), "utf8"),
   );
-  assert.equal(first.configured[0].endsWith(".cursor/hooks.json"), true);
+  assert.equal(
+    path.normalize(first.configured[0]),
+    path.normalize(path.join(workspace, ".cursor", "hooks.json")),
+  );
   assert.equal(second.configured[0], first.configured[0]);
   assert.equal(cursor.version, 1);
   assert.equal(cursor.hooks.afterFileEdit[0].command, "custom-format");
