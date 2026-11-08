@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1176,
-      "projection_hash_sha256": "042a70f8e173120581caf718ec3ca157af7091136e9ddd543c58d759756a9cb3",
+      "last_event_seq": 1188,
+      "projection_hash_sha256": "6cb2c507d8658ea279d2a2b8f02a6dd1515243e29ac27b9972c86e09570f4b70",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T02:00:31Z"
+    "updated_at": "2026-11-08T02:37:14Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3678,15 +3678,60 @@
         ]
       },
       "completed_at": "2026-11-08T02:00:31Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-017",
+      "task_kind": "impl",
+      "title": "Preservar assuntos tratados na renormalização RRR, compactar proposta em grandes stores e projetar memória consolidada no handoff.md para todos os agentes",
+      "description": "1) Em renormalize.js, reter episódios substantivos dos assuntos tratados (TOPIC_SUBJECT_EVIDENCE, RESONANT_SUBJECT_EPISODE, SUBJECT_WINDOW_ANCHOR) além de tópicos, decisões e tasks, e compactar deprioritize_in_active_view implícitos em stores > 200 nós (Caminho A); 2) Em cli.js e conv-sync.ps1, suportar projeção automática da seção 'Memória Consolidada (Memory-TCG / RRR)' com decisões vigentes, assuntos tratados e conflitos diretamente em handoff.md e state.md quando houver geração ativa, além de memory sleep --accept para promoção imediata.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/core/renormalize.js",
+        "src/memory/adapter/cli.js",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/renormalize.js",
+          "src/memory/adapter/cli.js",
+          ".conversation-esaa/bin/conv-sync.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Renormalização retém assuntos tratados (episódios ligados a tópicos ativos, episódios ressonantes e âncoras recentes) e mantém proposta enxuta (< 500 KB) em stores de 17k eventos",
+        "Quando uma geração Memory-TCG está ativa, handoff.md e state.md incluem automaticamente a seção de Memória Consolidada com decisões, assuntos tratados e conflitos para que qualquer agente usufrua do sonho",
+        "Todos os testes unitários, E2E e benchmark de 5 seeds continuam passando"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T02:15:23Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js (9/9), test-memory-shadow.ps1 (27/27), test-memory-accept-replay.ps1 (18/18), test-memory-read-path.ps1 (21/21), benchmark.js (1/1), conv-test.ps1 (112/112); proposal size reduced 11MB -> 713KB and graph 15MB -> 2.6MB on /home/elzobrito"
+        ]
+      },
+      "completed_at": "2026-11-08T02:37:14Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 84,
+      "done": 85,
       "todo": 7
     },
     "by_kind": {
-      "impl": 65,
+      "impl": 66,
       "qa": 13,
       "spec": 13
     }

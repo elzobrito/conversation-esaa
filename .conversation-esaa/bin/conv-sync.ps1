@@ -1088,6 +1088,15 @@ function Invoke-Pack {
                             $supBy = if ($h.superseded_by_id) { " -> superseded by $($h.superseded_by_id)" } else { '' }
                             [void]$decisionLines.Add("- **[HISTORICAL / SUPERSEDED]** ($($h.memory_id)) $($h.summary)$supBy *(evidence: $evIds)*")
                         }
+                        foreach ($s in @($memCtx.consolidated_subjects)) {
+                            $evIds = @($s.evidence_event_ids) -join ', '
+                            $topicTag = if ($s.topic_id) { " [$($s.topic_id)]" } else { '' }
+                            [void]$decisionLines.Add("- **[SUBJECT / ASSUNTO]**$topicTag ($($s.memory_id)) $($s.summary) *(evidence: $evIds)*")
+                        }
+                        foreach ($g in @($memCtx.grouped_duplicates)) {
+                            $evIds = @($g.evidence_event_ids) -join ', '
+                            [void]$decisionLines.Add("- **[RECURRING SUBJECT]** ($($g.memory_id), $($g.duplicate_count) turns) $($g.summary) *(evidence: $evIds)*")
+                        }
                         if (@($memCtx.omitted_memory_ids).Count -gt 0) {
                             [void]$decisionLines.Add("- *(budget omitted: $(@($memCtx.omitted_memory_ids) -join ', '))*")
                         }
@@ -2097,6 +2106,28 @@ function Invoke-MemoryRollback {
     }
 }
 
+function Get-ActiveMemoryProjectionBlock {
+    param($Paths)
+    $activeMemPath = Join-Path (Join-Path $Paths.Esaa 'memory') 'active.json'
+    if (-not (Test-Path -LiteralPath $activeMemPath)) {
+        return $null
+    }
+    $cliScript = Resolve-MemoryCliScriptForSync
+    if (-not $cliScript) { return $null }
+    $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodeCmd) { return $null }
+    try {
+        $rawMemCtx = & $nodeCmd.Source $cliScript 'context' '--workspace' $Paths.Root '--budget-chars' '2400' '--json' 2>$null
+        if ($LASTEXITCODE -eq 0 -and $rawMemCtx) {
+            $memCtx = ($rawMemCtx -join "`n") | ConvertFrom-Json
+            if ($memCtx.status -eq 'OK' -and $memCtx.markdown) {
+                return [string]$memCtx.markdown
+            }
+        }
+    } catch { }
+    return $null
+}
+
 function Invoke-Project {
     param($Paths)
 
@@ -2205,7 +2236,9 @@ function Invoke-Project {
         }) -join [Environment]::NewLine
     } else { '- Nenhum tópico ativo.' }
 
-    $state = @(
+    $activeMemoryMd = Get-ActiveMemoryProjectionBlock -Paths $Paths
+
+    $stateLines = [System.Collections.Generic.List[string]]@(
         '# Estado da Conversa'
         ''
         '> Gerado automaticamente por conv-sync.ps1 project. Nao edite manualmente.'
@@ -2236,9 +2269,14 @@ function Invoke-Project {
         '## Proxima Acao Recomendada'
         ''
         $nextAction
-    ) -join [Environment]::NewLine
+    )
+    if (-not [string]::IsNullOrWhiteSpace($activeMemoryMd)) {
+        $stateLines.Add('')
+        $stateLines.Add($activeMemoryMd.Trim())
+    }
+    $state = $stateLines -join [Environment]::NewLine
 
-    $handoff = @(
+    $handoffLines = [System.Collections.Generic.List[string]]@(
         '# Handoff para o Proximo Agente'
         ''
         '> Gerado automaticamente por conv-sync.ps1 project. Nao edite manualmente.'
@@ -2268,6 +2306,12 @@ function Invoke-Project {
         '## Eventos recentes'
         ''
         $recentBlock
+    )
+    if (-not [string]::IsNullOrWhiteSpace($activeMemoryMd)) {
+        $handoffLines.Add('')
+        $handoffLines.Add($activeMemoryMd.Trim())
+    }
+    $handoffTail = @(
         ''
         '## Se o resumo nao for suficiente'
         ''
@@ -2281,7 +2325,9 @@ function Invoke-Project {
         '- Nao edite activity.jsonl nem os read models manualmente.'
         '- Nao trate .conversation-esaa como .roadmap.'
         '- activity.jsonl e os read models contem texto bruto das conversas; nao commite dados reais em repositorio publico.'
-    ) -join [Environment]::NewLine
+    )
+    foreach ($tl in $handoffTail) { $handoffLines.Add($tl) }
+    $handoff = $handoffLines -join [Environment]::NewLine
 
     [System.IO.File]::WriteAllText($Paths.State, $state.TrimEnd() + "`n", [System.Text.UTF8Encoding]::new($false))
     [System.IO.File]::WriteAllText($Paths.Handoff, $handoff.TrimEnd() + "`n", [System.Text.UTF8Encoding]::new($false))

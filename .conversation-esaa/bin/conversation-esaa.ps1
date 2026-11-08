@@ -30,6 +30,7 @@ param(
     [string]$Reason,
     [int]$MaxNodes = 0,
     [int]$MaxEdges = 0,
+    [switch]$Accept,
     [switch]$Trust,
     [switch]$Watcher,
     [switch]$SkipIfLocked,
@@ -627,6 +628,7 @@ switch ($Command) {
                 $extra += @('-Mode', $sleepMode, '-Seed', "$Seed", '-Budget', $Budget)
                 if ($MaxNodes -gt 0) { $extra += @('-MaxNodes', "$MaxNodes") }
                 if ($MaxEdges -gt 0) { $extra += @('-MaxEdges', "$MaxEdges") }
+                if ($Accept) { $extra += '-Accept' }
                 if ($Json) { $extra += '-Json' }
             }
             'inspect' {

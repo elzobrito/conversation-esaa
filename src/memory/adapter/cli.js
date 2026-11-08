@@ -509,6 +509,14 @@ export function cmdSleep(workspaceRoot, options = {}) {
   for (const act of proposal.actions) {
     actionCounts[act.action] = (actionCounts[act.action] || 0) + 1;
   }
+  const implicitDeprioritized =
+    proposal.sampling?.deprioritized_implicit_count || 0;
+  if (implicitDeprioritized > 0) {
+    actionCounts.deprioritize_in_active_view =
+      (actionCounts.deprioritize_in_active_view || 0) + implicitDeprioritized;
+  }
+  const eligibleNodesCount =
+    graph.coverage?.eligible_nodes || graph.nodes.length;
 
   return {
     status: "OK",
@@ -520,7 +528,8 @@ export function cmdSleep(workspaceRoot, options = {}) {
     graph_generation_id: graph.generation_id,
     seed,
     budget,
-    node_count: graph.nodes.length,
+    node_count: eligibleNodesCount,
+    stored_node_count: graph.nodes.length,
     derived_edge_count: graph.derived_edges.length,
     possible_edge_count: graph.possible_edges.length,
     boundary_count: graph.boundaries.length,
@@ -624,10 +633,12 @@ export function cmdDiff(workspaceRoot, proposalIdInput, options = {}) {
   );
 
   const maxDeprioritizedPreview = options.full ? Infinity : 50;
+  const implicitDeprioritized =
+    proposal.sampling?.deprioritized_implicit_count || 0;
   const deprioritizedOmittedCount =
-    deprioritized.length > maxDeprioritizedPreview
+    (deprioritized.length > maxDeprioritizedPreview
       ? deprioritized.length - maxDeprioritizedPreview
-      : 0;
+      : 0) + implicitDeprioritized;
 
   return {
     status: "OK",
@@ -638,13 +649,13 @@ export function cmdDiff(workspaceRoot, proposalIdInput, options = {}) {
       ? currentActive.graph_generation_id
       : null,
     summary: {
-      total_actions: proposal.actions.length,
+      total_actions: proposal.actions.length + implicitDeprioritized,
       retained_count: retained.length,
       added_retained_count: addedRetained.length,
       removed_retained_count: removedRetainedIds.length,
       grouped_duplicates_count: groupedDuplicates.length,
       marked_historical_count: markedHistorical.length,
-      deprioritized_count: deprioritized.length,
+      deprioritized_count: deprioritized.length + implicitDeprioritized,
       deprioritized_omitted_count: deprioritizedOmittedCount,
       flagged_conflicts_count: flaggedConflicts.length,
       unresolved_count: (proposal.unresolved || []).length,
@@ -1094,6 +1105,8 @@ export function cmdContext(workspaceRoot, options = {}) {
       markdown: "",
       retained_decisions: [],
       historical_decisions: [],
+      consolidated_subjects: [],
+      grouped_duplicates: [],
       unresolved_conflicts: [],
       omitted_memory_ids: [],
     };
@@ -1117,6 +1130,8 @@ export function cmdContext(workspaceRoot, options = {}) {
       markdown: "",
       retained_decisions: [],
       historical_decisions: [],
+      consolidated_subjects: [],
+      grouped_duplicates: [],
       unresolved_conflicts: [],
       omitted_memory_ids: [],
     };
@@ -1136,6 +1151,15 @@ export function cmdContext(workspaceRoot, options = {}) {
   const retainedEpisodes = (activeView.retained || []).filter(
     (r) => r.kind === "episode" && filterByTopic(r),
   );
+  const subjectEpisodes = retainedEpisodes.filter((r) =>
+    (r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"),
+  );
+  const decisionSupportEpisodes = retainedEpisodes.filter(
+    (r) => !(r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"),
+  );
+  const groupedDuplicateSubjects = (activeView.grouped_duplicates || [])
+    .filter(filterByTopic)
+    .slice(0, 12);
   const historicalDecisions = (activeView.historical_decisions || []).filter(
     filterByTopic,
   );
@@ -1213,10 +1237,31 @@ export function cmdContext(workspaceRoot, options = {}) {
     }
   }
 
-  if (retainedEpisodes.length > 0) {
+  if (subjectEpisodes.length > 0 || groupedDuplicateSubjects.length > 0) {
+    lines.push("");
+    lines.push("### Consolidated Subjects Discussed (Assuntos Tratados)");
+    for (const ep of subjectEpisodes) {
+      const evStr = (ep.evidence_event_ids || []).join(", ");
+      const topicPrefix = ep.topic_id ? `[${ep.topic_id}] ` : "";
+      appendSectionItem(
+        ep.memory_id,
+        `- **${topicPrefix}**\`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
+      );
+    }
+    for (const grp of groupedDuplicateSubjects) {
+      const count = (grp.evidence_event_ids || []).length;
+      const topicPrefix = grp.topic_id ? `[${grp.topic_id}] ` : "";
+      appendSectionItem(
+        grp.memory_id,
+        `- **${topicPrefix}[RECORRENTE x${count}]** \`${grp.memory_id}\`: ${grp.summary}`,
+      );
+    }
+  }
+
+  if (decisionSupportEpisodes.length > 0) {
     lines.push("");
     lines.push("### Supporting Evidence Episodes");
-    for (const ep of retainedEpisodes) {
+    for (const ep of decisionSupportEpisodes) {
       const evStr = (ep.evidence_event_ids || []).join(", ");
       appendSectionItem(
         ep.memory_id,
@@ -1240,6 +1285,8 @@ export function cmdContext(workspaceRoot, options = {}) {
     watermark_event_id: activeView.watermark_event_id,
     retained_decisions: retainedDecisions,
     historical_decisions: historicalDecisions,
+    consolidated_subjects: subjectEpisodes,
+    grouped_duplicates: groupedDuplicateSubjects,
     unresolved_conflicts: unresolvedConflicts,
     included_memory_ids: includedIds,
     omitted_memory_ids: omittedIds,

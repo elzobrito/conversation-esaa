@@ -20,6 +20,7 @@ param(
     [int]$BudgetChars = 4000,
     [int]$MaxNodes = 0,
     [int]$MaxEdges = 0,
+    [switch]$Accept,
     [switch]$Json
 )
 
@@ -129,7 +130,7 @@ switch ($Action) {
         $nodeArgs += @('--mode', $Mode, '--seed', "$Seed", '--budget', $Budget)
         if ($MaxNodes -gt 0) { $nodeArgs += @('--max-nodes', "$MaxNodes") }
         if ($MaxEdges -gt 0) { $nodeArgs += @('--max-edges', "$MaxEdges") }
-        if ($Json) { $nodeArgs += '--json' }
+        if ($Json -or $Accept) { $nodeArgs += '--json' }
     }
     'inspect' {
         $targetId = if ($ProposalId) { $ProposalId } else { 'latest' }
@@ -144,6 +145,34 @@ switch ($Action) {
     'verify' {
         if ($Json) { $nodeArgs += '--json' }
     }
+}
+
+if ($Action -eq 'sleep' -and $Accept) {
+    $rawSleep = & $nodeCmd.Source @nodeArgs
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -and $exitCode -ne 0) {
+        if ($null -ne $rawSleep) { $rawSleep | Write-Output }
+        exit $exitCode
+    }
+    $sleepObj = ($rawSleep -join "`n") | ConvertFrom-Json
+    $pwshExe = (Get-Command pwsh -ErrorAction Stop).Source
+    $syncArgs = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convSync,
+        'memory-accept', '-WorkspaceRoot', $ws, '-MemoryProposalId', $sleepObj.proposal_id
+    )
+    if ($Json) { $syncArgs += '-MemoryJson' }
+    $rawAccept = & $pwshExe @syncArgs
+    $accExit = $LASTEXITCODE
+    if ($accExit -and $accExit -ne 0) {
+        if ($null -ne $rawAccept) { $rawAccept | Write-Output }
+        exit $accExit
+    }
+    $accObj = ($rawAccept -join "`n") | ConvertFrom-Json
+    $sleepObj | Add-Member -NotePropertyName accepted -NotePropertyValue $true -Force
+    $sleepObj | Add-Member -NotePropertyName accept_event_id -NotePropertyValue $accObj.event_id -Force
+    $sleepObj | Add-Member -NotePropertyName active_digest -NotePropertyValue $accObj.active_digest -Force
+    ($sleepObj | ConvertTo-Json -Depth 10) | Write-Output
+    exit 0
 }
 
 & $nodeCmd.Source @nodeArgs

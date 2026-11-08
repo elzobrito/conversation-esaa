@@ -107,6 +107,21 @@ try {
             related_turns  = @('ev-read-002', 'ev-read-003')
             summary        = 'Adotar PostgreSQL 16 como banco oficial definitivo'
             text           = 'Adotar PostgreSQL 16 como banco oficial definitivo'
+        },
+        [ordered]@{
+            schema_version    = 'conversation-esaa.v1'
+            event_id          = 'ev-read-006'
+            ts                = '2026-11-07T12:05:00Z'
+            workspace_root    = $tempWs
+            event             = 'conversation_turn'
+            source            = 'grok'
+            source_session_id = 'sess-r3'
+            source_index      = 1
+            actor             = 'assistant'
+            agent_id          = 'grok'
+            topic_id          = 'TOP-001'
+            summary           = 'Assunto tratado: particionamento de tabelas de auditoria por mes e retencao de logs'
+            text              = 'Assunto tratado: particionamento de tabelas de auditoria por mes e retencao de logs'
         }
     )
 
@@ -140,11 +155,18 @@ try {
     Assert-True ($memCtxJson.retained_decisions.Count -eq 1 -and $memCtxJson.retained_decisions[0].summary -match 'PostgreSQL 16') "Active decision retained with provenance"
     Assert-True ($memCtxJson.historical_decisions.Count -eq 1 -and $memCtxJson.historical_decisions[0].summary -match 'SQLite') "Superseded decision separated as historical"
     Assert-True ($memCtxJson.unresolved_conflicts.Count -ge 1) "Unresolved conflict surfaced in active memory context"
+    Assert-True ($memCtxJson.consolidated_subjects.Count -ge 1) "Substantive subject episodes (assuntos tratados) retained in active memory context"
+
+    $handoffContent = Get-Content -LiteralPath (Join-Path $tempWs '.conversation-esaa/handoff.md') -Raw -Encoding UTF8
+    $stateContent = Get-Content -LiteralPath (Join-Path $tempWs '.conversation-esaa/state.md') -Raw -Encoding UTF8
+    Assert-True ($handoffContent -match 'Memory-TCG Consolidated Context' -and $handoffContent -match 'Assuntos Tratados') "handoff.md automatically projects consolidated Memory-TCG and Assuntos Tratados for all agents"
+    Assert-True ($stateContent -match 'Memory-TCG Consolidated Context' -and $stateContent -match 'Assuntos Tratados') "state.md automatically projects consolidated Memory-TCG and Assuntos Tratados for all agents"
 
     $packActive = (& pwsh -NoProfile -File $cliPath pack --workspace $tempWs) -join "`n"
     Assert-True ($packActive -match '\[ACTIVE\].*PostgreSQL 16.*evidence:.*ev-read-005') "pack with active memory displays [ACTIVE] decision and provenance"
     Assert-True ($packActive -match '\[HISTORICAL / SUPERSEDED\].*SQLite.*superseded by decision:ev-read-005') "pack with active memory labels superseded decision as [HISTORICAL / SUPERSEDED]"
     Assert-True ($packActive -match '\[UNRESOLVED CONFLICT\]') "pack with active memory surfaces [UNRESOLVED CONFLICT]"
+    Assert-True ($packActive -match '\[SUBJECT / ASSUNTO\]') "pack with active memory surfaces [SUBJECT / ASSUNTO] consolidated subjects"
 
     $contextActive = (& pwsh -NoProfile -File $cliPath context --workspace $tempWs) -join "`n"
     Assert-True ($contextActive -match 'Memory-TCG Consolidated Context') "context with active memory includes consolidated Memory-TCG section"
