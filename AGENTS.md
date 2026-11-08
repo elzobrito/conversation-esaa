@@ -128,10 +128,15 @@ $pwsh = if (Test-Path "$HOME/.local/bin/pwsh") { "$HOME/.local/bin/pwsh" } else 
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli topics list -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status -Workspace $root --json
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --accept --seed 42 --budget all -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory inspect --proposal-id latest -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory diff --proposal-id latest -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory accept --proposal-id latest -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory context -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory verify -Workspace $root --json
 ```
 
-Detalhes de install/hooks: [README.md](README.md).
+Detalhes de install/hooks e guia completo de **como funciona o sonho RRR e como sonhar**: [README.md](README.md).
 
 ## 7. Captura por agente
 

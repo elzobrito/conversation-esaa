@@ -83,27 +83,69 @@ O RAG requer Python 3.10+, Ollama local e o modelo `embeddinggemma`. Ele é uma
 projeção descartável e fail-open: `sync`, `project`, `verify` e `context`
 continuam funcionando se o RAG estiver desligado ou indisponível.
 
-### Consolidação periódica Memory-TCG / RRR (opcional, zero-token)
+### Consolidação periódica Memory-TCG / RRR — Como funciona o sonho e como sonhar
 
-O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) consolida o histórico append-only em um grafo rastreável (`derived_edges`, `possible_edges`, `boundaries`/`unresolved`) usando o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) com **zero chamadas de LLM e zero rede**.
+O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) é o mecanismo de consolidação periódica de memória em grafo do Conversation ESAA. No vocabulário do sistema, **"sonhar" (`memory sleep`)** significa executar offline o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) sobre o ledger `activity.jsonl`, com **zero chamadas de LLM, zero embeddings obrigatórios e zero acesso à rede**.
 
-- **Desligado por padrão (`mode = off`):** nenhuma consolidação altera `handoff.md`, `state.md`, `decisions.md`, `tasks.json` ou `activity.jsonl` automaticamente.
-- **Modo `shadow`:** gera grafo e proposta auditáveis em `.conversation-esaa/memory/shadow/` sem tocar nas projeções ativas.
-- **Promoção explícita e Rollback:** `memory accept <proposal_id>` valida o watermark contra o ledger (falhando fechado com `STALE_PROPOSAL` se houver eventos novos) e registra `memory.consolidation.accepted`; `memory rollback <generation_id>` emite `memory.consolidation.rolled_back` e restaura a geração anterior.
-- **Leitura opt-in:** `context --use-active-memory`, `pack --use-active-memory` e `memory context` priorizam decisões vigentes, preservam conflitos em aberto (`unresolved`) e fazem fallback automático para o fluxo bruto quando não há memória ativa válida.
+#### Como funciona o sonho (Ciclo RRR)
+
+1. **Snapshot imutável e Watermark:**
+   - O sonho lê `activity.jsonl` apenas do `workspace_root` atual, ignora eventos `memory.*` (evitando auto-reforço) e registra o `watermark_event_id` do último evento visto.
+2. **Ringing (Amostragem Estratificada):**
+   - Seleciona nós de forma determinística (controlada por `--seed`) cobrindo 100% das decisões explícitas (`decision`), tópicos (`TOP-xxx`), tarefas (`CONV-xxx`) e episódios conversacionais distribuídos por tópico e janela temporal (`YYYY-MM-DD`).
+3. **Resonance (Ressonância e Fronteiras Epistêmicas):**
+   - Separa rigorosamente **arestas derivadas verificadas (`derived_edges`)** — supersessão explícita (`explicit_supersedes`), suporte de decisão (`decision_supported_by_event`), vínculo de tópico (`topic_contains_event`) e duplicatas exatas por digest SHA-256 (`duplicate_exact_content`) — de **arestas candidatas (`possible_edges`)** — similaridade lexical (`possibly_related`) e contradições sem vencedor silencioso (`possibly_contradicts`). Arestas candidatas **nunca** sobrescrevem decisões explícitas.
+4. **Renormalization (O que permanece vivo vs. Cold Storage):**
+   - **`retain` (Memória Viva):** preserva decisões vigentes, tópicos ativos, tarefas abertas, evidências de decisões e os **assuntos tratados (`CONSOLIDATED_SUBJECT_MATTER`)** — incluindo os episódios substantivos de cada tópico ativo (`TOPIC_SUBJECT_EVIDENCE`), os episódios de maior ressonância temática (`RESONANT_SUBJECT_EPISODE`) e as âncoras recentes de cada janela de tempo (`SUBJECT_WINDOW_ANCHOR`).
+   - **`group_exact_duplicates` (Assuntos Recorrentes):** agrupa turnos repetidos preservando todos os `event_id` de origem.
+   - **`mark_historical_explicit` (Histórico Superado):** separa decisões explicitamente substituídas (`[HISTORICAL / SUPERSEDED]`) para que nenhum agente confunda decisão antiga com decisão vigente.
+   - **`flag_conflict` / `unresolved` (Conflitos sem Vencedor Silencioso):** destaca divergências em aberto (`[UNRESOLVED CONFLICT]`) para revisão explícita.
+   - **`deprioritize_in_active_view` (Proposta Esparsa / Cold Storage):** em stores grandes (`> 200` nós), os milhares de turnos rotineiros são contabilizados de forma esparsa (`deprioritized_implicit_count` + `deprioritized_implicit_digest`), mantendo a proposta em disco enxuta (~700 KB mesmo para ~17 mil eventos) sem duplicar o `activity.jsonl`.
+
+#### Se um agente sonhar, todos os outros usufruem
+
+Quando um sonho é promovido (`memory sleep --accept` ou `memory accept`):
+- O evento auditável `memory.consolidation.accepted` é gravado em `activity.jsonl` e a visão ativa é materializada em `.conversation-esaa/memory/active.json`.
+- O `conv-sync.ps1 project` injeta **automaticamente** a seção **`## Memory-TCG Consolidated Context (Active Generation)`** (contendo decisões vigentes, conflitos em aberto, decisões históricas superadas, tópicos/tarefas e **`### Consolidated Subjects Discussed (Assuntos Tratados)`**) diretamente em:
+  - `.conversation-esaa/handoff.md`
+  - `.conversation-esaa/state.md`
+  - Saídas de `conversation-esaa pack` e `conversation-esaa context`
+- Assim, **se o Grok (ou qualquer outro agente) sonhar e aceitar a consolidação, o Claude Code, Codex, Antigravity e Cursor recebem imediatamente os tópicos vivos e os assuntos tratados** assim que abrirem sessão ou lerem o `handoff.md`.
+
+#### Como sonhar (Passo a Passo)
+
+**Opção A — Sonhar e promover imediatamente (recomendado para uso entre agentes):**
+Executa o ciclo RRR e promove a proposta no mesmo comando, evitando que um hook de fim de turno avance o `activity.jsonl` antes da promoção (`STALE_PROPOSAL`):
 
 ```powershell
-# Inspecionar status e rodar ciclo RRR em modo shadow
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status --workspace $root --json
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all --workspace $root --json
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory inspect --generation latest --workspace $root --json
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory diff --generation latest --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --accept --seed 42 --budget all --workspace $root --json
+```
 
-# Promover proposta explicitamente, consultar contexto consolidado ou fazer rollback
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory accept <proposal_id> --workspace $root --json
+**Opção B — Sonhar em modo `shadow` (inspecionar antes de promover):**
+Gera o grafo e a proposta em `.conversation-esaa/memory/shadow/` sem alterar `handoff.md`, `state.md` ou `activity.jsonl`:
+
+```powershell
+# 1. Sonhar em shadow (zero mutação na memória ativa)
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all --workspace $root --json
+
+# 2. Inspecionar a proposta ou comparar o diff contra a geração ativa
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory inspect --proposal-id latest --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory diff --proposal-id latest --workspace $root --json
+
+# 3. Promover explicitamente (se o ledger não tiver avançado desde o sleep)
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory accept --proposal-id latest --workspace $root --json
+```
+
+> **Nota sobre `STALE_PROPOSAL`:** se novas mensagens entrarem em `activity.jsonl` depois do `memory sleep --mode shadow`, o `memory accept` recusa a proposta defasada por segurança. Basta rodar `memory sleep --accept` (ou um novo `memory sleep` seguido de `memory accept`) alinhado ao head atual.
+
+**Consultas, verificação e rollback:**
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory context --workspace $root
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory context --topic-id TOP-001 --workspace $root --json
 pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory verify --workspace $root --json
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory rollback <generation_id> --reason "Reverter geração" --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory rollback --generation-id previous --reason "Reverter geração" --workspace $root --json
 ```
 
 ---

@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1188,
-      "projection_hash_sha256": "6cb2c507d8658ea279d2a2b8f02a6dd1515243e29ac27b9972c86e09570f4b70",
+      "last_event_seq": 1200,
+      "projection_hash_sha256": "5d48dff4e31e5976a8844e5ef349ee5eb940ac0b8783f0a096bb958f7e3c8721",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T02:37:14Z"
+    "updated_at": "2026-11-08T13:10:34Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3723,17 +3723,51 @@
         ]
       },
       "completed_at": "2026-11-08T02:37:14Z"
+    },
+    {
+      "task_id": "CONV-MTCG-DOCS-018",
+      "task_kind": "spec",
+      "title": "Documentar no README e AGENTS.md como funciona o sonho RRR e como sonhar",
+      "description": "Detalhar no README.md, AGENTS.md e .claude/CLAUDE.md o funcionamento completo do ciclo RRR (Ringing, Resonance, Renormalization), a retencao de assuntos tratados, a proposta esparsa em disco, o compartilhamento automatico entre agentes via handoff.md/state.md e o passo a passo de como sonhar (modo shadow e --accept atomico).",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "README.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          "README.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "README.md, AGENTS.md e .claude/CLAUDE.md explicam claramente como funciona o sonho e como sonhar, mantendo paridade entre AGENTS.md e .claude/CLAUDE.md"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-11-08T13:09:34Z",
+      "verification": {
+        "checks": [
+          "diff -u AGENTS.md .claude/CLAUDE.md empty; README.md documents how RRR dream works and how to dream"
+        ]
+      },
+      "completed_at": "2026-11-08T13:10:34Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 85,
+      "done": 86,
       "todo": 7
     },
     "by_kind": {
       "impl": 66,
       "qa": 13,
-      "spec": 13
+      "spec": 14
     }
   }
 }
