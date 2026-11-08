@@ -449,6 +449,9 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
         evidence_event_ids: [eid],
       });
 
+      const { conflict_key: decConflictKey, conflict_value: decConflictValue } =
+        extractConflictHint(event);
+
       factsMap.set(decNodeId, {
         id: decNodeId,
         kind: "decision",
@@ -466,8 +469,8 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
         epistemic_status: "verified_explicit",
         validity_status: "active",
         supersedes_id: supersedesNodeId,
-        conflict_key: null,
-        conflict_value: null,
+        conflict_key: decConflictKey,
+        conflict_value: decConflictValue,
         evidence_event_ids: evidenceIds,
       });
 

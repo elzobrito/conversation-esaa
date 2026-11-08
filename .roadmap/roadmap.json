@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1248,
-      "projection_hash_sha256": "90c3af556a1f5bd75bf768c0313c41557a5e6dc88ab55c6147ee23119bcb3719",
+      "last_event_seq": 1260,
+      "projection_hash_sha256": "72f6d8e0c5a2239e4d12d292c9ff308461d37d649fd634cb7f3fdfcdf8db2290",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T15:04:44Z"
+    "updated_at": "2026-11-08T15:09:42Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3887,15 +3887,40 @@
         ]
       },
       "completed_at": "2026-11-08T15:04:44Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-023",
+      "task_kind": "impl",
+      "title": "Pass extractConflictHint to decision nodes in snapshot.js so unverified decision supersessions are surfaced",
+      "description": "Pass extractConflictHint to decision nodes in snapshot.js so unverified decision supersessions are surfaced",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/adapter/snapshot.js"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T15:07:57Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js (9/9), benchmark.js (1/1), test-memory-read-path.ps1 (21/21) passed"
+        ]
+      },
+      "completed_at": "2026-11-08T15:09:42Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 90,
+      "done": 91,
       "todo": 7
     },
     "by_kind": {
-      "impl": 70,
+      "impl": 71,
       "qa": 13,
       "spec": 14
     }
