@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1212,
-      "projection_hash_sha256": "71b63bfe144da28e6122126398a319dc9632684baa96ca25eeba5b117ce1ae12",
+      "last_event_seq": 1224,
+      "projection_hash_sha256": "061e669de29686ccb3e809d6e769e4199d2b093c0d4ea4c6b3ed6821acb3a9ab",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T13:20:51Z"
+    "updated_at": "2026-11-08T13:24:51Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3795,15 +3795,47 @@
         ]
       },
       "completed_at": "2026-11-08T13:20:51Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-020",
+      "task_kind": "impl",
+      "title": "Balancear orcamento por secao em cmdContext para exibir Assuntos Tratados em stores grandes",
+      "description": "Garantir que cmdContext distribua o orcamento entre Decisoes Vigentes (mais recentes primeiro), Assuntos Tratados, Topicos/Tarefas e Conflitos em stores grandes, e resumir a lista de IDs omitidos no rodape de budget.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/adapter/cli.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/adapter/cli.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "handoff.md e memory context exibem itens visiveis em Active Decisions e Consolidated Subjects Discussed (Assuntos Tratados) mesmo com budget-chars=2400 em stores com 70+ decisoes"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T13:23:00Z",
+      "verification": {
+        "checks": [
+          "test-memory-read-path.ps1 (21/21) passed; balanced section budget verified"
+        ]
+      },
+      "completed_at": "2026-11-08T13:24:51Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 87,
+      "done": 88,
       "todo": 7
     },
     "by_kind": {
-      "impl": 67,
+      "impl": 68,
       "qa": 13,
       "spec": 14
     }

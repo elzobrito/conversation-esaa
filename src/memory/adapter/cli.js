@@ -1142,18 +1142,22 @@ export function cmdContext(workspaceRoot, options = {}) {
     return !item.topic_id || item.topic_id === topicFilter;
   };
 
-  const retainedDecisions = (activeView.retained || []).filter(
-    (r) => r.kind === "decision" && filterByTopic(r),
-  );
+  const sortByRecent = (a, b) =>
+    String(b.timestamp || "").localeCompare(String(a.timestamp || "")) ||
+    String(a.memory_id || "").localeCompare(String(b.memory_id || ""));
+
+  const retainedDecisions = (activeView.retained || [])
+    .filter((r) => r.kind === "decision" && filterByTopic(r))
+    .sort(sortByRecent);
   const retainedTopicsAndTasks = (activeView.retained || []).filter(
     (r) => (r.kind === "topic" || r.kind === "task") && filterByTopic(r),
   );
   const retainedEpisodes = (activeView.retained || []).filter(
     (r) => r.kind === "episode" && filterByTopic(r),
   );
-  const subjectEpisodes = retainedEpisodes.filter((r) =>
-    (r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"),
-  );
+  const subjectEpisodes = retainedEpisodes
+    .filter((r) => (r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"))
+    .sort(sortByRecent);
   const decisionSupportEpisodes = retainedEpisodes.filter(
     (r) => !(r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"),
   );
@@ -1165,6 +1169,10 @@ export function cmdContext(workspaceRoot, options = {}) {
   );
   const unresolvedConflicts = activeView.unresolved || [];
 
+  const isLargeActiveStore =
+    retainedDecisions.length + unresolvedConflicts.length > 20;
+  const maxPerSection = isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity;
+
   const lines = [];
   lines.push("## Memory-TCG Consolidated Context (Active Generation)");
   lines.push(
@@ -1174,13 +1182,21 @@ export function cmdContext(workspaceRoot, options = {}) {
   const includedIds = [];
   const omittedIds = [];
 
-  const appendSectionItem = (id, lineText) => {
-    const currentLen = lines.join("\n").length;
-    if (budgetChars > 0 && currentLen + lineText.length + 80 > budgetChars) {
+  const appendSectionItem = (id, lineText, sectionCount = 0, sectionCap = maxPerSection) => {
+    if (sectionCount >= sectionCap) {
       omittedIds.push(id);
       return false;
     }
-    lines.push(lineText);
+    const currentLen = lines.join("\n").length;
+    const textToPush =
+      isLargeActiveStore && lineText.length > 220
+        ? `${lineText.slice(0, 217)}...`
+        : lineText;
+    if (budgetChars > 0 && currentLen + textToPush.length + 80 > budgetChars) {
+      omittedIds.push(id);
+      return false;
+    }
+    lines.push(textToPush);
     includedIds.push(id);
     return true;
   };
@@ -1188,92 +1204,139 @@ export function cmdContext(workspaceRoot, options = {}) {
   if (retainedDecisions.length > 0) {
     lines.push("");
     lines.push("### Active Decisions (Verified Explicit)");
+    let secAdded = 0;
     for (const dec of retainedDecisions) {
-      const evStr = (dec.evidence_event_ids || []).join(", ");
-      appendSectionItem(
-        dec.memory_id,
-        `- **[ACTIVE]** \`${dec.memory_id}\`: ${dec.summary} *(evidence: ${evStr})*`,
-      );
-    }
-  }
-
-  if (unresolvedConflicts.length > 0) {
-    lines.push("");
-    lines.push("### Unresolved Conflicts / Boundaries (Requires Attention)");
-    for (const conf of unresolvedConflicts) {
-      const evStr = (conf.evidence_event_ids || []).join(", ");
-      const memStr = (conf.memory_ids || []).join(", ");
-      appendSectionItem(
-        conf.conflict_id,
-        `- **[UNRESOLVED CONFLICT]** \`${conf.conflict_id}\` (${conf.reason_code}): nodes [${memStr}] *(evidence: ${evStr})*`,
-      );
-    }
-  }
-
-  if (historicalDecisions.length > 0) {
-    lines.push("");
-    lines.push("### Historical / Superseded Decisions (Do Not Treat as Current)");
-    for (const hist of historicalDecisions) {
-      const evStr = (hist.evidence_event_ids || []).join(", ");
-      const supBy = hist.superseded_by_id
-        ? ` superseded by \`${hist.superseded_by_id}\``
-        : "";
-      appendSectionItem(
-        hist.memory_id,
-        `- **[HISTORICAL / SUPERSEDED]** \`${hist.memory_id}\`: ${hist.summary}${supBy} *(evidence: ${evStr})*`,
-      );
-    }
-  }
-
-  if (retainedTopicsAndTasks.length > 0) {
-    lines.push("");
-    lines.push("### Active Topics & Tasks");
-    for (const item of retainedTopicsAndTasks) {
-      const evStr = (item.evidence_event_ids || []).join(", ");
-      appendSectionItem(
-        item.memory_id,
-        `- **[${item.kind.toUpperCase()}]** \`${item.memory_id}\`: ${item.summary} *(evidence: ${evStr})*`,
-      );
+      const evStr = (dec.evidence_event_ids || []).slice(0, 3).join(", ");
+      if (
+        appendSectionItem(
+          dec.memory_id,
+          `- **[ACTIVE]** \`${dec.memory_id}\`: ${dec.summary} *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
     }
   }
 
   if (subjectEpisodes.length > 0 || groupedDuplicateSubjects.length > 0) {
     lines.push("");
     lines.push("### Consolidated Subjects Discussed (Assuntos Tratados)");
+    let secAdded = 0;
     for (const ep of subjectEpisodes) {
-      const evStr = (ep.evidence_event_ids || []).join(", ");
+      const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
       const topicPrefix = ep.topic_id ? `[${ep.topic_id}] ` : "";
-      appendSectionItem(
-        ep.memory_id,
-        `- **${topicPrefix}**\`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
-      );
+      if (
+        appendSectionItem(
+          ep.memory_id,
+          `- **${topicPrefix}**\`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
     }
+    let grpAdded = 0;
+    const grpCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
     for (const grp of groupedDuplicateSubjects) {
       const count = (grp.evidence_event_ids || []).length;
       const topicPrefix = grp.topic_id ? `[${grp.topic_id}] ` : "";
-      appendSectionItem(
-        grp.memory_id,
-        `- **${topicPrefix}[RECORRENTE x${count}]** \`${grp.memory_id}\`: ${grp.summary}`,
-      );
+      if (
+        appendSectionItem(
+          grp.memory_id,
+          `- **${topicPrefix}[RECORRENTE x${count}]** \`${grp.memory_id}\`: ${grp.summary}`,
+          grpAdded,
+          grpCap,
+        )
+      ) {
+        grpAdded++;
+      }
+    }
+  }
+
+  if (retainedTopicsAndTasks.length > 0) {
+    lines.push("");
+    lines.push("### Active Topics & Tasks");
+    let secAdded = 0;
+    for (const item of retainedTopicsAndTasks) {
+      const evStr = (item.evidence_event_ids || []).slice(0, 3).join(", ");
+      if (
+        appendSectionItem(
+          item.memory_id,
+          `- **[${item.kind.toUpperCase()}]** \`${item.memory_id}\`: ${item.summary} *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
+    }
+  }
+
+  if (historicalDecisions.length > 0) {
+    lines.push("");
+    lines.push("### Historical / Superseded Decisions (Do Not Treat as Current)");
+    let secAdded = 0;
+    for (const hist of historicalDecisions) {
+      const evStr = (hist.evidence_event_ids || []).slice(0, 3).join(", ");
+      const supBy = hist.superseded_by_id
+        ? ` superseded by \`${hist.superseded_by_id}\``
+        : "";
+      if (
+        appendSectionItem(
+          hist.memory_id,
+          `- **[HISTORICAL / SUPERSEDED]** \`${hist.memory_id}\`: ${hist.summary}${supBy} *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
+    }
+  }
+
+  if (unresolvedConflicts.length > 0) {
+    lines.push("");
+    lines.push("### Unresolved Conflicts / Boundaries (Requires Attention)");
+    let secAdded = 0;
+    for (const conf of unresolvedConflicts) {
+      const evStr = (conf.evidence_event_ids || []).slice(0, 3).join(", ");
+      const memStr = (conf.memory_ids || []).slice(0, 3).join(", ");
+      if (
+        appendSectionItem(
+          conf.conflict_id,
+          `- **[UNRESOLVED CONFLICT]** \`${conf.conflict_id}\` (${conf.reason_code}): nodes [${memStr}] *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
     }
   }
 
   if (decisionSupportEpisodes.length > 0) {
     lines.push("");
     lines.push("### Supporting Evidence Episodes");
+    let secAdded = 0;
     for (const ep of decisionSupportEpisodes) {
-      const evStr = (ep.evidence_event_ids || []).join(", ");
-      appendSectionItem(
-        ep.memory_id,
-        `- \`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
-      );
+      const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
+      if (
+        appendSectionItem(
+          ep.memory_id,
+          `- \`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
+          secAdded,
+        )
+      ) {
+        secAdded++;
+      }
     }
   }
 
   if (omittedIds.length > 0) {
     lines.push("");
+    const previewOmitted = omittedIds.slice(0, 8).join(", ");
+    const moreSuffix =
+      omittedIds.length > 8 ? `, ... (+${omittedIds.length - 8} more)` : "";
     lines.push(
-      `> *[Budget Truncated: ${omittedIds.length} item(s) omitted due to --budget-chars ${budgetChars}: ${omittedIds.join(", ")}]*`,
+      `> *[Budget Truncated: ${omittedIds.length} item(s) omitted due to --budget-chars ${budgetChars}: ${previewOmitted}${moreSuffix}]*`,
     );
   }
 
