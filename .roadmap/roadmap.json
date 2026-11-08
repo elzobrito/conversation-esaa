@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1164,
-      "projection_hash_sha256": "4f0889f7a116371b2900b3d611bec0daa44d31f35709c48be4947adee5fb360a",
+      "last_event_seq": 1176,
+      "projection_hash_sha256": "042a70f8e173120581caf718ec3ca157af7091136e9ddd543c58d759756a9cb3",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T01:50:28Z"
+    "updated_at": "2026-11-08T02:00:31Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3637,15 +3637,56 @@
         ]
       },
       "completed_at": "2026-11-08T01:50:28Z"
+    },
+    {
+      "task_id": "CONV-MTCG-PERF-016",
+      "task_kind": "impl",
+      "title": "Eliminar buffer linha-a-linha do PowerShell e truncar deprioritize_in_active_view no stdout de inspect/diff",
+      "description": "Em conv-memory.ps1 e conversation-esaa.ps1, fazer streaming direto do stdout do Node sem bufferizar arrays gigantes no pipeline do PowerShell; em cli.js (inspect/diff), limitar a listagem de deprioritize_in_active_view no stdout quando > 100 itens (salvo --full), preservando 100% de retained, grouped_duplicates, mark_historical_explicit, flag_conflict e unresolved.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/adapter/cli.js",
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/adapter/cli.js",
+          ".conversation-esaa/bin/conv-memory.ps1",
+          ".conversation-esaa/bin/conversation-esaa.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "memory inspect e memory diff em /home/elzobrito (16.902 nós) executam em < 1s via conversation-esaa.ps1 sem pico de CPU no PowerShell",
+        "Todos os testes unitários e E2E PowerShell continuam passando"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T01:57:47Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js && pwsh -NoProfile -File tests/test-memory-shadow.ps1 (27 passed, 0 failed) && memory inspect/diff on 16902 nodes in < 1s"
+        ]
+      },
+      "completed_at": "2026-11-08T02:00:31Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 83,
+      "done": 84,
       "todo": 7
     },
     "by_kind": {
-      "impl": 64,
+      "impl": 65,
       "qa": 13,
       "spec": 13
     }

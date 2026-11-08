@@ -531,7 +531,7 @@ export function cmdSleep(workspaceRoot, options = {}) {
   };
 }
 
-export function cmdInspect(workspaceRoot, proposalIdInput) {
+export function cmdInspect(workspaceRoot, proposalIdInput, options = {}) {
   const canonicalRoot = realpathSync(workspaceRoot);
   const memoryDir = path.join(canonicalRoot, ".conversation-esaa", "memory");
   const shadowDir = path.join(memoryDir, "shadow");
@@ -544,14 +544,42 @@ export function cmdInspect(workspaceRoot, proposalIdInput) {
   const proposal = readJsonChecked(proposalPath, canonicalRoot);
   verifyProposalIntegrity(proposal);
 
+  const maxDeprioritizedPreview = options.full ? Infinity : 50;
+  const deprioritizedAll = proposal.actions.filter(
+    (a) => a.action === "deprioritize_in_active_view",
+  );
+  const nonDeprioritized = proposal.actions.filter(
+    (a) => a.action !== "deprioritize_in_active_view",
+  );
+  const deprioritizedOmittedCount =
+    deprioritizedAll.length > maxDeprioritizedPreview
+      ? deprioritizedAll.length - maxDeprioritizedPreview
+      : 0;
+  const viewActions =
+    deprioritizedOmittedCount > 0
+      ? [
+          ...nonDeprioritized,
+          ...deprioritizedAll.slice(0, maxDeprioritizedPreview),
+        ]
+      : proposal.actions;
+
   return {
     status: "OK",
     proposal_path: proposalPath,
-    proposal,
+    deprioritized_omitted_count: deprioritizedOmittedCount,
+    proposal:
+      deprioritizedOmittedCount > 0
+        ? {
+            ...proposal,
+            total_actions_count: proposal.actions.length,
+            deprioritized_omitted_count: deprioritizedOmittedCount,
+            actions: viewActions,
+          }
+        : proposal,
   };
 }
 
-export function cmdDiff(workspaceRoot, proposalIdInput) {
+export function cmdDiff(workspaceRoot, proposalIdInput, options = {}) {
   const canonicalRoot = realpathSync(workspaceRoot);
   const memoryDir = path.join(canonicalRoot, ".conversation-esaa", "memory");
   const shadowDir = path.join(memoryDir, "shadow");
@@ -595,6 +623,12 @@ export function cmdDiff(workspaceRoot, proposalIdInput) {
     (id) => !nextRetainedSet.has(id),
   );
 
+  const maxDeprioritizedPreview = options.full ? Infinity : 50;
+  const deprioritizedOmittedCount =
+    deprioritized.length > maxDeprioritizedPreview
+      ? deprioritized.length - maxDeprioritizedPreview
+      : 0;
+
   return {
     status: "OK",
     proposal_id: proposal.proposal_id,
@@ -611,13 +645,17 @@ export function cmdDiff(workspaceRoot, proposalIdInput) {
       grouped_duplicates_count: groupedDuplicates.length,
       marked_historical_count: markedHistorical.length,
       deprioritized_count: deprioritized.length,
+      deprioritized_omitted_count: deprioritizedOmittedCount,
       flagged_conflicts_count: flaggedConflicts.length,
       unresolved_count: (proposal.unresolved || []).length,
     },
     retained,
     grouped_duplicates: groupedDuplicates,
     marked_historical: markedHistorical,
-    deprioritized,
+    deprioritized:
+      deprioritizedOmittedCount > 0
+        ? deprioritized.slice(0, maxDeprioritizedPreview)
+        : deprioritized,
     flagged_conflicts: flaggedConflicts,
     unresolved: proposal.unresolved || [],
   };

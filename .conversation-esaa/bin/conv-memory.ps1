@@ -63,9 +63,8 @@ if ($Action -eq 'accept') {
         'memory-accept', '-WorkspaceRoot', $ws, '-MemoryProposalId', $targetId
     )
     if ($Json) { $syncArgs += '-MemoryJson' }
-    $output = & $pwshExe @syncArgs
+    & $pwshExe @syncArgs
     $exitCode = $LASTEXITCODE
-    if ($null -ne $output) { $output | Write-Output }
     if ($exitCode -and $exitCode -ne 0) { exit $exitCode }
     exit 0
 }
@@ -81,9 +80,8 @@ if ($Action -eq 'rollback') {
         '-MemoryReason', $reasonText
     )
     if ($Json) { $syncArgs += '-MemoryJson' }
-    $output = & $pwshExe @syncArgs
+    & $pwshExe @syncArgs
     $exitCode = $LASTEXITCODE
-    if ($null -ne $output) { $output | Write-Output }
     if ($exitCode -and $exitCode -ne 0) { exit $exitCode }
     exit 0
 }
@@ -148,11 +146,8 @@ switch ($Action) {
     }
 }
 
-$output = & $nodeCmd.Source @nodeArgs
+& $nodeCmd.Source @nodeArgs
 $exitCode = $LASTEXITCODE
-if ($null -ne $output) {
-    $output | Write-Output
-}
 if ($exitCode -and $exitCode -ne 0) {
     exit $exitCode
 }

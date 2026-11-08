@@ -255,7 +255,7 @@ function Invoke-ConvSyncCli {
 
 function Show-Help {
     @'
-Conversation ESAA v1.1
+Conversation ESAA v1.3.1
 
 Usage:
   conversation-esaa init --workspace <path>
@@ -285,11 +285,12 @@ function Invoke-ConvMemory {
         throw "Memory adapter not found: $convMemory"
     }
     $ws = Resolve-WorkspacePath
+    $pwshExe = (Get-Command pwsh -ErrorAction Stop).Source
     $args = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convMemory,
         '-WorkspaceRoot', $ws
     ) + $Extra
-    & pwsh @args
+    & $pwshExe @args
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
