@@ -7,22 +7,23 @@ import { assertGraphInvariants } from "./graph.js";
 
 export const RESONANCE_HEURISTIC_VERSION = "1.0.0";
 
-function tokenize(text) {
+function tokenizeToSet(text) {
   const norm = normalizeTextForDigest(text || "").toLowerCase();
-  if (!norm) return [];
-  return norm
+  if (!norm) return new Set();
+  const tokens = norm
     .split(/[^a-z0-9à-ú_]+/i)
     .filter((tok) => tok.length >= 3);
+  return new Set(tokens);
 }
 
-function jaccardSimilarity(tokensA, tokensB) {
-  if (!tokensA.length || !tokensB.length) return 0;
-  const setA = new Set(tokensA);
-  const setB = new Set(tokensB);
+function jaccardSimilaritySets(setA, setB) {
+  if (!setA.size || !setB.size) return 0;
+  const [smaller, larger] = setA.size <= setB.size ? [setA, setB] : [setB, setA];
   let inter = 0;
-  for (const t of setA) {
-    if (setB.has(t)) inter++;
+  for (const t of smaller) {
+    if (larger.has(t)) inter++;
   }
+  if (inter === 0) return 0;
   const union = setA.size + setB.size - inter;
   return union === 0 ? 0 : Number((inter / union).toFixed(4));
 }
@@ -180,38 +181,39 @@ export function runResonance(graph, factsBundle = null, options = {}) {
     }
   }
 
-  for (let i = 0; i < sampledEpisodesAndAssertions.length; i++) {
-    const a = sampledEpisodesAndAssertions[i];
-    const factA = factLookup.get(a.id);
-    const choiceA =
-      factA?.conflict_key && factA?.conflict_value
-        ? { key: factA.conflict_key, value: factA.conflict_value }
-        : inferChoiceSubjectAndValue(a.summary);
-    const tokensA = tokenize(a.summary);
+  // 1. Precompute choice and tokenSet once per sampled node O(N)
+  const nodesByChoiceKey = new Map();
+  const tokenSetByNodeId = new Map();
+  for (const node of sampledEpisodesAndAssertions) {
+    const fact = factLookup.get(node.id);
+    const choice =
+      fact?.conflict_key && fact?.conflict_value
+        ? { key: fact.conflict_key, value: fact.conflict_value }
+        : inferChoiceSubjectAndValue(node.summary);
+    if (choice) {
+      if (!nodesByChoiceKey.has(choice.key)) {
+        nodesByChoiceKey.set(choice.key, []);
+      }
+      nodesByChoiceKey.get(choice.key).push({ node, choice });
+    }
+    if (node.kind === "episode") {
+      tokenSetByNodeId.set(node.id, tokenizeToSet(node.summary));
+    }
+  }
 
-    for (let j = i + 1; j < sampledEpisodesAndAssertions.length; j++) {
-      const b = sampledEpisodesAndAssertions[j];
-      const factB = factLookup.get(b.id);
-      const choiceB =
-        factB?.conflict_key && factB?.conflict_value
-          ? { key: factB.conflict_key, value: factB.conflict_value }
-          : inferChoiceSubjectAndValue(b.summary);
+  // 2. Evaluate structured conflicts per choice.key group (exact match to pairwise semantics)
+  for (const [choiceKey, entries] of nodesByChoiceKey.entries()) {
+    for (let i = 0; i < entries.length; i++) {
+      const { node: a, choice: choiceA } = entries[i];
+      for (let j = i + 1; j < entries.length; j++) {
+        const { node: b, choice: choiceB } = entries[j];
+        if (choiceA.value === choiceB.value) continue;
 
-      const sameTopicOrGlobal =
-        a.topic_id === b.topic_id || !a.topic_id || !b.topic_id;
+        const sameTopicOrGlobal =
+          a.topic_id === b.topic_id || !a.topic_id || !b.topic_id;
+        if (!sameTopicOrGlobal) continue;
 
-      if (
-        sameTopicOrGlobal &&
-        choiceA &&
-        choiceB &&
-        choiceA.key === choiceB.key &&
-        choiceA.value !== choiceB.value
-      ) {
-        const evidence = [
-          ...a.evidence_event_ids,
-          ...b.evidence_event_ids,
-        ];
-
+        const evidence = [...a.evidence_event_ids, ...b.evidence_event_ids];
         const hasExplicitSupersession =
           derivedTripleSet.has(`${a.id}|explicit_supersedes|${b.id}`) ||
           derivedTripleSet.has(`${b.id}|explicit_supersedes|${a.id}`);
@@ -227,7 +229,7 @@ export function runResonance(graph, factsBundle = null, options = {}) {
             evidence_event_ids: evidence,
           });
 
-          const topicKey = `${a.topic_id || b.topic_id || "_global_"}|${choiceA.key}`;
+          const topicKey = `${a.topic_id || b.topic_id || "_global_"}|${choiceKey}`;
           const authoritative = activeDecisionsByTopicAndKey.get(topicKey) || [];
 
           if (
@@ -265,15 +267,29 @@ export function runResonance(graph, factsBundle = null, options = {}) {
           }
         }
       }
+    }
+  }
 
-      if (
-        a.kind === "episode" &&
-        b.kind === "episode" &&
-        a.content_digest !== b.content_digest
-      ) {
-        const tokensB = tokenize(b.summary);
-        const sim = jaccardSimilarity(tokensA, tokensB);
-        if (sim >= (options.duplicateSimilarityThreshold ?? 0.75)) {
+  // 3. Evaluate lexical resonance (possibly_duplicate / possibly_related) on episodes
+  const sampledEpisodes = sampledEpisodesAndAssertions.filter(
+    (n) => n.kind === "episode",
+  );
+  const dupThreshold = options.duplicateSimilarityThreshold ?? 0.75;
+  const relThreshold = options.relatedSimilarityThreshold ?? 0.35;
+  const maxLexicalWindow = options.maxLexicalWindow ?? 250;
+
+  if (sampledEpisodes.length <= maxLexicalWindow) {
+    for (let i = 0; i < sampledEpisodes.length; i++) {
+      const a = sampledEpisodes[i];
+      const setA = tokenSetByNodeId.get(a.id);
+      if (!setA || !setA.size) continue;
+      for (let j = i + 1; j < sampledEpisodes.length; j++) {
+        const b = sampledEpisodes[j];
+        if (a.content_digest === b.content_digest) continue;
+        const setB = tokenSetByNodeId.get(b.id);
+        if (!setB || !setB.size) continue;
+        const sim = jaccardSimilaritySets(setA, setB);
+        if (sim >= dupThreshold) {
           addPossibleEdge({
             source: a.id,
             relation: "possibly_duplicate",
@@ -281,16 +297,9 @@ export function runResonance(graph, factsBundle = null, options = {}) {
             heuristic_id: "token_jaccard_similarity",
             score: sim,
             reason_codes: ["HIGH_LEXICAL_OVERLAP_NOT_EXACT"],
-            evidence_event_ids: [
-              ...a.evidence_event_ids,
-              ...b.evidence_event_ids,
-            ],
+            evidence_event_ids: [...a.evidence_event_ids, ...b.evidence_event_ids],
           });
-        } else if (
-          a.topic_id &&
-          a.topic_id === b.topic_id &&
-          sim >= (options.relatedSimilarityThreshold ?? 0.35)
-        ) {
+        } else if (a.topic_id && a.topic_id === b.topic_id && sim >= relThreshold) {
           addPossibleEdge({
             source: a.id,
             relation: "possibly_related",
@@ -298,11 +307,63 @@ export function runResonance(graph, factsBundle = null, options = {}) {
             heuristic_id: "co_topic_lexical_resonance",
             score: sim,
             reason_codes: ["CO_TOPIC_SHARED_TERMS"],
-            evidence_event_ids: [
-              ...a.evidence_event_ids,
-              ...b.evidence_event_ids,
-            ],
+            evidence_event_ids: [...a.evidence_event_ids, ...b.evidence_event_ids],
           });
+        }
+      }
+    }
+  } else {
+    // Partition by (topic_id, time_bucket) and compare within sliding window for large stores (17k+ events)
+    const buckets = new Map();
+    for (const ep of sampledEpisodes) {
+      const key = `${ep.topic_id || "_unscoped_"}::${ep.time_bucket || "unknown"}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(ep);
+    }
+    const windowStride = 40;
+    for (const group of buckets.values()) {
+      for (let i = 0; i < group.length; i++) {
+        const a = group[i];
+        const setA = tokenSetByNodeId.get(a.id);
+        if (!setA || !setA.size) continue;
+        const limit = Math.min(group.length, i + 1 + windowStride);
+        for (let j = i + 1; j < limit; j++) {
+          const b = group[j];
+          if (a.content_digest === b.content_digest) continue;
+          const setB = tokenSetByNodeId.get(b.id);
+          if (!setB || !setB.size) continue;
+          const sim = jaccardSimilaritySets(setA, setB);
+          if (sim >= dupThreshold) {
+            addPossibleEdge({
+              source: a.id,
+              relation: "possibly_duplicate",
+              target: b.id,
+              heuristic_id: "token_jaccard_similarity",
+              score: sim,
+              reason_codes: ["HIGH_LEXICAL_OVERLAP_NOT_EXACT"],
+              evidence_event_ids: [
+                ...a.evidence_event_ids,
+                ...b.evidence_event_ids,
+              ],
+            });
+          } else if (
+            a.topic_id &&
+            a.topic_id === b.topic_id &&
+            sim >= relThreshold
+          ) {
+            addPossibleEdge({
+              source: a.id,
+              relation: "possibly_related",
+              target: b.id,
+              heuristic_id: "co_topic_lexical_resonance",
+              score: sim,
+              reason_codes: ["CO_TOPIC_SHARED_TERMS"],
+              evidence_event_ids: [
+                ...a.evidence_event_ids,
+                ...b.evidence_event_ids,
+              ],
+            });
+          }
         }
       }
     }

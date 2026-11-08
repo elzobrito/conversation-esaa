@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1152,
-      "projection_hash_sha256": "4f4b49154c48b50b0b14ee10702afb561b54bef027983e25a872fcf409199b68",
+      "last_event_seq": 1164,
+      "projection_hash_sha256": "4f0889f7a116371b2900b3d611bec0daa44d31f35709c48be4947adee5fb360a",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T00:56:07Z"
+    "updated_at": "2026-11-08T01:50:28Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3602,15 +3602,50 @@
         ]
       },
       "completed_at": "2026-11-08T00:56:07Z"
+    },
+    {
+      "task_id": "CONV-MTCG-PERF-015",
+      "task_kind": "impl",
+      "title": "Otimizar runResonance para escala de 17k+ eventos sem loop O(N^2) de tokenização",
+      "description": "Pré-computar tokens/sets e indexar escolhas por conflict_key e episódios por partição/tokens em src/memory/core/resonance.js para que --budget all em stores grandes (17k+ eventos em /home/elzobrito) execute em sub-segundo preservando 100% dos invariantes e resultados dos testes e benchmarks.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/core/resonance.js",
+        "tests/memory/resonance.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/resonance.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Pré-computar tokenSet e choice uma única vez por nó O(N) e agrupar conflitos por choice.key",
+        "Preservar 100% dos resultados nos testes unitários, E2E e benchmark de 5 seeds",
+        "Executar memory sleep --mode shadow --budget all em /home/elzobrito (17k+ eventos) em poucos segundos"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T01:48:45Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js tests/memory/benchmark.js (10 passed, 0 failed) && node src/memory/adapter/cli.js sleep --workspace /home/elzobrito --mode shadow --seed 42 --budget all --json (16902 nodes in 4.7s)"
+        ]
+      },
+      "completed_at": "2026-11-08T01:50:28Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 82,
+      "done": 83,
       "todo": 7
     },
     "by_kind": {
-      "impl": 63,
+      "impl": 64,
       "qa": 13,
       "spec": 13
     }
