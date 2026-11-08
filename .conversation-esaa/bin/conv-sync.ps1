@@ -2117,7 +2117,7 @@ function Get-ActiveMemoryProjectionBlock {
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
     if (-not $nodeCmd) { return $null }
     try {
-        $rawMemCtx = & $nodeCmd.Source $cliScript 'context' '--workspace' $Paths.Root '--budget-chars' '2400' '--json' 2>$null
+        $rawMemCtx = & $nodeCmd.Source $cliScript 'context' '--workspace' $Paths.Root '--budget-chars' '3200' '--json' 2>$null
         if ($LASTEXITCODE -eq 0 -and $rawMemCtx) {
             $memCtx = ($rawMemCtx -join "`n") | ConvertFrom-Json
             if ($memCtx.status -eq 'OK' -and $memCtx.markdown) {

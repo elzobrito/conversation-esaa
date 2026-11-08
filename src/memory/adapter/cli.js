@@ -1167,7 +1167,13 @@ export function cmdContext(workspaceRoot, options = {}) {
   const historicalDecisions = (activeView.historical_decisions || []).filter(
     filterByTopic,
   );
-  const unresolvedConflicts = activeView.unresolved || [];
+  const flaggedConflicts = activeView.flagged_conflicts || [];
+  const unresolvedConflicts = [...(activeView.unresolved || [])].sort((a, b) => {
+    const aIsEdge = String(a.conflict_id || "").startsWith("conf:") ? 0 : 1;
+    const bIsEdge = String(b.conflict_id || "").startsWith("conf:") ? 0 : 1;
+    if (aIsEdge !== bIsEdge) return aIsEdge - bIsEdge;
+    return String(a.conflict_id || "").localeCompare(String(b.conflict_id || ""));
+  });
 
   const isLargeActiveStore =
     retainedDecisions.length + unresolvedConflicts.length > 20;
@@ -1176,25 +1182,40 @@ export function cmdContext(workspaceRoot, options = {}) {
   const lines = [];
   lines.push("## Memory-TCG Consolidated Context (Active Generation)");
   lines.push(
-    `- Generation: \`${activeView.graph_generation_id}\` | Proposal: \`${activeView.proposal_id}\` | Watermark: \`${activeView.watermark_event_id || "none"}\``,
+    `- Generation: \`${activeView.graph_generation_id}\` | Proposal: \`${activeView.proposal_id}\` | Watermark: \`${activeView.watermark_event_id || "none"}\` | Unresolved: ${unresolvedConflicts.length} | Flagged Conflicts: ${flaggedConflicts.length}`,
   );
 
   const includedIds = [];
   const omittedIds = [];
 
-  const appendSectionItem = (id, lineText, sectionCount = 0, sectionCap = maxPerSection) => {
+  const appendSectionItem = (
+    id,
+    lineText,
+    sectionCount = 0,
+    sectionCap = maxPerSection,
+    sectionHeader = null,
+  ) => {
     if (sectionCount >= sectionCap) {
       omittedIds.push(id);
       return false;
     }
     const currentLen = lines.join("\n").length;
     const textToPush =
-      isLargeActiveStore && lineText.length > 220
-        ? `${lineText.slice(0, 217)}...`
+      isLargeActiveStore && lineText.length > 200
+        ? `${lineText.slice(0, 197)}...`
         : lineText;
-    if (budgetChars > 0 && currentLen + textToPush.length + 80 > budgetChars) {
+    const headerLen =
+      sectionCount === 0 && sectionHeader ? sectionHeader.length + 2 : 0;
+    if (
+      budgetChars > 0 &&
+      currentLen + headerLen + textToPush.length + 80 > budgetChars
+    ) {
       omittedIds.push(id);
       return false;
+    }
+    if (sectionCount === 0 && sectionHeader) {
+      lines.push("");
+      lines.push(sectionHeader);
     }
     lines.push(textToPush);
     includedIds.push(id);
@@ -1202,8 +1223,6 @@ export function cmdContext(workspaceRoot, options = {}) {
   };
 
   if (retainedDecisions.length > 0) {
-    lines.push("");
-    lines.push("### Active Decisions (Verified Explicit)");
     let secAdded = 0;
     for (const dec of retainedDecisions) {
       const evStr = (dec.evidence_event_ids || []).slice(0, 3).join(", ");
@@ -1212,6 +1231,8 @@ export function cmdContext(workspaceRoot, options = {}) {
           dec.memory_id,
           `- **[ACTIVE]** \`${dec.memory_id}\`: ${dec.summary} *(evidence: ${evStr})*`,
           secAdded,
+          maxPerSection,
+          "### Active Decisions (Verified Explicit)",
         )
       ) {
         secAdded++;
@@ -1220,9 +1241,8 @@ export function cmdContext(workspaceRoot, options = {}) {
   }
 
   if (subjectEpisodes.length > 0 || groupedDuplicateSubjects.length > 0) {
-    lines.push("");
-    lines.push("### Consolidated Subjects Discussed (Assuntos Tratados)");
     let secAdded = 0;
+    const subjCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
     for (const ep of subjectEpisodes) {
       const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
       const topicPrefix = ep.topic_id ? `[${ep.topic_id}] ` : "";
@@ -1231,13 +1251,15 @@ export function cmdContext(workspaceRoot, options = {}) {
           ep.memory_id,
           `- **${topicPrefix}**\`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
           secAdded,
+          subjCap,
+          "### Consolidated Subjects Discussed (Assuntos Tratados)",
         )
       ) {
         secAdded++;
       }
     }
     let grpAdded = 0;
-    const grpCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    const grpCap = isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity;
     for (const grp of groupedDuplicateSubjects) {
       const count = (grp.evidence_event_ids || []).length;
       const topicPrefix = grp.topic_id ? `[${grp.topic_id}] ` : "";
@@ -1247,24 +1269,30 @@ export function cmdContext(workspaceRoot, options = {}) {
           `- **${topicPrefix}[RECORRENTE x${count}]** \`${grp.memory_id}\`: ${grp.summary}`,
           grpAdded,
           grpCap,
+          secAdded === 0
+            ? "### Consolidated Subjects Discussed (Assuntos Tratados)"
+            : null,
         )
       ) {
         grpAdded++;
+        secAdded++;
       }
     }
   }
 
-  if (retainedTopicsAndTasks.length > 0) {
-    lines.push("");
-    lines.push("### Active Topics & Tasks");
+  if (unresolvedConflicts.length > 0) {
     let secAdded = 0;
-    for (const item of retainedTopicsAndTasks) {
-      const evStr = (item.evidence_event_ids || []).slice(0, 3).join(", ");
+    const confCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    for (const conf of unresolvedConflicts) {
+      const evStr = (conf.evidence_event_ids || []).slice(0, 3).join(", ");
+      const memStr = (conf.memory_ids || []).slice(0, 3).join(", ");
       if (
         appendSectionItem(
-          item.memory_id,
-          `- **[${item.kind.toUpperCase()}]** \`${item.memory_id}\`: ${item.summary} *(evidence: ${evStr})*`,
+          conf.conflict_id,
+          `- **[UNRESOLVED CONFLICT]** \`${conf.conflict_id}\` (${conf.reason_code}): nodes [${memStr}] *(evidence: ${evStr})*`,
           secAdded,
+          confCap,
+          "### Unresolved Conflicts / Boundaries (Requires Attention)",
         )
       ) {
         secAdded++;
@@ -1273,8 +1301,6 @@ export function cmdContext(workspaceRoot, options = {}) {
   }
 
   if (historicalDecisions.length > 0) {
-    lines.push("");
-    lines.push("### Historical / Superseded Decisions (Do Not Treat as Current)");
     let secAdded = 0;
     for (const hist of historicalDecisions) {
       const evStr = (hist.evidence_event_ids || []).slice(0, 3).join(", ");
@@ -1286,6 +1312,8 @@ export function cmdContext(workspaceRoot, options = {}) {
           hist.memory_id,
           `- **[HISTORICAL / SUPERSEDED]** \`${hist.memory_id}\`: ${hist.summary}${supBy} *(evidence: ${evStr})*`,
           secAdded,
+          maxPerSection,
+          "### Historical / Superseded Decisions (Do Not Treat as Current)",
         )
       ) {
         secAdded++;
@@ -1293,18 +1321,18 @@ export function cmdContext(workspaceRoot, options = {}) {
     }
   }
 
-  if (unresolvedConflicts.length > 0) {
-    lines.push("");
-    lines.push("### Unresolved Conflicts / Boundaries (Requires Attention)");
+  if (retainedTopicsAndTasks.length > 0) {
     let secAdded = 0;
-    for (const conf of unresolvedConflicts) {
-      const evStr = (conf.evidence_event_ids || []).slice(0, 3).join(", ");
-      const memStr = (conf.memory_ids || []).slice(0, 3).join(", ");
+    const ttCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    for (const item of retainedTopicsAndTasks) {
+      const evStr = (item.evidence_event_ids || []).slice(0, 3).join(", ");
       if (
         appendSectionItem(
-          conf.conflict_id,
-          `- **[UNRESOLVED CONFLICT]** \`${conf.conflict_id}\` (${conf.reason_code}): nodes [${memStr}] *(evidence: ${evStr})*`,
+          item.memory_id,
+          `- **[${item.kind.toUpperCase()}]** \`${item.memory_id}\`: ${item.summary} *(evidence: ${evStr})*`,
           secAdded,
+          ttCap,
+          "### Active Topics & Tasks",
         )
       ) {
         secAdded++;
@@ -1313,9 +1341,8 @@ export function cmdContext(workspaceRoot, options = {}) {
   }
 
   if (decisionSupportEpisodes.length > 0) {
-    lines.push("");
-    lines.push("### Supporting Evidence Episodes");
     let secAdded = 0;
+    const dsCap = isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity;
     for (const ep of decisionSupportEpisodes) {
       const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
       if (
@@ -1323,6 +1350,8 @@ export function cmdContext(workspaceRoot, options = {}) {
           ep.memory_id,
           `- \`${ep.memory_id}\`: ${ep.summary} *(evidence: ${evStr})*`,
           secAdded,
+          dsCap,
+          "### Supporting Evidence Episodes",
         )
       ) {
         secAdded++;

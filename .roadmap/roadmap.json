@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1224,
-      "projection_hash_sha256": "061e669de29686ccb3e809d6e769e4199d2b093c0d4ea4c6b3ed6821acb3a9ab",
+      "last_event_seq": 1236,
+      "projection_hash_sha256": "29d7930cf6c307899f13d86dbca841dc62c842c3be9147e6e646df5a7e7e04a7",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T13:24:51Z"
+    "updated_at": "2026-11-08T13:45:40Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3827,15 +3827,48 @@
         ]
       },
       "completed_at": "2026-11-08T13:24:51Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-021",
+      "task_kind": "impl",
+      "title": "Garantir visibilidade de conflitos nao resolvidos no handoff.md e suprimir cabecalhos vazios em cmdContext",
+      "description": "Em src/memory/adapter/cli.js e .conversation-esaa/bin/conv-sync.ps1, garantir que Unresolved Conflicts exiba amostra visivel no handoff.md/state.md antes do corte de budget e nao emitir cabecalhos de secao vazios quando o budget truncar todos os itens da secao.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/adapter/cli.js",
+        ".conversation-esaa/bin/conv-sync.ps1"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/adapter/cli.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "handoff.md exibe decisoes vigentes, assuntos tratados e conflitos nao resolvidos sem cabecalhos vazios"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T13:43:25Z",
+      "verification": {
+        "checks": [
+          "test-memory-read-path.ps1 (21/21) passed; unresolved conflicts visible in handoff.md and empty headers suppressed"
+        ]
+      },
+      "completed_at": "2026-11-08T13:45:40Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 88,
+      "done": 89,
       "todo": 7
     },
     "by_kind": {
-      "impl": 68,
+      "impl": 69,
       "qa": 13,
       "spec": 14
     }
