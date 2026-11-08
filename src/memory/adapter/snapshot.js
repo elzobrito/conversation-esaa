@@ -124,15 +124,71 @@ function extractConflictHint(event) {
       conflict_value: String(event.conflict_value),
     };
   }
-  const text = normalizeUnicode(event.text || event.summary || "");
+  const text = normalizeUnicode(
+    event.text || event.summary || event.decision || "",
+  );
   const dbMatch = text.match(
-    /\b(?:banco(?:\s+de\s+dados)?(?:\s+oficial|\s+adotado|\s+escolhido)?|database|db)\s*(?:é|is|=|:|->)\s*([a-zA-Z0-9_-]+)/i,
+    /\b(?:banco(?:\s+de\s+dados)?\s+(?:oficial|adotado|escolhido|definitivo|principal)|(?:primary|official)\s+(?:database|db))(?:\s+(?:é|is)|(?:\s*(?:=|:|->)))\s*(postgresql|postgres|sqlite|mysql|mongodb|mariadb|redis|memcached|oracle|sqlserver|dynamodb|cassandra|cockroachdb)\b/i,
   );
   if (dbMatch) {
+    const raw = dbMatch[1].toLowerCase();
     return {
       conflict_key: "primary_database",
-      conflict_value: dbMatch[1].toLowerCase(),
+      conflict_value: raw === "postgres" ? "postgresql" : raw,
     };
+  }
+  if (event.event === "decision.recorded") {
+    const concMatch = text.match(/\bconcorr[eê]ncia(?:\s+cloud)?\s+(v\d+)\b/i);
+    if (concMatch) {
+      return {
+        conflict_key: "backup_concurrency_policy",
+        conflict_value: concMatch[1].toLowerCase(),
+      };
+    }
+    if (/\bbloqueio\s+pr[eé]-cloud\b/i.test(text)) {
+      return {
+        conflict_key: "backup_cloud_gate",
+        conflict_value: "blocked",
+      };
+    }
+    if (/\bautorizo\s+execu[cç][aã]o\s+cloud\s+aceita\b/i.test(text)) {
+      return {
+        conflict_key: "backup_cloud_gate",
+        conflict_value: "authorized",
+      };
+    }
+    if (/\bn[aã]o\s+o\s+livro-centro\b/i.test(text)) {
+      return {
+        conflict_key: "editorial_active_focus",
+        conflict_value: "arquivo-zero",
+      };
+    }
+    if (
+      /\bo\s+pr[oó]ximo\s+original\s+a\s+escrever\s+[eé]\b.*\blivro-centro\b/i.test(
+        text,
+      )
+    ) {
+      return {
+        conflict_key: "editorial_active_focus",
+        conflict_value: "livro-centro",
+      };
+    }
+    const corrHandoff = text.match(
+      /\bcorre[cç][aã]o\s+do\s+handoff\s+(20\d{2}-\d{2}-\d{2})\b/i,
+    );
+    if (corrHandoff) {
+      return {
+        conflict_key: `handoff_state_${corrHandoff[1]}`,
+        conflict_value: "corrected",
+      };
+    }
+    const baseHandoff = text.match(/^handoff\s+(20\d{2}-\d{2}-\d{2})\b/i);
+    if (baseHandoff) {
+      return {
+        conflict_key: `handoff_state_${baseHandoff[1]}`,
+        conflict_value: "initial",
+      };
+    }
   }
   return { conflict_key: null, conflict_value: null };
 }

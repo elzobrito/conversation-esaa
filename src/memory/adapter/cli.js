@@ -1168,12 +1168,92 @@ export function cmdContext(workspaceRoot, options = {}) {
     filterByTopic,
   );
   const flaggedConflicts = activeView.flagged_conflicts || [];
-  const unresolvedConflicts = [...(activeView.unresolved || [])].sort((a, b) => {
-    const aIsEdge = String(a.conflict_id || "").startsWith("conf:") ? 0 : 1;
-    const bIsEdge = String(b.conflict_id || "").startsWith("conf:") ? 0 : 1;
-    if (aIsEdge !== bIsEdge) return aIsEdge - bIsEdge;
-    return String(a.conflict_id || "").localeCompare(String(b.conflict_id || ""));
-  });
+  const nodeById = new Map();
+  for (const list of [
+    activeView.retained || [],
+    flaggedConflicts,
+    activeView.historical_decisions || [],
+    activeView.deprioritized || [],
+  ]) {
+    for (const item of list) {
+      if (item && item.memory_id && !nodeById.has(item.memory_id)) {
+        nodeById.set(item.memory_id, item);
+      }
+    }
+  }
+  const activeDecisionIds = new Set(retainedDecisions.map((d) => d.memory_id));
+  const activeDecisionEvidenceIds = new Set(
+    retainedDecisions.flatMap((d) => d.evidence_event_ids || []),
+  );
+  const activeTopicIds = new Set(
+    retainedTopicsAndTasks
+      .filter((t) => t.kind === "topic")
+      .map((t) => String(t.memory_id || "").replace(/^topic:/, "")),
+  );
+
+  const scoreConflictRelevance = (conf) => {
+    const memIds = conf.memory_ids || [];
+    const evIds = conf.evidence_event_ids || [];
+    let linkedDecision = 0;
+    let linkedTopic = 0;
+    let latestTs = "";
+    for (const id of memIds) {
+      if (activeDecisionIds.has(id) || String(id).startsWith("decision:")) {
+        linkedDecision = 1;
+      }
+      const node = nodeById.get(id);
+      if (node) {
+        if (
+          node.topic_id &&
+          (activeTopicIds.has(node.topic_id) || node.topic_id)
+        ) {
+          linkedTopic = 1;
+        }
+        const ts = String(node.timestamp || "");
+        if (ts > latestTs) latestTs = ts;
+      }
+    }
+    if (!linkedDecision) {
+      for (const evId of evIds) {
+        if (activeDecisionEvidenceIds.has(evId)) {
+          linkedDecision = 1;
+          break;
+        }
+      }
+    }
+    return {
+      linkedDecision,
+      linkedTopic,
+      latestTs,
+      evidenceCount: evIds.length,
+      isEdge: String(conf.conflict_id || "").startsWith("conf:") ? 1 : 0,
+    };
+  };
+
+  const unresolvedConflicts = [...(activeView.unresolved || [])].sort(
+    (a, b) => {
+      const sa = scoreConflictRelevance(a);
+      const sb = scoreConflictRelevance(b);
+      if (sb.linkedDecision !== sa.linkedDecision) {
+        return sb.linkedDecision - sa.linkedDecision;
+      }
+      if (sb.linkedTopic !== sa.linkedTopic) {
+        return sb.linkedTopic - sa.linkedTopic;
+      }
+      if (sb.latestTs !== sa.latestTs) {
+        return sb.latestTs.localeCompare(sa.latestTs);
+      }
+      if (sb.evidenceCount !== sa.evidenceCount) {
+        return sb.evidenceCount - sa.evidenceCount;
+      }
+      if (sb.isEdge !== sa.isEdge) {
+        return sb.isEdge - sa.isEdge;
+      }
+      return String(a.conflict_id || "").localeCompare(
+        String(b.conflict_id || ""),
+      );
+    },
+  );
 
   const isLargeActiveStore =
     retainedDecisions.length + unresolvedConflicts.length > 20;
@@ -1282,14 +1362,39 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   if (unresolvedConflicts.length > 0) {
     let secAdded = 0;
-    const confCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    const confCap = isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity;
+    const shortId = (id) => {
+      const s = String(id || "");
+      if (!isLargeActiveStore) return s;
+      if (s.startsWith("decision:") && s.length > 21) return s.slice(0, 21);
+      if (s.length > 16 && /^[a-z]+:[0-9a-f]{16,}$/i.test(s)) {
+        const [prefix, hex] = s.split(":");
+        return `${prefix}:${hex.slice(0, 12)}`;
+      }
+      return s.length > 16 ? s.slice(0, 12) : s;
+    };
     for (const conf of unresolvedConflicts) {
-      const evStr = (conf.evidence_event_ids || []).slice(0, 3).join(", ");
-      const memStr = (conf.memory_ids || []).slice(0, 3).join(", ");
+      const evStr = (conf.evidence_event_ids || [])
+        .slice(0, 3)
+        .map(shortId)
+        .join(", ");
+      const memStr = (conf.memory_ids || [])
+        .slice(0, 3)
+        .map(shortId)
+        .join(", ");
+      const nodeHints = (conf.memory_ids || [])
+        .slice(0, 2)
+        .map((id) => {
+          const n = nodeById.get(id);
+          return n && n.summary ? `"${n.summary.slice(0, 38).trim()}"` : null;
+        })
+        .filter(Boolean)
+        .join(" vs ");
+      const hintPart = nodeHints ? ` — ${nodeHints}` : "";
       if (
         appendSectionItem(
           conf.conflict_id,
-          `- **[UNRESOLVED CONFLICT]** \`${conf.conflict_id}\` (${conf.reason_code}): nodes [${memStr}] *(evidence: ${evStr})*`,
+          `- **[UNRESOLVED CONFLICT]** \`${shortId(conf.conflict_id)}\` (${conf.reason_code}): nodes [${memStr}]${hintPart} *(evidence: ${evStr})*`,
           secAdded,
           confCap,
           "### Unresolved Conflicts / Boundaries (Requires Attention)",

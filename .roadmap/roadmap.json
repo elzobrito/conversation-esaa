@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1236,
-      "projection_hash_sha256": "29d7930cf6c307899f13d86dbca841dc62c842c3be9147e6e646df5a7e7e04a7",
+      "last_event_seq": 1248,
+      "projection_hash_sha256": "90c3af556a1f5bd75bf768c0313c41557a5e6dc88ab55c6147ee23119bcb3719",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T13:45:40Z"
+    "updated_at": "2026-11-08T15:04:44Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3860,15 +3860,42 @@
         ]
       },
       "completed_at": "2026-11-08T13:45:40Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-022",
+      "task_kind": "impl",
+      "title": "Refine Memory-TCG conflict extraction, scope gating in resonance, and relevance ranking in cmdContext",
+      "description": "Refine Memory-TCG conflict extraction, scope gating in resonance, and relevance ranking in cmdContext",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/adapter/snapshot.js",
+        "src/memory/core/resonance.js",
+        "src/memory/adapter/cli.js"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T14:59:57Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js (9/9), benchmark.js (1/1), test-memory-shadow.ps1 (27/27), test-memory-accept-replay.ps1 (18/18), test-memory-read-path.ps1 (21/21) passed"
+        ]
+      },
+      "completed_at": "2026-11-08T15:04:44Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 89,
+      "done": 90,
       "todo": 7
     },
     "by_kind": {
-      "impl": 69,
+      "impl": 70,
       "qa": 13,
       "spec": 14
     }

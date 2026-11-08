@@ -31,7 +31,7 @@ function jaccardSimilaritySets(setA, setB) {
 function inferChoiceSubjectAndValue(summaryOrText) {
   const text = normalizeTextForDigest(summaryOrText || "");
   const dbChoice = text.match(
-    /\b(?:adotar|escolher|usar|adopted|use|choose|banco(?:\s+oficial|\s+adotado)?\s*(?:é|=|:))\s+(postgresql|postgres|sqlite|mysql|mongodb|mariadb|redis)\b/i,
+    /\b(?:(?:adotar|escolher|adopted|choose)\s+(?:o\s+|a\s+)?(?:banco\s+)?|banco(?:\s+de\s+dados)?\s+(?:oficial|adotado|escolhido|definitivo|principal)(?:\s+(?:é|is)|(?:\s*(?:=|:)))\s*)(postgresql|postgres|sqlite|mysql|mongodb|mariadb|redis|memcached)\b/i,
   );
   if (dbChoice) {
     const raw = dbChoice[1].toLowerCase();
@@ -209,8 +209,32 @@ export function runResonance(graph, factsBundle = null, options = {}) {
         const { node: b, choice: choiceB } = entries[j];
         if (choiceA.value === choiceB.value) continue;
 
-        const sameTopicOrGlobal =
-          a.topic_id === b.topic_id || !a.topic_id || !b.topic_id;
+        let sameTopicOrGlobal = false;
+        if (a.topic_id && b.topic_id) {
+          sameTopicOrGlobal = a.topic_id === b.topic_id;
+        } else if (!a.topic_id && !b.topic_id) {
+          if (
+            a.kind === "decision" ||
+            b.kind === "decision" ||
+            (a.time_bucket &&
+              a.time_bucket !== "unknown" &&
+              a.time_bucket === b.time_bucket) ||
+            (a.session_id && a.session_id === b.session_id)
+          ) {
+            sameTopicOrGlobal = true;
+          } else {
+            const setA = tokenSetByNodeId.get(a.id) || tokenizeToSet(a.summary);
+            const setB = tokenSetByNodeId.get(b.id) || tokenizeToSet(b.summary);
+            sameTopicOrGlobal = jaccardSimilaritySets(setA, setB) >= 0.15;
+          }
+        } else {
+          sameTopicOrGlobal =
+            a.kind === "decision" ||
+            b.kind === "decision" ||
+            (a.time_bucket &&
+              a.time_bucket !== "unknown" &&
+              a.time_bucket === b.time_bucket);
+        }
         if (!sameTopicOrGlobal) continue;
 
         const evidence = [...a.evidence_event_ids, ...b.evidence_event_ids];
