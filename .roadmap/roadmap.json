@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1260,
-      "projection_hash_sha256": "72f6d8e0c5a2239e4d12d292c9ff308461d37d649fd634cb7f3fdfcdf8db2290",
+      "last_event_seq": 1272,
+      "projection_hash_sha256": "276c912936c6e3e55f01d4fa16c8602b4bdf867b69af356229272238cb849d17",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T15:09:42Z"
+    "updated_at": "2026-11-08T15:38:36Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3912,15 +3912,45 @@
         ]
       },
       "completed_at": "2026-11-08T15:09:42Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-024",
+      "task_kind": "impl",
+      "title": "Deduplicate exact-duplicate episodes in resonance conflict pairs, add append-only supersedes CLI support, and add false-positive regression tests",
+      "description": "Deduplicate exact-duplicate episodes in resonance conflict pairs, add append-only supersedes CLI support, and add false-positive regression tests",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/core/resonance.js",
+        "src/memory/adapter/snapshot.js",
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        "tests/memory/snapshot.test.js",
+        "tests/memory/resonance.test.js"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T15:34:33Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js (11/11), benchmark.js (1/1), test-memory-read-path.ps1 (21/21) passed"
+        ]
+      },
+      "completed_at": "2026-11-08T15:38:36Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 91,
+      "done": 92,
       "todo": 7
     },
     "by_kind": {
-      "impl": 71,
+      "impl": 72,
       "qa": 13,
       "spec": 14
     }

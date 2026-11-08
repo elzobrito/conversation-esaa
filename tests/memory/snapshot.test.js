@@ -186,3 +186,106 @@ test("snapshot detects concurrent head mutation (STALE_PROPOSAL) and rejects sym
     rmSync(ws, { recursive: true, force: true });
   }
 });
+
+test("snapshot ignores false-positive database phrases ('banco isolado', 'db: str', 'banco é um') and resolves append-only supersedes_links", () => {
+  const { ws, activityPath } = makeTempWorkspace();
+  try {
+    const falsePositivePhrases = [
+      "Testando em banco isolado para evitar efeitos colaterais",
+      "def connect(db: str) -> None:",
+      "Container exposto em db:5432 no compose",
+      "banco = Path('/tmp/teste.sqlite')",
+      "$db = null; // inicialização PHP",
+      "O banco é um arquivo local simples",
+      "O banco é literalmente uma planilha convertida",
+      "Confirmei no banco: o texto está na página 34",
+      "DBeaver não guarda o banco: ele só conecta",
+      "Restaurado em outro banco: 479 registros verificados",
+      "| Camada | Valor | Banco: SQLite |",
+    ];
+
+    const events = falsePositivePhrases.map((phrase, idx) => ({
+      event_id: `fp-${idx + 1}`,
+      ts: `2026-11-07T11:${String(idx).padStart(2, "0")}:00-03:00`,
+      event: "conversation_turn",
+      actor: "assistant",
+      agent_id: "codex",
+      workspace_root: ws,
+      summary: phrase,
+      text: phrase,
+    }));
+
+    events.push(
+      {
+        event_id: "dec-old",
+        ts: "2026-11-07T12:00:00-03:00",
+        event: "decision.recorded",
+        actor: "assistant",
+        agent_id: "grok",
+        workspace_root: ws,
+        decision: "Handoff 2026-09-24 (Grok). Estado inicial",
+        rationale: "Snapshot inicial",
+        summary: "Handoff 2026-09-24 (Grok). Estado inicial",
+        text: "Handoff 2026-09-24 (Grok). Estado inicial",
+      },
+      {
+        event_id: "dec-new",
+        ts: "2026-11-07T12:05:00-03:00",
+        event: "decision.recorded",
+        actor: "assistant",
+        agent_id: "grok",
+        workspace_root: ws,
+        decision: "Correção do handoff 2026-09-24: estado atualizado",
+        rationale: "Atualização imediata",
+        summary: "Correção do handoff 2026-09-24: estado atualizado",
+        text: "Correção do handoff 2026-09-24: estado atualizado",
+      },
+      {
+        event_id: "dec-link-001",
+        ts: "2026-11-07T12:10:00-03:00",
+        event: "decision.recorded",
+        actor: "assistant",
+        agent_id: "antigravity",
+        workspace_root: ws,
+        decision: "Vincular sucessão explícita dec-new -> dec-old",
+        rationale: "Correção substitui handoff anterior",
+        link_only: true,
+        supersedes_links: [{ source: "dec-new", target: "dec-old" }],
+        summary: "Vincular sucessão explícita dec-new -> dec-old",
+        text: "Vincular sucessão explícita dec-new -> dec-old",
+      },
+    );
+
+    writeFileSync(
+      activityPath,
+      events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+      "utf8",
+    );
+
+    const { factsBundle } = createWorkspaceSnapshot(ws);
+    for (let idx = 0; idx < falsePositivePhrases.length; idx++) {
+      const f = factsBundle.facts.find((item) => item.id === `fp-${idx + 1}`);
+      assert.ok(f, `Fact fp-${idx + 1} should exist`);
+      assert.equal(
+        f.conflict_key,
+        null,
+        `False-positive phrase "${falsePositivePhrases[idx]}" must have conflict_key=null`,
+      );
+      assert.equal(f.conflict_value, null);
+    }
+
+    assert.ok(
+      !factsBundle.facts.some((item) => item.id === "decision:dec-link-001"),
+      "link_only event must not create a redundant decision node",
+    );
+    const supRel = factsBundle.relations.find(
+      (r) =>
+        r.relation === "explicit_supersedes" &&
+        r.source === "decision:dec-new" &&
+        r.target === "decision:dec-old",
+    );
+    assert.ok(supRel, "Append-only supersedes_links must emit explicit_supersedes relation");
+  } finally {
+    rmSync(ws, { recursive: true, force: true });
+  }
+});

@@ -125,3 +125,61 @@ test("resonance never promotes candidate edges to derived_edges, flags unresolve
   assert.equal(node3.independent_support_count, 1);
   assert.equal(node6.independent_support_count, 1);
 });
+
+test("resonance deduplicates exact-duplicate episodes in conflict pairs so duplicate copies do not multiply boundaries", () => {
+  const dupDigest = sha256Prefixed("O banco oficial é SQLite");
+  const facts = [];
+  for (let i = 1; i <= 5; i++) {
+    facts.push({
+      id: `dup-${i}`,
+      kind: "episode",
+      timestamp: `2026-11-07T10:0${i}:00Z`,
+      topic_id: "TOP-001",
+      time_bucket: "2026-11-07",
+      summary: "O banco oficial é SQLite",
+      content_digest: dupDigest,
+      authority: "conversation_turn",
+      epistemic_status: "verified_explicit",
+      validity_status: "active",
+      conflict_key: "primary_database",
+      conflict_value: "sqlite",
+      evidence_event_ids: [`dup-${i}`],
+    });
+  }
+  facts.push({
+    id: "other-1",
+    kind: "episode",
+    timestamp: "2026-11-07T10:09:00Z",
+    topic_id: "TOP-001",
+    time_bucket: "2026-11-07",
+    summary: "O banco oficial é PostgreSQL",
+    content_digest: sha256Prefixed("O banco oficial é PostgreSQL"),
+    authority: "conversation_turn",
+    epistemic_status: "verified_explicit",
+    validity_status: "active",
+    conflict_key: "primary_database",
+    conflict_value: "postgresql",
+    evidence_event_ids: ["other-1"],
+  });
+
+  const bundle = {
+    schema_version: "memory-tcg.facts.v1",
+    workspace_id: sha256Prefixed("workspace:res-dup-test"),
+    source_snapshot_id: sha256Prefixed(facts),
+    watermark_event_id: "other-1",
+    normalizer_version: "1.0.0",
+    facts,
+    relations: [],
+  };
+
+  const baseGraph = buildMemoryGraph(bundle, { seed: 42 });
+  const resonated = runResonance(baseGraph, bundle);
+  const unresolvedBoundaries = resonated.boundaries.filter(
+    (b) => b.kind === "unresolved_conflict",
+  );
+  assert.equal(
+    unresolvedBoundaries.length,
+    1,
+    "5 exact-duplicate SQLite episodes vs 1 PostgreSQL episode must produce exactly 1 conflict boundary, not 5",
+  );
+});

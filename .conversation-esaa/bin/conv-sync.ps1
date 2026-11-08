@@ -37,6 +37,8 @@ param(
     [string]$DecisionRationale,
     [string]$DecisionAgent = 'codex',
     [string]$DecisionSource,
+    [string]$DecisionSupersedes,
+    [string]$DecisionSupersededBy,
 
     [ValidateSet('create', 'update', 'close')]
     [string]$TaskAction,
@@ -1619,6 +1621,17 @@ function Invoke-Decide {
         summary = Make-Summary $DecisionText
         text = $DecisionText
     }
+    if ($DecisionSupersedes -and $DecisionSupersededBy) {
+        $record['link_only'] = $true
+        $record['supersedes_links'] = @(
+            [ordered]@{
+                source = $DecisionSupersededBy
+                target = $DecisionSupersedes
+            }
+        )
+    } elseif ($DecisionSupersedes) {
+        $record['supersedes'] = $DecisionSupersedes
+    }
     Append-CuratedEvent -Paths $Paths -Record $record
     Write-Output "decide: recorded $($record.event_id)"
 }
@@ -2157,7 +2170,24 @@ function Invoke-Project {
     $topicsMdPath = Join-Path $Paths.Esaa 'topics.md'
     [System.IO.File]::WriteAllText($topicsMdPath, $topicsMd, [System.Text.UTF8Encoding]::new($false))
 
-    $recordedDecisions = @($events | Where-Object { $_.event -eq 'decision.recorded' } | Select-Object -Last 5)
+    $supersededDecisionIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($de in @($events | Where-Object { $_.event -eq 'decision.recorded' })) {
+        if (('supersedes' -in $de.PSObject.Properties.Name) -and $de.supersedes) {
+            [void]$supersededDecisionIds.Add(([string]$de.supersedes -replace '^decision:', ''))
+        }
+        if (('supersedes_links' -in $de.PSObject.Properties.Name) -and $de.supersedes_links) {
+            foreach ($lnk in @($de.supersedes_links)) {
+                if ($lnk -and $lnk.target) {
+                    [void]$supersededDecisionIds.Add(([string]$lnk.target -replace '^decision:', ''))
+                }
+            }
+        }
+    }
+    $recordedDecisions = @($events | Where-Object {
+        $_.event -eq 'decision.recorded' -and
+        -not (('link_only' -in $_.PSObject.Properties.Name) -and $_.link_only) -and
+        -not $supersededDecisionIds.Contains([string]$_.event_id)
+    } | Select-Object -Last 5)
     $decisions = @($recordedDecisions | ForEach-Object { $_.decision })
     if ($decisions.Count -eq 0) {
         $decisions = @(

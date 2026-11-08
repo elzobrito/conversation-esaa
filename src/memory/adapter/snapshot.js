@@ -138,7 +138,7 @@ function extractConflictHint(event) {
     };
   }
   if (event.event === "decision.recorded") {
-    const concMatch = text.match(/\bconcorr[eê]ncia(?:\s+cloud)?\s+(v\d+)\b/i);
+    const concMatch = text.match(/^concorr[eê]ncia(?:\s+cloud)?\s+(v\d+)\b/i);
     if (concMatch) {
       return {
         conflict_key: "backup_concurrency_policy",
@@ -164,7 +164,7 @@ function extractConflictHint(event) {
       };
     }
     if (
-      /\bo\s+pr[oó]ximo\s+original\s+a\s+escrever\s+[eé]\b.*\blivro-centro\b/i.test(
+      /\bo\s+pr[oó]ximo\s+original\s+a\s+escrever\s+[eé](?:\s|$).*\blivro-centro\b/i.test(
         text,
       )
     ) {
@@ -452,46 +452,77 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
       const { conflict_key: decConflictKey, conflict_value: decConflictValue } =
         extractConflictHint(event);
 
-      factsMap.set(decNodeId, {
-        id: decNodeId,
-        kind: "decision",
-        timestamp: ts,
-        topic_id: directTopic,
-        time_bucket: timeBucket,
-        actor: event.actor ? String(event.actor) : "assistant",
-        agent_id: event.agent_id ? String(event.agent_id) : null,
-        summary: redactSensitiveText(decText),
-        text: redactSensitiveText(
-          event.rationale ? `${decText} — ${event.rationale}` : decText,
-        ),
-        content_digest: digest,
-        authority: "explicit_decision",
-        epistemic_status: "verified_explicit",
-        validity_status: "active",
-        supersedes_id: supersedesNodeId,
-        conflict_key: decConflictKey,
-        conflict_value: decConflictValue,
-        evidence_event_ids: evidenceIds,
-      });
+      const supersedesLinks = Array.isArray(event.supersedes_links)
+        ? event.supersedes_links
+        : [];
+      for (const link of supersedesLinks) {
+        if (!link || !link.source || !link.target) continue;
+        const rawSrc = String(link.source);
+        const rawTgt = String(link.target);
+        const srcNodeId =
+          decisionIndexById.get(rawSrc) ||
+          (rawSrc.startsWith("decision:") ? rawSrc : `decision:${rawSrc}`);
+        const tgtNodeId =
+          decisionIndexById.get(rawTgt) ||
+          (rawTgt.startsWith("decision:") ? rawTgt : `decision:${rawTgt}`);
+        relations.push({
+          source: srcNodeId,
+          relation: "explicit_supersedes",
+          target: tgtNodeId,
+          rule_id: "explicit_supersedes_link_event",
+          rule_version: "1.0.0",
+          evidence_event_ids: [
+            ...new Set([
+              eid,
+              rawSrc.replace(/^decision:/, ""),
+              rawTgt.replace(/^decision:/, ""),
+            ]),
+          ].sort(),
+        });
+      }
 
-      relations.push({
-        source: decNodeId,
-        relation: "decision_supported_by_event",
-        target: eid,
-        rule_id: "explicit_decision_event",
-        rule_version: "1.0.0",
-        evidence_event_ids: [eid],
-      });
+      if (!event.link_only) {
+        factsMap.set(decNodeId, {
+          id: decNodeId,
+          kind: "decision",
+          timestamp: ts,
+          topic_id: directTopic,
+          time_bucket: timeBucket,
+          actor: event.actor ? String(event.actor) : "assistant",
+          agent_id: event.agent_id ? String(event.agent_id) : null,
+          summary: redactSensitiveText(decText),
+          text: redactSensitiveText(
+            event.rationale ? `${decText} — ${event.rationale}` : decText,
+          ),
+          content_digest: digest,
+          authority: "explicit_decision",
+          epistemic_status: "verified_explicit",
+          validity_status: "active",
+          supersedes_id: supersedesNodeId,
+          conflict_key: decConflictKey,
+          conflict_value: decConflictValue,
+          evidence_event_ids: evidenceIds,
+        });
 
-      for (const relTurn of relatedTurns) {
         relations.push({
           source: decNodeId,
           relation: "decision_supported_by_event",
-          target: relTurn,
-          rule_id: "explicit_decision_related_turn",
+          target: eid,
+          rule_id: "explicit_decision_event",
           rule_version: "1.0.0",
-          evidence_event_ids: [eid, relTurn],
+          evidence_event_ids: [eid],
         });
+
+        for (const relTurn of relatedTurns) {
+          relations.push({
+            source: decNodeId,
+            relation: "decision_supported_by_event",
+            target: relTurn,
+            rule_id: "explicit_decision_related_turn",
+            rule_version: "1.0.0",
+            evidence_event_ids: [eid, relTurn],
+          });
+        }
       }
     }
   }

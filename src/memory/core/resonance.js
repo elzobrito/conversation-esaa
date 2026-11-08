@@ -181,8 +181,9 @@ export function runResonance(graph, factsBundle = null, options = {}) {
     }
   }
 
-  // 1. Precompute choice and tokenSet once per sampled node O(N)
+  // 1. Precompute choice and tokenSet once per sampled node O(N), deduplicating exact-duplicate episodes per (key, value, content_digest)
   const nodesByChoiceKey = new Map();
+  const seenEpisodeDigestByChoiceKey = new Map();
   const tokenSetByNodeId = new Map();
   for (const node of sampledEpisodesAndAssertions) {
     const fact = factLookup.get(node.id);
@@ -193,8 +194,17 @@ export function runResonance(graph, factsBundle = null, options = {}) {
     if (choice) {
       if (!nodesByChoiceKey.has(choice.key)) {
         nodesByChoiceKey.set(choice.key, []);
+        seenEpisodeDigestByChoiceKey.set(choice.key, new Set());
       }
-      nodesByChoiceKey.get(choice.key).push({ node, choice });
+      const dupDigestKey =
+        node.kind === "episode" && node.content_digest
+          ? `${choice.value}|${node.content_digest}`
+          : null;
+      const seenSet = seenEpisodeDigestByChoiceKey.get(choice.key);
+      if (!dupDigestKey || !seenSet.has(dupDigestKey)) {
+        if (dupDigestKey) seenSet.add(dupDigestKey);
+        nodesByChoiceKey.get(choice.key).push({ node, choice });
+      }
     }
     if (node.kind === "episode") {
       tokenSetByNodeId.set(node.id, tokenizeToSet(node.summary));

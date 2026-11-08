@@ -43,6 +43,8 @@ param(
     [string]$Rationale,
     [string]$Decision,
     [string]$SourceEvent,
+    [string]$Supersedes,
+    [string]$SupersededBy,
     [string]$TaskId,
     [string]$Status,
     [string]$NextStep,
@@ -526,6 +528,8 @@ switch ($Command) {
         if ($Rationale) { $extra += '-DecisionRationale', $Rationale }
         if ($Agent) { $extra += '-DecisionAgent', $Agent }
         if ($SourceEvent) { $extra += '-DecisionSource', $SourceEvent }
+        if ($Supersedes) { $extra += '-DecisionSupersedes', $Supersedes }
+        if ($SupersededBy) { $extra += '-DecisionSupersededBy', $SupersededBy }
         Invoke-ConvSyncCli -SyncCommand 'decide' -Extra $extra
     }
     'task' {
