@@ -1,0 +1,443 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conversation-esaa.local/schemas/memory-tcg-graph.v1.schema.json",
+  "title": "Memory-TCG Evidence Graph Generation (v1)",
+  "description": "Deterministic memory evidence graph separating derived_edges, possible_edges, and unresolved boundaries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generation_id",
+    "source_snapshot_id",
+    "policy_digest",
+    "seed",
+    "nodes",
+    "derived_edges",
+    "possible_edges",
+    "boundaries",
+    "coverage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "memory-tcg.graph.v1"
+    },
+    "generation_id": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "source_snapshot_id": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "policy_digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/node"
+      }
+    },
+    "derived_edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/derived_edge"
+      }
+    },
+    "possible_edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/possible_edge"
+      }
+    },
+    "boundaries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/boundary"
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligible_nodes",
+        "sampled_nodes",
+        "unresolved_nodes"
+      ],
+      "properties": {
+        "eligible_nodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sampled_nodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unresolved_nodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sampled_node_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "omitted_node_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "selection_policy_version": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "epistemic_status",
+        "validity_status",
+        "evidence_event_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "episode",
+            "decision",
+            "topic",
+            "task",
+            "assertion",
+            "constraint",
+            "source"
+          ]
+        },
+        "topic_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time_bucket": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timestamp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "authority": {
+          "type": "string"
+        },
+        "epistemic_status": {
+          "type": "string",
+          "enum": [
+            "verified_explicit",
+            "derived",
+            "candidate",
+            "unresolved"
+          ]
+        },
+        "validity_status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "superseded",
+            "historical",
+            "unknown"
+          ]
+        },
+        "independent_support_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "derived_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "relation",
+        "target",
+        "rule_id",
+        "rule_version",
+        "evidence_event_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "topic_contains_event",
+            "decision_supported_by_event",
+            "task_related_to_topic",
+            "explicit_supersedes",
+            "duplicate_exact_content"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "possible_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "relation",
+        "target",
+        "heuristic_id",
+        "heuristic_version",
+        "reason_codes",
+        "evidence_event_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "relation": {
+          "type": "string",
+          "enum": [
+            "possibly_related",
+            "possibly_duplicate",
+            "possibly_contradicts",
+            "possibly_supersedes"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "heuristic_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "heuristic_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reason_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "reason_code",
+        "node_ids",
+        "evidence_event_ids"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "unresolved_conflict",
+            "missing_referenced_event",
+            "unverified_supersession",
+            "external_workspace_excluded"
+          ]
+        },
+        "reason_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "invalid_examples": {
+      "description": "Exemplares inválidos que violam invariantes do grafo Memory-TCG.",
+      "examples": [
+        {
+          "reason": "derived_edge without rule_id/rule_version or with possible_edge relation",
+          "payload": {
+            "schema_version": "memory-tcg.graph.v1",
+            "generation_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+            "source_snapshot_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "policy_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "seed": 42,
+            "nodes": [],
+            "derived_edges": [
+              {
+                "id": "edge-bad",
+                "source": "n1",
+                "relation": "possibly_related",
+                "target": "n2",
+                "evidence_event_ids": []
+              }
+            ],
+            "possible_edges": [],
+            "boundaries": [],
+            "coverage": {
+              "eligible_nodes": 0,
+              "sampled_nodes": 0,
+              "unresolved_nodes": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "memory-tcg.graph.v1",
+      "generation_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "source_snapshot_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "policy_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "seed": 42,
+      "nodes": [
+        {
+          "id": "decision-001",
+          "kind": "decision",
+          "topic_id": "TOP-001",
+          "time_bucket": "2026-11-07",
+          "timestamp": "2026-11-07T00:01:00Z",
+          "summary": "Adotar PostgreSQL",
+          "content_digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+          "authority": "explicit_decision",
+          "epistemic_status": "verified_explicit",
+          "validity_status": "active",
+          "independent_support_count": 1,
+          "evidence_event_ids": [
+            "event-0099"
+          ]
+        }
+      ],
+      "derived_edges": [
+        {
+          "id": "edge-001",
+          "source": "decision-001",
+          "relation": "decision_supported_by_event",
+          "target": "event-0099",
+          "rule_id": "explicit_decision_source",
+          "rule_version": "1.0.0",
+          "evidence_event_ids": [
+            "event-0099"
+          ]
+        }
+      ],
+      "possible_edges": [],
+      "boundaries": [],
+      "coverage": {
+        "eligible_nodes": 1,
+        "sampled_nodes": 1,
+        "unresolved_nodes": 0,
+        "sampled_node_ids": [
+          "decision-001"
+        ],
+        "omitted_node_ids": [],
+        "selection_policy_version": "ringing.stratified.v1"
+      }
+    }
+  ]
+}

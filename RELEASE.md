@@ -21,6 +21,28 @@ considerada disponível depois da evidência registrada pela tarefa
   mecânico handoff → decisions → tasks → eventos recentes);
 - `verify` e `doctor` diagnosticam wrapper/hooks Cursor ausentes ou quebrados.
 
+### Memory-TCG e Consolidação RRR (ADR-013, `CONV-MTCG-001`..`014`)
+
+- núcleo puro em Node.js ESM (`src/memory/core/`) para construção determinística
+  de grafo (`memory-tcg.graph.v1`) e ciclo **RRR** (*Ringing*, *Resonance*,
+  *Renormalization*) com separação formal entre `derived_edges`,
+  `possible_edges` e `boundaries` (`unresolved`);
+- adaptador e CLI (`src/memory/adapter/`, `.conversation-esaa/bin/conv-memory.ps1`
+  e subcomando `memory` em `conversation-esaa.ps1`): `status`, `sleep`,
+  `inspect`, `diff`, `accept`, `rollback`, `context` e `verify`;
+- modo `off` por padrão e execução `shadow` sem efeitos colaterais nas projeções
+  ativas nem em `activity.jsonl`;
+- promoção explícita (`memory accept`) com validação de watermark
+  (`STALE_PROPOSAL` se o ledger avançou), evento append-only
+  `memory.consolidation.accepted`, reconstrução determinística de
+  `.conversation-esaa/memory/active.json` em `project`/`verify` e reversão via
+  `memory rollback` (`memory.consolidation.rolled_back`);
+- integração opt-in no caminho de leitura (`context --use-active-memory`,
+  `pack --use-active-memory` e `memory context`) com fallback seguro;
+- preservação de `.conversation-esaa/memory/` no ciclo de vida do instalador
+  (`install`, `update`, `repair`, `uninstall`) e exclusão de eventos `memory.*`
+  do export RAG para evitar auto-reforço.
+
 ### Correções
 
 - opções GNU da CLI PowerShell funcionam igualmente por `pwsh -File` e pelo

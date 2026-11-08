@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 977,
-      "projection_hash_sha256": "44a80dd0d7af05a4ca78e83960ca6f61c4919f247220071a9f1d0c68cf632df8",
+      "last_event_seq": 1152,
+      "projection_hash_sha256": "4f4b49154c48b50b0b14ee10702afb561b54bef027983e25a872fcf409199b68",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-07T22:01:57Z"
+    "updated_at": "2026-11-08T00:56:07Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3022,17 +3022,597 @@
         ]
       },
       "completed_at": "2026-11-07T22:01:57Z"
+    },
+    {
+      "task_id": "CONV-MTCG-SPEC-001",
+      "task_kind": "spec",
+      "title": "Auditar baselines e fechar decisão de encaixe do Memory-TCG",
+      "description": "Memory-TCG/RRR. Auditar baselines e fechar decisão de encaixe do Memory-TCG. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "docs/plans/memory-tcg-baseline.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/plans/memory-tcg-baseline.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Conferir HEAD e git status no Conversation ESAA e TCG locais",
+        "Identificar API TCG real e contrato de instalação e registrar incompatibilidades",
+        "Validar conflitos de IDs e ferramentas da CLI ESAA; sem escrever dados canônicos"
+      ],
+      "required_review_mode": "governance",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-11-07T23:52:02Z",
+      "verification": {
+        "checks": [
+          "AC[0] HEAD and git status audited in conversation-esaa (bb65d8db) and tcg (623c6d0)",
+          "AC[1] TCG API, installer contract, and conv-sync pre-audit documented",
+          "AC[2] ESAA task IDs and boundary grants verified with zero canonical data mutations"
+        ]
+      },
+      "completed_at": "2026-11-07T23:53:15Z"
+    },
+    {
+      "task_id": "CONV-MTCG-SPEC-002",
+      "task_kind": "spec",
+      "title": "Aprovar ADR-013 e schemas canônicos de Memory-TCG",
+      "description": "Memory-TCG/RRR. Aprovar ADR-013 e schemas canônicos de Memory-TCG. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-SPEC-001"
+      ],
+      "targets": [
+        "docs/architecture/adr-013-memory-tcg-rrr.md",
+        "docs/contracts/memory-proposal.v1.schema.json",
+        "docs/contracts/memory-tcg-facts.v1.schema.json",
+        "docs/contracts/memory-tcg-graph.v1.schema.json"
+      ],
+      "outputs": {
+        "files": [
+          "docs/architecture/adr-013-memory-tcg-rrr.md",
+          "docs/contracts/memory-tcg-facts.v1.schema.json",
+          "docs/contracts/memory-tcg-graph.v1.schema.json",
+          "docs/contracts/memory-proposal.v1.schema.json"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Contratos independentes do ESAA e com exemplares válidos/inválidos",
+        "Regras de proveniência, stale, certeza e replay aprovadas",
+        "Zero-token e shadow default documentados"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-11-07T23:53:15Z",
+      "verification": {
+        "checks": [
+          "AC[0] Canonical schemas validated with jsonschema against valid and invalid examples",
+          "AC[1] Provenance, stale-check, certainty model, and replay rules formalized in ADR-013",
+          "AC[2] Zero-token invariant and shadow default documented"
+        ]
+      },
+      "completed_at": "2026-11-07T23:56:15Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-003",
+      "task_kind": "impl",
+      "title": "Implementar snapshot canônico somente leitura por workspace",
+      "description": "Memory-TCG/RRR. Implementar snapshot canônico somente leitura por workspace. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-SPEC-002"
+      ],
+      "targets": [
+        "src/memory/adapter/snapshot.js",
+        "tests/memory/snapshot.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/adapter/snapshot.js",
+          "tests/memory/snapshot.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Snapshot com watermark, canonical digest e isolamento de workspace",
+        "Snapshot não altera ledger nem mantém lock durante trabalho pesado",
+        "Testar head concorrente, encoding e symlink"
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-07T23:56:16Z",
+      "verification": {
+        "checks": [
+          "AC[0] node --test tests/memory/snapshot.test.js passed: watermark, canonical digest, workspace isolation",
+          "AC[1] Snapshot leaves activity.jsonl SHA-256 unchanged and holds no lock",
+          "AC[2] Concurrent head STALE_PROPOSAL, CRLF/NFC encoding, and symlink rejection tested"
+        ]
+      },
+      "completed_at": "2026-11-08T00:00:18Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-004",
+      "task_kind": "impl",
+      "title": "Implementar núcleo de grafo de fatos e proveniência independente",
+      "description": "Memory-TCG/RRR. Implementar núcleo de grafo de fatos e proveniência independente. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-SPEC-002"
+      ],
+      "targets": [
+        "src/memory/core/canonical.js",
+        "src/memory/core/graph.js",
+        "tests/memory/graph.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/graph.js",
+          "src/memory/core/canonical.js",
+          "tests/memory/graph.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Núcleo aceita apenas fatos normalizados sem paths ESAA",
+        "derived_edges exigem regra e fonte; possible_edges são distintas",
+        "Saída reproduzível com mesma entrada, seed e versões"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-07T23:56:16Z",
+      "verification": {
+        "checks": [
+          "AC[0] node --test tests/memory/graph.test.js passed: core accepts only normalized facts without ESAA paths",
+          "AC[1] derived_edges require rule_id/rule_version/evidence_event_ids and are disjoint from possible_edges",
+          "AC[2] Identical input, seed, and policy versions produce identical canonical generation_id"
+        ]
+      },
+      "completed_at": "2026-11-08T00:00:19Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-005",
+      "task_kind": "impl",
+      "title": "Implementar Ringing estratificado reprodutível",
+      "description": "Memory-TCG/RRR. Implementar Ringing estratificado reprodutível. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-003",
+        "CONV-MTCG-IMPL-004"
+      ],
+      "targets": [
+        "src/memory/core/ringing.js",
+        "tests/memory/ringing.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/ringing.js",
+          "tests/memory/ringing.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Amostragem considera tópicos e faixas temporais e não depende da query",
+        "Mesma seed produz visitas e coverage iguais",
+        "Limites de análise retornam erro explícito, sem corte silencioso"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:00:20Z",
+      "verification": {
+        "checks": [
+          "AC[0] Stratified sampling covers topics and time buckets independent of active queries",
+          "AC[1] Same seed produces identical visited order, omitted_ids, and generation_id",
+          "AC[2] Analysis limits throw explicit LIMIT_EXCEEDED without silent truncation"
+        ]
+      },
+      "completed_at": "2026-11-08T00:02:04Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-006",
+      "task_kind": "impl",
+      "title": "Implementar Resonance preservando limites de certeza",
+      "description": "Memory-TCG/RRR. Implementar Resonance preservando limites de certeza. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-004"
+      ],
+      "targets": [
+        "src/memory/core/resonance.js",
+        "tests/memory/resonance.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/resonance.js",
+          "tests/memory/resonance.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Arestas candidatas nunca promovidas a derivadas por score",
+        "Conflitos sem prova ficam unresolved",
+        "Dados repetidos por agente não se tornam suporte independente"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:00:20Z",
+      "verification": {
+        "checks": [
+          "AC[0] Candidate edges remain in possible_edges and are never promoted to derived_edges by score",
+          "AC[1] Contradictions without authoritative decision become unresolved with explicit boundaries",
+          "AC[2] Agent echoes with identical content_digest do not inflate independent_support_count"
+        ]
+      },
+      "completed_at": "2026-11-08T00:02:05Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-007",
+      "task_kind": "impl",
+      "title": "Implementar Renormalization como gerador de propostas sem escrita",
+      "description": "Memory-TCG/RRR. Implementar Renormalization como gerador de propostas sem escrita. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-005",
+        "CONV-MTCG-IMPL-006"
+      ],
+      "targets": [
+        "src/memory/core/renormalize.js",
+        "tests/memory/renormalize.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "src/memory/core/renormalize.js",
+          "tests/memory/renormalize.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Ações restritas: retain/group/deprioritize/historical-explicit/flag",
+        "Nenhum evento-fonte é excluído; cada ação traz reasons e evidence IDs",
+        "Retenção de decisão vigente não depende só de recência"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:02:06Z",
+      "verification": {
+        "checks": [
+          "AC[0] Renormalization actions restricted to retain/group_exact_duplicates/deprioritize_in_active_view/mark_historical_explicit/flag_conflict",
+          "AC[1] Zero source events deleted; every action includes reason_codes and evidence_event_ids",
+          "AC[2] Active decision retention relies on verified authority and absence of explicit supersession, not recency"
+        ]
+      },
+      "completed_at": "2026-11-08T00:04:05Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-008",
+      "task_kind": "impl",
+      "title": "Integrar CLI memory sleep shadow e armazenamento privado",
+      "description": "Memory-TCG/RRR. Integrar CLI memory sleep shadow e armazenamento privado. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-007"
+      ],
+      "targets": [
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        "tests/test-memory-shadow.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-memory.ps1",
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          "tests/test-memory-shadow.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        ".gitignore"
+      ],
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Comando sleep --mode shadow não modifica ledger/handoff ativo",
+        "Artefatos shadow em pasta privada e fora do Git",
+        "Falha do consolidator não bloqueia sync/context/RAG legado"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:04:06Z",
+      "verification": {
+        "checks": [
+          "pwsh -NoProfile -File tests/test-memory-shadow.ps1 (27 passed, 0 failed)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:16:31Z"
+    },
+    {
+      "task_id": "CONV-MTCG-QA-009",
+      "task_kind": "qa",
+      "title": "Validar shadow: auditoria de invariantes e regressões",
+      "description": "Memory-TCG/RRR. Validar shadow: auditoria de invariantes e regressões. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-008"
+      ],
+      "targets": [
+        "docs/qa/CONV-MTCG-SHADOW-QA.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-MTCG-SHADOW-QA.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Testar replay lógico e estabilidade por hash",
+        "Testar ausência de chamadas LLM e rede e compatibilidade RAG off",
+        "Documentar resultados reais de suites Windows/Linux ou limitações"
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-11-08T00:16:32Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/*.test.js (9/9) && pwsh -NoProfile -File tests/test-memory-shadow.ps1 (27/27) with zero-network env"
+        ]
+      },
+      "completed_at": "2026-11-08T00:18:32Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-010",
+      "task_kind": "impl",
+      "title": "Implementar aceite explícito, ledger event e replay de gerações",
+      "description": "Memory-TCG/RRR. Implementar aceite explícito, ledger event e replay de gerações. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-QA-009"
+      ],
+      "targets": [
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        "tests/test-memory-accept-replay.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conv-memory.ps1",
+          "tests/test-memory-accept-replay.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**"
+      ],
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Aceite é evento canônico registrado por writer existente",
+        "Rejeitar proposta stale, workspace errada e geração corrompida",
+        "Crash/recovery/rollback reconstruíveis sem dual source of truth"
+      ],
+      "required_review_mode": "governance",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:18:33Z",
+      "verification": {
+        "checks": [
+          "pwsh -NoProfile -File tests/test-memory-accept-replay.ps1 (18 passed, 0 failed)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:31:46Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-011",
+      "task_kind": "impl",
+      "title": "Integrar memória ativa opt-in a pack/context sem mudar baseline off",
+      "description": "Memory-TCG/RRR. Integrar memória ativa opt-in a pack/context sem mudar baseline off. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-010"
+      ],
+      "targets": [
+        ".conversation-esaa/bin/conv-memory.ps1",
+        ".conversation-esaa/bin/conv-sync.ps1",
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        "tests/test-memory-read-path.ps1"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conversation-esaa.ps1",
+          ".conversation-esaa/bin/conv-sync.ps1",
+          ".conversation-esaa/bin/conv-memory.ps1",
+          "tests/test-memory-read-path.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**"
+      ],
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Memory off é equivalente ao pack/context legado",
+        "Memory on respeita budget e exibe proveniência/histórico",
+        "Falha de geração leva a fallback seguro e erro rastreável"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T00:31:47Z",
+      "verification": {
+        "checks": [
+          "pwsh -NoProfile -File tests/test-memory-read-path.ps1 (17/17) && node --test tests/installer/all.test.js (21/21)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:44:11Z"
+    },
+    {
+      "task_id": "CONV-MTCG-QA-012",
+      "task_kind": "qa",
+      "title": "Executar E2E de promoção, rollback, privacidade e instalador",
+      "description": "Memory-TCG/RRR. Executar E2E de promoção, rollback, privacidade e instalador. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-IMPL-011"
+      ],
+      "targets": [
+        "docs/qa/CONV-MTCG-E2E-QA.md",
+        "tests/installer/memory/memory.test.js"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-MTCG-E2E-QA.md",
+          "tests/installer/memory/memory.test.js"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Suite atual sem regressões e verificação da CLI",
+        "Conflitos, corrupção, symlinks, permissões e stale cobertos",
+        "Bundle/instalador preservam dados do usuário durante update/uninstall"
+      ],
+      "required_review_mode": "security",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-11-08T00:44:11Z",
+      "verification": {
+        "checks": [
+          "node --test tests/installer/memory/memory.test.js (2/2) && node --test tests/installer/all.test.js (21/21) && pwsh tests/test-memory-*.ps1 (62/62)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:45:52Z"
+    },
+    {
+      "task_id": "CONV-MTCG-QA-013",
+      "task_kind": "qa",
+      "title": "Benchmark comparativo RRR vs baseline e instructionist",
+      "description": "Memory-TCG/RRR. Benchmark comparativo RRR vs baseline e instructionist. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-QA-009"
+      ],
+      "targets": [
+        "docs/qa/CONV-MTCG-BENCHMARK.md",
+        "tests/memory/benchmark.js",
+        "tests/memory/fixtures/README.md"
+      ],
+      "outputs": {
+        "files": [
+          "docs/qa/CONV-MTCG-BENCHMARK.md",
+          "tests/memory/benchmark.js",
+          "tests/memory/fixtures/README.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Dados sintéticos com ground truth versionado e métricas CDA/HCC/proveniência",
+        "Comparação com orçamento idêntico e múltiplas seeds",
+        "Reportar melhorias e regressões sem alegação de superioridade não comprovada"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-qa",
+      "started_at": "2026-11-08T00:45:52Z",
+      "verification": {
+        "checks": [
+          "node --test tests/memory/benchmark.js (1/1 passed across 5 seeds)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:50:47Z"
+    },
+    {
+      "task_id": "CONV-MTCG-SPEC-014",
+      "task_kind": "spec",
+      "title": "Finalizar documentação, operação e contrato de release",
+      "description": "Memory-TCG/RRR. Finalizar documentação, operação e contrato de release. Ler pacote docs/03 a docs/09, AGENTS.md do projeto, e políticas ESAA. Não violar zero-token, append-only, shadow default, boundaries nem histórico. Entregar evidência por critério de aceite, com qualquer divergência justificada.",
+      "status": "done",
+      "depends_on": [
+        "CONV-MTCG-QA-012",
+        "CONV-MTCG-QA-013"
+      ],
+      "targets": [
+        "PRIVACY.md",
+        "README.md",
+        "RELEASE.md",
+        "docs/architecture/adr-013-memory-tcg-rrr.md"
+      ],
+      "outputs": {
+        "files": [
+          "README.md",
+          "RELEASE.md",
+          "PRIVACY.md",
+          "docs/architecture/adr-013-memory-tcg-rrr.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "README.md",
+        "PRIVACY.md",
+        "RELEASE.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "task_type": "memory",
+      "acceptance_criteria": [
+        "Distinguir comandos implementados dos propostos e modo off padrão",
+        "Compatibilizar AGENTS.md e espelho .claude/CLAUDE.md quando alterados",
+        "Documentar rollback, privacidade, benchmarks e limitações"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-spec",
+      "started_at": "2026-11-08T00:50:47Z",
+      "verification": {
+        "checks": [
+          "diff -u AGENTS.md .claude/CLAUDE.md && node --test tests/memory/*.test.js && node --test tests/installer/all.test.js && pwsh -NoProfile -File .conversation-esaa/bin/conv-test.ps1 (112 passed, 0 failed)"
+        ]
+      },
+      "completed_at": "2026-11-08T00:56:07Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 68,
+      "done": 82,
       "todo": 7
     },
     "by_kind": {
-      "impl": 55,
-      "qa": 10,
-      "spec": 10
+      "impl": 63,
+      "qa": 13,
+      "spec": 13
     }
   }
 }

@@ -78,6 +78,7 @@ hook/watcher → sync → lock → append activity.jsonl → project → verify 
 | `state.md`, `handoff.md`, `decisions.md`, `tasks.json`, `topics.md` | projeções | **proibida** |
 | `topics.json` | memória por assuntos | só via CLI `topics` |
 | `sync-state.json` | dedupe (reconstruível) | não editar |
+| `.conversation-esaa/memory/` | grafo Memory-TCG, propostas RRR (`shadow`/`generations`) e `active.json` (ADR-013) | só via CLI `memory` |
 | `bin/`, `plans/`, README, PRIVACY, RELEASE | código/docs do produto | ok **neste repo** |
 
 ## 5. Handoff — início e retomada do trabalho
@@ -125,6 +126,9 @@ $pwsh = if (Test-Path "$HOME/.local/bin/pwsh") { "$HOME/.local/bin/pwsh" } else 
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli decide  "..." -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli task create "..." -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli topics list -Workspace $root
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory verify -Workspace $root --json
 ```
 
 Detalhes de install/hooks: [README.md](README.md).

@@ -22,8 +22,14 @@ param(
     [int]$CursorSourceIndex = -1,
     [int]$BudgetTokens = 0,
     [int]$BudgetChars = 0,
-    [ValidateSet('normal', 'compact')]
     [string]$Mode = 'normal',
+    [int]$Seed = 42,
+    [string]$Budget = 'all',
+    [string]$ProposalId,
+    [string]$GenerationId,
+    [string]$Reason,
+    [int]$MaxNodes = 0,
+    [int]$MaxEdges = 0,
     [switch]$Trust,
     [switch]$Watcher,
     [switch]$SkipIfLocked,
@@ -223,6 +229,7 @@ $codexWatch = Join-Path $binDir 'codex-watch.ps1'
 $antigravityHook = Join-Path $binDir 'antigravity-hook-sync.ps1'
 $cursorHook = Join-Path $binDir 'cursor-hook.ps1'
 $convRag = Join-Path $binDir 'conv-rag.ps1'
+$convMemory = Join-Path $binDir 'conv-memory.ps1'
 
 function Resolve-WorkspacePath {
     if ($Workspace) { return (Resolve-Path -LiteralPath $Workspace).Path }
@@ -268,7 +275,22 @@ Usage:
   conversation-esaa context --topic-id TOP-001 --workspace <path>
   conversation-esaa rag enable|status|refresh|disable [--workspace <path>] [--command PATH] [--purge] [--force] [--json]
   conversation-esaa search "<query>" [--workspace <path>] [--top-k N] [--min-score F] [--json]
+  conversation-esaa memory status|sleep|inspect|diff|accept|rollback|context|verify [--workspace <path>] [--mode shadow|manual] [--seed N] [--budget all|N] [--proposal-id ID] [--generation-id ID] [--topic-id TOP-001] [--budget-chars N] [--json]
 '@ | Write-Output
+}
+
+function Invoke-ConvMemory {
+    param([string[]]$Extra = @())
+    if (-not (Test-Path -LiteralPath $convMemory)) {
+        throw "Memory adapter not found: $convMemory"
+    }
+    $ws = Resolve-WorkspacePath
+    $args = @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convMemory,
+        '-WorkspaceRoot', $ws
+    ) + $Extra
+    & pwsh @args
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 function Invoke-ConvRag {
@@ -296,6 +318,9 @@ switch ($Command) {
     }
     'sync' {
         if (-not $Agent) { throw 'sync requires --agent grok|claude|codex|antigravity|cursor' }
+        if ($Mode -notin @('normal', 'compact')) {
+            throw "Option --Mode has invalid value '$Mode'. Expected one of: normal, compact."
+        }
         $map = @{ grok = 'sync-grok'; codex = 'sync-codex'; claude = 'sync-claude'; antigravity = 'sync-antigravity'; cursor = 'sync-cursor' }
         if ($Agent -notin $map.Keys) { throw "Unknown agent: $Agent" }
         $extra = @()
@@ -588,6 +613,55 @@ switch ($Command) {
         $ms = if ($MinScore -ge 0) { $MinScore } else { 0.25 }
         $extra = @('-Action', 'search', '-Query', $q, '-TopK', "$tk", '-MinScore', "$ms", '-Json')
         Invoke-ConvRag -Extra $extra
+    }
+    'memory' {
+        $memAction = if ($sub) { $sub } else { 'status' }
+        $extra = @('-Action', $memAction)
+        switch ($memAction) {
+            'status' {
+                if ($Json) { $extra += '-Json' }
+            }
+            'sleep' {
+                $sleepMode = if ($PSBoundParameters.ContainsKey('Mode') -or $Mode -ne 'normal') { $Mode } else { 'shadow' }
+                $extra += @('-Mode', $sleepMode, '-Seed', "$Seed", '-Budget', $Budget)
+                if ($MaxNodes -gt 0) { $extra += @('-MaxNodes', "$MaxNodes") }
+                if ($MaxEdges -gt 0) { $extra += @('-MaxEdges', "$MaxEdges") }
+                if ($Json) { $extra += '-Json' }
+            }
+            'inspect' {
+                $pidVal = if ($ProposalId) { $ProposalId } elseif ($Rest.Count -ge 2) { $Rest[1] } else { 'latest' }
+                $extra += @('-ProposalId', $pidVal)
+                if ($Json) { $extra += '-Json' }
+            }
+            'diff' {
+                $pidVal = if ($ProposalId) { $ProposalId } elseif ($Rest.Count -ge 2) { $Rest[1] } else { 'latest' }
+                $extra += @('-ProposalId', $pidVal)
+                if ($Json) { $extra += '-Json' }
+            }
+            'verify' {
+                if ($Json) { $extra += '-Json' }
+            }
+            'accept' {
+                $pidVal = if ($ProposalId) { $ProposalId } elseif ($Rest.Count -ge 2) { $Rest[1] } else { 'latest' }
+                $extra += @('-ProposalId', $pidVal)
+                if ($Json) { $extra += '-Json' }
+            }
+            'rollback' {
+                $gidVal = if ($GenerationId) { $GenerationId } elseif ($Rest.Count -ge 2) { $Rest[1] } else { 'previous' }
+                $extra += @('-GenerationId', $gidVal)
+                if ($Reason) { $extra += @('-Reason', $Reason) }
+                if ($Json) { $extra += '-Json' }
+            }
+            'context' {
+                if ($TopicId) { $extra += @('-TopicId', $TopicId) }
+                if ($BudgetChars -gt 0) { $extra += @('-BudgetChars', "$BudgetChars") }
+                if ($Json) { $extra += '-Json' }
+            }
+            default {
+                throw "Unknown memory action: $memAction"
+            }
+        }
+        Invoke-ConvMemory -Extra $extra
     }
     default { throw "Unknown command: $Command" }
 }

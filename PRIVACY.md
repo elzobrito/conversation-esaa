@@ -17,6 +17,7 @@ assistentes — para:
 | `.conversation-esaa/handoff.md` | Estado projetado, incluindo trechos de conversa. |
 | `.conversation-esaa/sync-state.json` | Apenas hashes de deduplicação (sem texto). |
 | `.conversation-esaa/rag/` (opt-in v1.2) | Corpus Markdown derivado de eventos, SQLite de embeddings, logs e locks. **Projeção descartável** — não é fonte canônica. |
+| `.conversation-esaa/memory/` (opt-in ADR-013) | Artefatos do Memory-TCG / ciclo RRR (`shadow/`, `generations/`, `active.json`, `config.json`, `runs.jsonl`). Resumos redigem padrões conhecidos de segredo (`[REDACTED]`), `runs.jsonl` registra apenas metadados/digests sem texto de conversa, e `active.json` é reconstruível por replay de `activity.jsonl`. |
 
 ## O que **não** é gravado
 
@@ -40,9 +41,11 @@ contêm somente `tool_calls` são ignoradas. Só entra texto visível da convers
 ## Recomendações
 
 1. **Nunca** commite `activity.jsonl`, `state.md`, `handoff.md`,
-   `sync-state.json` ou o diretório **`.conversation-esaa/rag/`** em repositório
-   público (o `.gitignore` cuida disso). O RAG duplica trechos de conversa em
-   embeddings e corpus local; trate com o mesmo rigor de credenciais.
+   `sync-state.json`, o diretório **`.conversation-esaa/rag/`** ou o diretório
+   **`.conversation-esaa/memory/`** em repositório público (o `.gitignore` cuida
+   disso, e `memory/` aplica permissões `0700`/`0600` em sistemas POSIX). O RAG
+   duplica trechos de conversa em embeddings e corpus local; o Memory-TCG guarda
+   grafos e propostas derivadas. Trate ambos com o mesmo rigor de credenciais.
 2. Antes de compartilhar o lab, rode uma revisão por segredos no
    `activity.jsonl`.
 3. Mantenha o diretório `.conversation-esaa/` com as mesmas permissões que você

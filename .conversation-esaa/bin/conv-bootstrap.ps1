@@ -151,7 +151,8 @@ foreach ($engine in @(
     'codex-watch.ps1',
     'antigravity-hook-sync.ps1',
     'cursor-hook.ps1',
-    'conv-rag.ps1'
+    'conv-rag.ps1',
+    'conv-memory.ps1'
 )) {
     $source = Join-Path $srcBin $engine
     $target = Join-Path $binDir $engine
@@ -312,6 +313,7 @@ Merge-Gitignore -Path $gitignore -Entries @(
     '.conversation-esaa/install-manifest.json',
     '.conversation-esaa/run/*.lock',
     '.conversation-esaa/rag/',
+    '.conversation-esaa/memory/',
     '.conversation-esaa/vendor/',
     '.claude/settings.json',
     '.claude/settings.local.json',

@@ -10,6 +10,8 @@
 .conversation-esaa/run/test-battery-report.json
 # Optional rag-sqlite projection (v1.2) — fully reconstructible, private
 .conversation-esaa/rag/
+# Optional Memory-TCG / RRR consolidation store (ADR-013) — reconstructible, private
+.conversation-esaa/memory/
 .grok/
 .codex/
 .claude/settings.json

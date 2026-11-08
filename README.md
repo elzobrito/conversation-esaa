@@ -12,6 +12,7 @@ Quando você troca de agente ou a janela de contexto acaba, o próximo assistent
 | **Privacidade** | [PRIVACY.md](PRIVACY.md) — leia antes de versionar |
 | **Agentes** | [AGENTS.md](AGENTS.md) — contrato operacional (idêntico a `.claude/CLAUDE.md`) |
 | **RAG opcional** | [ADR-010](docs/architecture/adr-010-optional-rag-sqlite.md) + motor externo [rag-sqlite](https://github.com/elzobrito/rag-sqlite) |
+| **Memory-TCG (RRR)** | [ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md) — consolidação determinística em grafo (`off`/`shadow`/promoção explícita) |
 
 ---
 
@@ -60,6 +61,7 @@ agente → hook/watcher → conversation-esaa sync
 | `tasks.json` / `decisions.md` | Tarefas e decisões projetadas |
 | `conversation-esaa.ps1` | CLI pública |
 | `.conversation-esaa/rag/` (opt-in) | Projeção descartável (corpus + SQLite); nunca fonte canônica |
+| `.conversation-esaa/memory/` (opt-in) | Grafo Memory-TCG, propostas RRR (`shadow`/`generations`) e projeção `active.json` |
 
 ### Busca semântica opcional
 
@@ -80,6 +82,29 @@ node src/cli.js install --workspace <projeto> --agent codex --rag managed --non-
 O RAG requer Python 3.10+, Ollama local e o modelo `embeddinggemma`. Ele é uma
 projeção descartável e fail-open: `sync`, `project`, `verify` e `context`
 continuam funcionando se o RAG estiver desligado ou indisponível.
+
+### Consolidação periódica Memory-TCG / RRR (opcional, zero-token)
+
+O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) consolida o histórico append-only em um grafo rastreável (`derived_edges`, `possible_edges`, `boundaries`/`unresolved`) usando o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) com **zero chamadas de LLM e zero rede**.
+
+- **Desligado por padrão (`mode = off`):** nenhuma consolidação altera `handoff.md`, `state.md`, `decisions.md`, `tasks.json` ou `activity.jsonl` automaticamente.
+- **Modo `shadow`:** gera grafo e proposta auditáveis em `.conversation-esaa/memory/shadow/` sem tocar nas projeções ativas.
+- **Promoção explícita e Rollback:** `memory accept <proposal_id>` valida o watermark contra o ledger (falhando fechado com `STALE_PROPOSAL` se houver eventos novos) e registra `memory.consolidation.accepted`; `memory rollback <generation_id>` emite `memory.consolidation.rolled_back` e restaura a geração anterior.
+- **Leitura opt-in:** `context --use-active-memory`, `pack --use-active-memory` e `memory context` priorizam decisões vigentes, preservam conflitos em aberto (`unresolved`) e fazem fallback automático para o fluxo bruto quando não há memória ativa válida.
+
+```powershell
+# Inspecionar status e rodar ciclo RRR em modo shadow
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory inspect --generation latest --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory diff --generation latest --workspace $root --json
+
+# Promover proposta explicitamente, consultar contexto consolidado ou fazer rollback
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory accept <proposal_id> --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory context --topic-id TOP-001 --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory verify --workspace $root --json
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory rollback <generation_id> --reason "Reverter geração" --workspace $root --json
+```
 
 ---
 
@@ -300,6 +325,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test-b
 |---|---|
 | [PRIVACY.md](PRIVACY.md) | Modelo de privacidade e redação |
 | [RELEASE.md](RELEASE.md) | Notas da v1.3.1 e versões anteriores |
+| [ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md) | Arquitetura do Memory-TCG e consolidação RRR |
+| [CONV-MTCG-BENCHMARK.md](docs/qa/CONV-MTCG-BENCHMARK.md) | Avaliação empírica comparativa (Baseline vs Instructionist vs Memory-TCG RRR) |
 | `.conversation-esaa/plans/` | System design, ADRs, plano de implementação |
 
 

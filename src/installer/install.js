@@ -21,6 +21,7 @@ const runtimeNames = [
   "antigravity-hook-sync.ps1",
   "cursor-hook.ps1",
   "conv-rag.ps1",
+  "conv-memory.ps1",
 ];
 
 async function exists(file) {

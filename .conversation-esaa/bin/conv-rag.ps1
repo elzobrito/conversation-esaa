@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
   Optional rag-sqlite adapter for Conversation ESAA v1.2 (projection only).
@@ -474,6 +474,11 @@ function Export-MissingEvents {
             } catch { continue }
             $eid = [string](Get-DictVal $ev 'event_id' '')
             if (-not $eid) { continue }
+            $evType = [string](Get-DictVal $ev 'event' '')
+            if ($evType -like 'memory.*') {
+                $skipped++
+                continue
+            }
             $text = [string](Get-DictVal $ev 'text' '')
             $summary = [string](Get-DictVal $ev 'summary' '')
             if (-not $text -and -not $summary) {

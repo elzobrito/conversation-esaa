@@ -21,6 +21,7 @@ const PRIVATE_PATHS = [
   ".conversation-esaa/decisions.md",
   ".conversation-esaa/tasks.json",
   ".conversation-esaa/rag",
+  ".conversation-esaa/memory",
 ];
 
 async function exists(file) {

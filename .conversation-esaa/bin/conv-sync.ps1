@@ -1,7 +1,7 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'sync-cursor', 'project', 'verify', 'context', 'decide', 'task', 'topic', 'pack')]
+    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'sync-cursor', 'project', 'verify', 'context', 'decide', 'task', 'topic', 'pack', 'memory-accept', 'memory-rollback')]
     [string]$Command,
 
     [string]$WorkspaceRoot,
@@ -55,7 +55,13 @@ param(
     [string]$TopicEventIds,
     [string]$TopicEvidence,
     [string]$TopicStatus,
-    [switch]$TopicJson
+    [switch]$TopicJson,
+
+    # Memory-TCG / RRR governance params (ADR-013)
+    [string]$MemoryProposalId,
+    [string]$MemoryGenerationId,
+    [string]$MemoryReason,
+    [switch]$MemoryJson
 )
 
 Set-StrictMode -Version Latest
@@ -408,7 +414,7 @@ function Save-SyncState {
 
 function Append-ActivityEvent {
     param($Event, [string]$Path)
-    $line = ($Event | ConvertTo-Json -Compress -Depth 8)
+    $line = ($Event | ConvertTo-Json -Compress -Depth 20)
     [System.IO.File]::AppendAllText($Path, $line + "`n", [System.Text.UTF8Encoding]::new($false))
 }
 
@@ -1058,9 +1064,45 @@ function Invoke-Pack {
     }
 
     $decisionLines = [System.Collections.Generic.List[string]]::new()
-    if (Test-Path -LiteralPath $Paths.Decisions) {
-        foreach ($line in [System.IO.File]::ReadLines($Paths.Decisions)) {
-            if ($line -match '^\s*-\s+\S') { [void]$decisionLines.Add($line.Trim()) }
+    $activeMemPath = Join-Path (Join-Path $Paths.Esaa 'memory') 'active.json'
+    if (Test-Path -LiteralPath $activeMemPath) {
+        $cliScript = Resolve-MemoryCliScriptForSync
+        $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+        if ($cliScript -and $nodeCmd) {
+            $effCharBudget = if ($charBudget -gt 0) { $charBudget } elseif ($tokenBudget -gt 0) { $tokenBudget * 4 } else { 4000 }
+            $rawMemCtx = & $nodeCmd.Source $cliScript 'context' '--workspace' $Paths.Root '--budget-chars' "$effCharBudget" '--json' 2>$null
+            if ($LASTEXITCODE -eq 0 -and $rawMemCtx) {
+                try {
+                    $memCtx = ($rawMemCtx -join "`n") | ConvertFrom-Json
+                    if ($memCtx.status -eq 'OK') {
+                        foreach ($d in @($memCtx.retained_decisions)) {
+                            $evIds = @($d.evidence_event_ids) -join ', '
+                            [void]$decisionLines.Add("- **[ACTIVE]** ($($d.memory_id)) $($d.summary) *(evidence: $evIds)*")
+                        }
+                        foreach ($u in @($memCtx.unresolved_conflicts)) {
+                            $evIds = @($u.evidence_event_ids) -join ', '
+                            [void]$decisionLines.Add("- **[UNRESOLVED CONFLICT]** ($($u.conflict_id): $($u.reason_code)) *(evidence: $evIds)*")
+                        }
+                        foreach ($h in @($memCtx.historical_decisions)) {
+                            $evIds = @($h.evidence_event_ids) -join ', '
+                            $supBy = if ($h.superseded_by_id) { " -> superseded by $($h.superseded_by_id)" } else { '' }
+                            [void]$decisionLines.Add("- **[HISTORICAL / SUPERSEDED]** ($($h.memory_id)) $($h.summary)$supBy *(evidence: $evIds)*")
+                        }
+                        if (@($memCtx.omitted_memory_ids).Count -gt 0) {
+                            [void]$decisionLines.Add("- *(budget omitted: $(@($memCtx.omitted_memory_ids) -join ', '))*")
+                        }
+                    } elseif ($memCtx.status -eq 'FALLBACK_LEGACY') {
+                        [void]$decisionLines.Add("- [MEMORY-FALLBACK: active.json integrity check failed ($($memCtx.error_code)); using legacy decisions projection]")
+                    }
+                } catch { }
+            }
+        }
+    }
+    if ($decisionLines.Count -eq 0 -or ($decisionLines.Count -eq 1 -and $decisionLines[0].StartsWith('- [MEMORY-FALLBACK:'))) {
+        if (Test-Path -LiteralPath $Paths.Decisions) {
+            foreach ($line in [System.IO.File]::ReadLines($Paths.Decisions)) {
+                if ($line -match '^\s*-\s+\S') { [void]$decisionLines.Add($line.Trim()) }
+            }
         }
     }
     if ($decisionLines.Count -eq 0) { [void]$decisionLines.Add('- None recorded.') }
@@ -1277,7 +1319,7 @@ function Append-CuratedEvent {
     $hasId = ($Record -is [System.Collections.IDictionary] -and $Record.Contains('event_id')) -or
         (('event_id' -in $Record.PSObject.Properties.Name) -and $Record.event_id)
     if (-not $hasId) {
-        $payload = "$($Record.event)|$($Paths.Root)|$($Record.ts)|$($Record | ConvertTo-Json -Compress -Depth 6)"
+        $payload = "$($Record.event)|$($Paths.Root)|$($Record.ts)|$($Record | ConvertTo-Json -Compress -Depth 20)"
         if ($Record -is [System.Collections.IDictionary]) {
             $Record['event_id'] = New-CuratedEventId $payload
         } else {
@@ -1451,7 +1493,7 @@ function Get-ContextEventValue {
 
 function Invoke-Context {
     param($Paths)
-    $events = @(Get-WorkspaceEvents $Paths)
+    $events = @(Get-WorkspaceEvents $Paths | Where-Object { $_.event -notlike 'memory.*' })
     if ($ContextAgent) {
         $events = @($events | Where-Object {
             (('agent_id' -in $_.PSObject.Properties.Name) -and ($_.agent_id -eq $ContextAgent)) -or
@@ -1527,6 +1569,26 @@ function Invoke-Context {
         $out.Add("- [$ts] $who $eid")
         if ($summary) { $out.Add("  $summary") }
         $out.Add('')
+    }
+    $activeMemPath = Join-Path (Join-Path $Paths.Esaa 'memory') 'active.json'
+    if ((Test-Path -LiteralPath $activeMemPath) -and -not $ContextBefore -and -not $ContextAround -and $ContextLast -le 0 -and -not $ContextAgent) {
+        $cliScript = Resolve-MemoryCliScriptForSync
+        $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+        if ($cliScript -and $nodeCmd) {
+            $ctxArgs = @($cliScript, 'context', '--workspace', $Paths.Root, '--json')
+            if ($ContextTopicId) { $ctxArgs += @('--topic-id', $ContextTopicId) }
+            $rawMemCtx = & $nodeCmd.Source @ctxArgs 2>$null
+            if ($LASTEXITCODE -eq 0 -and $rawMemCtx) {
+                try {
+                    $memCtx = ($rawMemCtx -join "`n") | ConvertFrom-Json
+                    if ($memCtx.status -eq 'OK' -and $memCtx.markdown) {
+                        $out.Add($memCtx.markdown)
+                    } elseif ($memCtx.status -eq 'FALLBACK_LEGACY') {
+                        $out.Add("> [MEMORY-FALLBACK: active.json integrity check failed ($($memCtx.error_code)); showing legacy ledger projection]")
+                    }
+                } catch { }
+            }
+        }
     }
     Write-Output ($out -join [Environment]::NewLine).TrimEnd()
 }
@@ -1910,10 +1972,136 @@ function Project-TopicsMarkdown {
     return ($lines -join [Environment]::NewLine)
 }
 
+function Resolve-MemoryCliScriptForSync {
+    if ($env:CONV_ESAA_MEMORY_CLI -and (Test-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI)) {
+        return (Resolve-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI).Path
+    }
+    $repoCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory/adapter/cli.js'
+    if (Test-Path -LiteralPath $repoCandidate) {
+        return (Resolve-Path -LiteralPath $repoCandidate).Path
+    }
+    $bundledCandidate = Join-Path $PSScriptRoot 'memory/adapter/cli.js'
+    if (Test-Path -LiteralPath $bundledCandidate) {
+        return (Resolve-Path -LiteralPath $bundledCandidate).Path
+    }
+    $fallbackRepoCandidate = '/home/elzobrito/desenvolvimento/conversation-esaa/src/memory/adapter/cli.js'
+    if (Test-Path -LiteralPath $fallbackRepoCandidate) {
+        return (Resolve-Path -LiteralPath $fallbackRepoCandidate).Path
+    }
+    return $null
+}
+
+function Invoke-MemoryReconstructIfPresent {
+    param($Paths, $Events)
+    $hasMemoryEvents = @($Events | Where-Object { $_.event -like 'memory.consolidation.*' }).Count -gt 0
+    $activePath = Join-Path (Join-Path $Paths.Esaa 'memory') 'active.json'
+    if (-not $hasMemoryEvents -and -not (Test-Path -LiteralPath $activePath)) {
+        return
+    }
+    $cliScript = Resolve-MemoryCliScriptForSync
+    if (-not $cliScript) { return }
+    $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodeCmd) { return }
+    $out = & $nodeCmd.Source $cliScript 'reconstruct-from-ledger' '--workspace' $Paths.Root '--json' 2>&1
+    if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+        throw "Failed to reconstruct memory active view from ledger: $($out -join ' ')"
+    }
+}
+
+function Invoke-MemoryAccept {
+    param($Paths)
+    $cliScript = Resolve-MemoryCliScriptForSync
+    if (-not $cliScript) { throw 'Memory-TCG Node CLI not found' }
+    $nodeCmd = Get-Command node -ErrorAction Stop
+    $targetId = if ($MemoryProposalId) { $MemoryProposalId } else { 'latest' }
+    $rawOut = & $nodeCmd.Source $cliScript 'prepare-accept' '--workspace' $Paths.Root '--proposal-id' $targetId '--json' 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -and $exitCode -ne 0) {
+        $errMsg = ($rawOut | ForEach-Object { [string]$_ }) -join "`n"
+        throw "memory accept rejected (exit=$exitCode): $errMsg"
+    }
+    $jsonText = ($rawOut | Where-Object { $_ -is [string] }) -join "`n"
+    $prep = $jsonText | ConvertFrom-Json
+    $payload = $prep.event_payload
+    $record = [ordered]@{
+        schema_version          = 'conversation-esaa.v1'
+        ts                      = Get-IsoTimestamp
+        event                   = 'memory.consolidation.accepted'
+        actor                   = 'assistant'
+        agent_id                = 'codex'
+        workspace_root          = $Paths.Root
+        proposal_id             = $payload.proposal_id
+        snapshot_id             = $payload.snapshot_id
+        watermark_event_id      = $payload.watermark_event_id
+        graph_generation_id     = $payload.graph_generation_id
+        previous_generation_id  = $payload.previous_generation_id
+        policy_version          = $payload.policy_version
+        workspace_id            = $payload.workspace_id
+        active_digest           = $payload.active_digest
+        active_view             = $payload.active_view
+        proposal                = $payload.proposal
+        graph                   = $payload.graph
+        summary                 = "memory.consolidation.accepted $($payload.proposal_id) -> $($payload.graph_generation_id)"
+        text                    = "Accepted memory consolidation proposal $($payload.proposal_id) producing generation $($payload.graph_generation_id)"
+    }
+    Append-CuratedEvent -Paths $Paths -Record $record
+    $script:LastMemoryOpResult = [ordered]@{
+        status              = 'OK'
+        action              = 'accept'
+        event_id            = $record.event_id
+        proposal_id         = $payload.proposal_id
+        graph_generation_id = $payload.graph_generation_id
+        watermark_event_id  = $payload.watermark_event_id
+        active_digest       = $payload.active_digest
+    }
+}
+
+function Invoke-MemoryRollback {
+    param($Paths)
+    $cliScript = Resolve-MemoryCliScriptForSync
+    if (-not $cliScript) { throw 'Memory-TCG Node CLI not found' }
+    $nodeCmd = Get-Command node -ErrorAction Stop
+    $targetGen = if ($MemoryGenerationId) { $MemoryGenerationId } else { 'previous' }
+    $reasonText = if ($MemoryReason) { $MemoryReason } else { 'Explicit operator rollback' }
+    $rawOut = & $nodeCmd.Source $cliScript 'prepare-rollback' '--workspace' $Paths.Root '--generation-id' $targetGen '--reason' $reasonText '--json' 2>&1
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -and $exitCode -ne 0) {
+        $errMsg = ($rawOut | ForEach-Object { [string]$_ }) -join "`n"
+        throw "memory rollback rejected (exit=$exitCode): $errMsg"
+    }
+    $jsonText = ($rawOut | Where-Object { $_ -is [string] }) -join "`n"
+    $prep = $jsonText | ConvertFrom-Json
+    $payload = $prep.event_payload
+    $record = [ordered]@{
+        schema_version                 = 'conversation-esaa.v1'
+        ts                             = Get-IsoTimestamp
+        event                          = 'memory.consolidation.rolled_back'
+        actor                          = 'assistant'
+        agent_id                       = 'codex'
+        workspace_root                 = $Paths.Root
+        workspace_id                   = $payload.workspace_id
+        rolled_back_from_generation_id = $payload.rolled_back_from_generation_id
+        restored_generation_id         = $payload.restored_generation_id
+        reason                         = $payload.reason
+        summary                        = "memory.consolidation.rolled_back $($payload.rolled_back_from_generation_id) -> $($payload.restored_generation_id)"
+        text                           = "Rolled back memory generation from $($payload.rolled_back_from_generation_id) to $($payload.restored_generation_id): $($payload.reason)"
+    }
+    Append-CuratedEvent -Paths $Paths -Record $record
+    $script:LastMemoryOpResult = [ordered]@{
+        status                         = 'OK'
+        action                         = 'rollback'
+        event_id                       = $record.event_id
+        rolled_back_from_generation_id = $payload.rolled_back_from_generation_id
+        restored_generation_id         = $payload.restored_generation_id
+        reason                         = $payload.reason
+    }
+}
+
 function Invoke-Project {
     param($Paths)
 
     $events = @(Get-WorkspaceEvents $Paths)
+    Invoke-MemoryReconstructIfPresent -Paths $Paths -Events $events
     $tasksPayload = Project-TasksFromEvents $events
     [System.IO.File]::WriteAllText(
         $Paths.Tasks,
@@ -1949,7 +2137,7 @@ function Invoke-Project {
     }
 
     $recent = $events |
-        Where-Object { ('summary' -in $_.PSObject.Properties.Name) -and $_.summary } |
+        Where-Object { ($_.event -notlike 'memory.*') -and ('summary' -in $_.PSObject.Properties.Name) -and $_.summary } |
         Select-Object -Last 5
 
     $activeTopics = @($topicsPayload.topics | Where-Object { $_.status -eq 'active' })
@@ -2293,6 +2481,36 @@ function Invoke-Verify {
                 $seen[$event.event_id] = $true
             }
         }
+
+        if ($event.event -eq 'memory.consolidation.accepted') {
+            foreach ($field in @('event_id', 'ts', 'event', 'actor', 'agent_id', 'workspace_root', 'proposal_id', 'snapshot_id', 'graph_generation_id', 'workspace_id', 'active_digest')) {
+                if ($field -notin $event.PSObject.Properties.Name -or [string]::IsNullOrWhiteSpace([string]$event.$field)) {
+                    throw "Memory accept event missing '$field' at line $lineNo"
+                }
+            }
+            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            if ($eventRoot -ne $expectedRoot) {
+                throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
+            }
+            if (-not $seen.ContainsKey($event.event_id)) {
+                $seen[$event.event_id] = $true
+            }
+        }
+
+        if ($event.event -eq 'memory.consolidation.rolled_back') {
+            foreach ($field in @('event_id', 'ts', 'event', 'actor', 'agent_id', 'workspace_root', 'workspace_id', 'reason')) {
+                if ($field -notin $event.PSObject.Properties.Name -or [string]::IsNullOrWhiteSpace([string]$event.$field)) {
+                    throw "Memory rollback event missing '$field' at line $lineNo"
+                }
+            }
+            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            if ($eventRoot -ne $expectedRoot) {
+                throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
+            }
+            if (-not $seen.ContainsKey($event.event_id)) {
+                $seen[$event.event_id] = $true
+            }
+        }
     }
 
     if (-not (Test-Path -LiteralPath $Paths.Topics)) {
@@ -2340,6 +2558,19 @@ function Invoke-Verify {
     }
 
     Test-CursorAdapter -Paths $Paths
+
+    $memoryDir = Join-Path $Paths.Esaa 'memory'
+    $hasMemoryLedgerEvents = @($allEvents | Where-Object { $_.event -like 'memory.consolidation.*' }).Count -gt 0
+    if ($hasMemoryLedgerEvents -or (Test-Path -LiteralPath $memoryDir)) {
+        $cliScript = Resolve-MemoryCliScriptForSync
+        $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+        if ($cliScript -and $nodeCmd) {
+            $memVerifyOut = & $nodeCmd.Source $cliScript 'verify' '--workspace' $Paths.Root '--json' 2>&1
+            if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+                throw "Memory-TCG verification failed: $($memVerifyOut -join ' ')"
+            }
+        }
+    }
 
     Write-Output 'verify: ok'
 }
@@ -2464,6 +2695,28 @@ switch ($Command) {
                 Invoke-Verify -Paths $paths
             }
             try { Invoke-RagScheduleIfEnabled -WorkspaceRoot $paths.Root } catch { }
+        }
+    }
+    'memory-accept' {
+        $script:LastMemoryOpResult = $null
+        Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            Invoke-MemoryAccept -Paths $paths
+            Invoke-Project -Paths $paths
+            Invoke-Verify -Paths $paths
+        } | Out-Null
+        if ($script:LastMemoryOpResult) {
+            ($script:LastMemoryOpResult | ConvertTo-Json -Depth 8) | Write-Output
+        }
+    }
+    'memory-rollback' {
+        $script:LastMemoryOpResult = $null
+        Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            Invoke-MemoryRollback -Paths $paths
+            Invoke-Project -Paths $paths
+            Invoke-Verify -Paths $paths
+        } | Out-Null
+        if ($script:LastMemoryOpResult) {
+            ($script:LastMemoryOpResult | ConvertTo-Json -Depth 8) | Write-Output
         }
     }
 }
