@@ -152,9 +152,9 @@ try {
     Assert-True ($LASTEXITCODE -eq 0) "memory sleep --mode shadow #1 succeeded"
     $sleep1 = $sleep1Raw | ConvertFrom-Json
 
-    # Run shadow sleep #2 with same seed
-    $sleep2Raw = & pwsh -NoProfile -File $cliPath memory sleep --mode shadow --seed 42 --budget all --workspace $tempWs --json
-    Assert-True ($LASTEXITCODE -eq 0) "memory sleep --mode shadow #2 succeeded"
+    # Run shadow sleep #2 with same seed via 'sonhar' alias
+    $sleep2Raw = & pwsh -NoProfile -File $cliPath sonhar --mode shadow --seed 42 --budget all --workspace $tempWs --json
+    Assert-True ($LASTEXITCODE -eq 0) "memory sleep --mode shadow #2 (via 'sonhar' alias) succeeded"
     $sleep2 = $sleep2Raw | ConvertFrom-Json
 
     Assert-True ($sleep1.proposal_id -eq $sleep2.proposal_id) "Deterministic proposal_id across repeated shadow runs"

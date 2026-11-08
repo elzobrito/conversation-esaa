@@ -276,7 +276,8 @@ Usage:
   conversation-esaa context --topic-id TOP-001 --workspace <path>
   conversation-esaa rag enable|status|refresh|disable [--workspace <path>] [--command PATH] [--purge] [--force] [--json]
   conversation-esaa search "<query>" [--workspace <path>] [--top-k N] [--min-score F] [--json]
-  conversation-esaa memory status|sleep|inspect|diff|accept|rollback|context|verify [--workspace <path>] [--mode shadow|manual] [--seed N] [--budget all|N] [--proposal-id ID] [--generation-id ID] [--topic-id TOP-001] [--budget-chars N] [--json]
+  conversation-esaa sonhar|dream [--workspace <path>] [--accept] [--mode shadow|manual] [--seed N] [--budget all|N] [--json]
+  conversation-esaa memory status|sleep|sonhar|dream|inspect|diff|accept|rollback|context|verify [--workspace <path>] [--accept] [--mode shadow|manual] [--seed N] [--budget all|N] [--proposal-id ID] [--generation-id ID] [--topic-id TOP-001] [--budget-chars N] [--json]
 '@ | Write-Output
 }
 
@@ -616,8 +617,18 @@ switch ($Command) {
         $extra = @('-Action', 'search', '-Query', $q, '-TopK', "$tk", '-MinScore', "$ms", '-Json')
         Invoke-ConvRag -Extra $extra
     }
+    { $_ -in @('sonhar', 'dream', 'sleep') } {
+        $sleepMode = if ($PSBoundParameters.ContainsKey('Mode') -or $Mode -ne 'normal') { $Mode } else { 'shadow' }
+        $extra = @('-Action', 'sleep', '-Mode', $sleepMode, '-Seed', "$Seed", '-Budget', $Budget)
+        if ($MaxNodes -gt 0) { $extra += @('-MaxNodes', "$MaxNodes") }
+        if ($MaxEdges -gt 0) { $extra += @('-MaxEdges', "$MaxEdges") }
+        if ($Accept) { $extra += '-Accept' }
+        if ($Json) { $extra += '-Json' }
+        Invoke-ConvMemory -Extra $extra
+    }
     'memory' {
         $memAction = if ($sub) { $sub } else { 'status' }
+        if ($memAction -in @('sonhar', 'dream')) { $memAction = 'sleep' }
         $extra = @('-Action', $memAction)
         switch ($memAction) {
             'status' {

@@ -6,7 +6,7 @@
 #>
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('status', 'sleep', 'inspect', 'diff', 'verify', 'accept', 'rollback', 'context')]
+    [ValidateSet('status', 'sleep', 'sonhar', 'dream', 'inspect', 'diff', 'verify', 'accept', 'rollback', 'context')]
     [string]$Action = 'status',
 
     [string]$WorkspaceRoot,
@@ -26,6 +26,10 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+if ($Action -in @('sonhar', 'dream')) {
+    $Action = 'sleep'
+}
 
 function Resolve-WorkspaceRootPath {
     if ($WorkspaceRoot) { return (Resolve-Path -LiteralPath $WorkspaceRoot).Path }

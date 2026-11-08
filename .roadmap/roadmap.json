@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1200,
-      "projection_hash_sha256": "5d48dff4e31e5976a8844e5ef349ee5eb940ac0b8783f0a096bb958f7e3c8721",
+      "last_event_seq": 1212,
+      "projection_hash_sha256": "71b63bfe144da28e6122126398a319dc9632684baa96ca25eeba5b117ce1ae12",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T13:10:34Z"
+    "updated_at": "2026-11-08T13:20:51Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3757,15 +3757,53 @@
         ]
       },
       "completed_at": "2026-11-08T13:10:34Z"
+    },
+    {
+      "task_id": "CONV-MTCG-IMPL-019",
+      "task_kind": "impl",
+      "title": "Adicionar aliases sonhar e dream na CLI e documentacao do Memory-TCG",
+      "description": "Suportar os comandos/aliases 'sonhar' e 'dream' tanto no nivel raiz (conversation-esaa sonhar|dream) quanto em memory (conversation-esaa memory sonhar|dream), em conv-memory.ps1 e em src/memory/adapter/cli.js, atualizar testes e documentar em README.md, AGENTS.md e .claude/CLAUDE.md.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/conversation-esaa.ps1",
+        ".conversation-esaa/bin/conv-memory.ps1",
+        "src/memory/adapter/cli.js",
+        "tests/test-memory-shadow.ps1",
+        "README.md",
+        "AGENTS.md",
+        ".claude/CLAUDE.md"
+      ],
+      "outputs": {
+        "files": [
+          ".conversation-esaa/bin/conversation-esaa.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Comandos conversation-esaa sonhar, conversation-esaa dream, memory sonhar e memory dream funcionam identicamente a memory sleep (incluindo --accept)"
+      ],
+      "required_review_mode": "functional",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T13:15:49Z",
+      "verification": {
+        "checks": [
+          "diff -u AGENTS.md .claude/CLAUDE.md empty; unit (9/9), shadow+sonhar (27/27), accept-replay (18/18), read-path (21/21) passed"
+        ]
+      },
+      "completed_at": "2026-11-08T13:20:51Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 86,
+      "done": 87,
       "todo": 7
     },
     "by_kind": {
-      "impl": 66,
+      "impl": 67,
       "qa": 13,
       "spec": 14
     }

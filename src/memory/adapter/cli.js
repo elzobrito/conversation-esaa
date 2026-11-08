@@ -733,7 +733,7 @@ export function cmdPrepareAccept(workspaceRoot, proposalIdInput) {
     active_digest: activeView.active_digest,
     active_view: activeView,
     proposal,
-    graph,
+    graph: graph.nodes.length <= 500 ? graph : null,
   };
 
   return {
@@ -1306,6 +1306,8 @@ function main() {
         result = cmdStatus(workspaceRoot);
         break;
       case "sleep":
+      case "sonhar":
+      case "dream":
         result = cmdSleep(workspaceRoot, {
           mode: flags.mode || "shadow",
           seed: flags.seed,
@@ -1363,7 +1365,7 @@ function main() {
     } else {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
     }
-    process.exit(0);
+    process.exitCode = 0;
   } catch (err) {
     const errorPayload = {
       status: "ERROR",
@@ -1379,7 +1381,7 @@ function main() {
       );
       process.stdout.write(`${JSON.stringify(errorPayload, null, 2)}\n`);
     }
-    process.exit(1);
+    process.exitCode = 1;
   }
 }
 

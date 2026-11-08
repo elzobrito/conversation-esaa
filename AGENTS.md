@@ -127,6 +127,8 @@ $pwsh = if (Test-Path "$HOME/.local/bin/pwsh") { "$HOME/.local/bin/pwsh" } else 
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli task create "..." -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli topics list -Workspace $root
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory status -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sonhar --mode shadow --seed 42 --budget all -Workspace $root --json
+& $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sonhar --accept --seed 42 --budget all -Workspace $root --json
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --mode shadow --seed 42 --budget all -Workspace $root --json
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --accept --seed 42 --budget all -Workspace $root --json
 & $pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory inspect --proposal-id latest -Workspace $root --json

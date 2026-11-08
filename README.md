@@ -85,7 +85,7 @@ continuam funcionando se o RAG estiver desligado ou indisponível.
 
 ### Consolidação periódica Memory-TCG / RRR — Como funciona o sonho e como sonhar
 
-O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) é o mecanismo de consolidação periódica de memória em grafo do Conversation ESAA. No vocabulário do sistema, **"sonhar" (`memory sleep`)** significa executar offline o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) sobre o ledger `activity.jsonl`, com **zero chamadas de LLM, zero embeddings obrigatórios e zero acesso à rede**.
+O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) é o mecanismo de consolidação periódica de memória em grafo do Conversation ESAA. No vocabulário e na CLI do sistema, **"sonhar" (`conversation-esaa sonhar`, `conversation-esaa dream` ou `conversation-esaa memory sleep|sonhar|dream`)** significa executar offline o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) sobre o ledger `activity.jsonl`, com **zero chamadas de LLM, zero embeddings obrigatórios e zero acesso à rede**.
 
 #### Como funciona o sonho (Ciclo RRR)
 
@@ -118,7 +118,8 @@ Quando um sonho é promovido (`memory sleep --accept` ou `memory accept`):
 Executa o ciclo RRR e promove a proposta no mesmo comando, evitando que um hook de fim de turno avance o `activity.jsonl` antes da promoção (`STALE_PROPOSAL`):
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File $cli memory sleep --accept --seed 42 --budget all --workspace $root --json
+# Usando o comando direto 'sonhar' (ou 'memory sleep --accept'):
+pwsh -NoProfile -ExecutionPolicy Bypass -File $cli sonhar --accept --seed 42 --budget all --workspace $root --json
 ```
 
 **Opção B — Sonhar em modo `shadow` (inspecionar antes de promover):**
