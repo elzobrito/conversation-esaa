@@ -1,0 +1,13 @@
+{
+  "scenario": "buildScaledScenario(50)",
+  "facts": 480,
+  "seed": 11,
+  "budget": "all",
+  "method": "runRrrCycle, buildActiveViewFromProposal, cmdContext over a temporary synthetic active.json; no accept or pack",
+  "results": [
+    {"budget_chars": 3200, "decisions": 4, "conflicts": 4, "omitted": 295, "markdown_chars": 3235},
+    {"budget_chars": 4000, "decisions": 4, "conflicts": 4, "omitted": 293, "markdown_chars": 3447},
+    {"budget_chars": 20000, "decisions": 50, "conflicts": 33, "omitted": 156, "markdown_chars": 20232}
+  ],
+  "limits": "Character counts are JavaScript string lengths; the omission marker can exceed the requested budget. This is not an end-to-end product acceptance or pack measurement."
+}
