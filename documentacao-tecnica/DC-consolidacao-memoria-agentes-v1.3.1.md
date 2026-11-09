@@ -5,7 +5,7 @@ versao: "1.3.1"
 data: "09/11/2026"
 autores:
   - "Elzo Brito dos Santos Filho"
-status: "Aprovado"
+status: "Pronto para revisão externa"
 instituicao: "CEETEPS — Centro Paula Souza"
 departamento: "CGTIC"
 ---
@@ -14,13 +14,13 @@ departamento: "CGTIC"
 
 ## Resumo
 
-Agentes baseados em modelos de linguagem podem compartilhar históricos entre sessões, mas persistência não assegura recuperação de decisões vigentes e proveniência. Este estudo de engenharia apresenta o Memory-TCG, extensão do Conversation ESAA inspirada em *ringing, resonance and renormalization* (RRR). Uma avaliação sintética exploratória compara recuperação cronológica, baselines simplificadas sensíveis à recência e à autoridade (B e B′), RRR e variantes sob três orçamentos de saída. Com 480 fatos e 1.024 tokens, RRR completo recuperou 0,44 das decisões vigentes, ante 0,06 da janela cronológica e teto oracular de 0,58; com 4.096 tokens, recuperou todas. B′ e a variante sem *resonance* empataram com RRR completo em revocação de decisões nas nove combinações. O comparador D1 aplica FIFO aos fatos antes da construção do grafo; sua perda de decisões não mede isoladamente o *ringing* do produto. A contribuição isolada do *ringing* para decisões não foi medida. Antes do corte de saída, o F1 de conflitos de RRR completo foi 0,615 nas três escalas; com 480 fatos e 1.024 tokens, caiu a 0,000. Reservar 20% do orçamento para conflitos (CQ) elevou esse F1 a 0,431 com 480 fatos e 1.024 tokens, enquanto a revocação de decisões caiu de 0,44 para 0,34; a 4.096 tokens o F1 chegou a 0,930 sem perda de decisões nesse cenário. A cota reduziu a revocação de decisões em cinco das nove combinações de escala e orçamento. As fixtures são repetitivas, os comparadores simplificados e a avaliação não foi reproduzida independentemente. Os resultados sustentam uma análise de engenharia, não uma afirmação de superioridade selecionista.
+Agentes baseados em modelos de linguagem podem compartilhar históricos entre sessões, mas persistência não assegura recuperação de decisões vigentes e proveniência. Este estudo de engenharia apresenta o Memory-TCG, extensão do Conversation ESAA inspirada em *ringing, resonance and renormalization* (RRR). Uma avaliação sintética exploratória compara recuperação cronológica, baselines simplificadas sensíveis à recência e à autoridade (B e B′), RRR e variantes sob três orçamentos de saída. Com 480 fatos e 1.024 tokens, RRR completo recuperou 0,44 das decisões vigentes, ante 0,06 da janela cronológica e teto oracular de 0,58; com 4.096 tokens, recuperou todas. B′ e a variante sem *resonance* empataram com RRR completo em revocação de decisões nas nove combinações. O comparador D1 aplica FIFO aos fatos antes da construção do grafo; sua perda de decisões não mede isoladamente o *ringing* do produto. A contribuição isolada do *ringing* para decisões não foi medida. Antes do corte de saída, o F1 de conflitos de RRR completo foi 0,615 nas três escalas; com 480 fatos e 1.024 tokens, caiu a 0,000. Reservar 20% do orçamento para conflitos (CQ) elevou esse F1 a 0,431 com 480 fatos e 1.024 tokens, enquanto a revocação de decisões caiu de 0,44 para 0,34; a 4.096 tokens o F1 chegou a 0,930 sem perda de decisões nesse cenário. A cota reduziu a revocação de decisões em cinco das nove combinações de escala e orçamento. Na sonda de `memory context` com 480 fatos, a saída real exibiu 4 das 50 decisões vigentes (revocação 0,08), contra 0,44 do CN no harness. As fixtures são repetitivas, os comparadores simplificados e a avaliação não foi reproduzida independentemente. Os resultados sustentam uma análise de engenharia, não uma afirmação de superioridade selecionista.
 
 **Palavras-chave:** agentes de inteligência artificial; memória conversacional; event sourcing; consolidação de memória; RRR; rastreabilidade.
 
 ## Abstract
 
-Language-model agents can share conversational history across sessions, but persistence does not guarantee retrieval of current decisions and their provenance. This engineering study presents Memory-TCG, a Conversation ESAA extension inspired by ringing, resonance and renormalization (RRR). An exploratory synthetic evaluation compares chronological retrieval, simplified recency- and authority-aware baselines (B and B′), RRR and variants under three output budgets. With 480 facts and 1,024 tokens, full RRR recalled 0.44 of current decisions, versus 0.06 for chronological retrieval and an oracle ceiling of 0.58; with 4,096 tokens it recalled all of them. B′ and the no-resonance variant matched full RRR in decision recall across all nine combinations. Comparator D1 applies FIFO to facts before graph construction; its decision losses do not isolate the product's ringing phase. The isolated contribution of ringing to decision recall was not measured. Before output truncation, full-RRR conflict F1 was 0.615 at all three scales; with 480 facts and 1,024 tokens it fell to 0.000. Reserving 20% of the budget for conflicts (CQ) raised that F1 to 0.431 at 480 facts and 1,024 tokens while decision recall fell from 0.44 to 0.34; at 4,096 tokens F1 reached 0.930 without decision loss in that scenario. The quota reduced decision recall in five of the nine scale–budget combinations. Repetitive fixtures, simplified comparators and lack of independent replication limit these findings to an engineering study.
+Language-model agents can share conversational history across sessions, but persistence does not guarantee retrieval of current decisions and their provenance. This engineering study presents Memory-TCG, a Conversation ESAA extension inspired by ringing, resonance and renormalization (RRR). An exploratory synthetic evaluation compares chronological retrieval, simplified recency- and authority-aware baselines (B and B′), RRR and variants under three output budgets. With 480 facts and 1,024 tokens, full RRR recalled 0.44 of current decisions, versus 0.06 for chronological retrieval and an oracle ceiling of 0.58; with 4,096 tokens it recalled all of them. B′ and the no-resonance variant matched full RRR in decision recall across all nine combinations. Comparator D1 applies FIFO to facts before graph construction; its decision losses do not isolate the product's ringing phase. The isolated contribution of ringing to decision recall was not measured. Before output truncation, full-RRR conflict F1 was 0.615 at all three scales; with 480 facts and 1,024 tokens it fell to 0.000. Reserving 20% of the budget for conflicts (CQ) raised that F1 to 0.431 at 480 facts and 1,024 tokens while decision recall fell from 0.44 to 0.34; at 4,096 tokens F1 reached 0.930 without decision loss in that scenario. The quota reduced decision recall in five of the nine scale–budget combinations. In a 480-fact `memory context` probe, the product displayed 4 of 50 current decisions (recall 0.08), versus 0.44 for CN in the harness. Repetitive fixtures, simplified comparators and lack of independent replication limit these findings to an engineering study.
 
 **Keywords:** artificial intelligence agents; conversational memory; event sourcing; memory consolidation; RRR; traceability.
 
@@ -40,7 +40,7 @@ Language-model agents can share conversational history across sessions, but pers
 
 | Versão | Data | Autores | Descrição da alteração |
 |---|---|---|---|
-| 1.3.1 | 09/11/2026 | Elzo Brito dos Santos Filho | Correção da descrição de D1 e dos limites de atribuição ao ringing; custo da cota CQ em cinco das nove combinações; restauro do sumário e do controle de versões; status Aprovado. |
+| 1.3.1 | 09/11/2026 | Elzo Brito dos Santos Filho | ART-01 a ART-09 e DOC-02: D1 não isola o ringing; coluna D2 na Tabela 2; custo da cota CQ em 5/9 combinações; sonda ART-07 (revocação 0,08 e estouro de orçamento); nós e episódios por escala; ressalvas PS-08 e PS-18; status pronto para revisão externa. |
 | 1.3 | 08/11/2026 | Elzo Brito dos Santos Filho | Correção da atribuição de D1 e do ringing (restrita a 480 e 1.920 fatos); tabela de conflitos por orçamento; cota de 20% (CQ); proveniência condicional em nota; artefatos públicos da v1.2/v1.3; título e pergunta de pesquisa alinhados à decomposição de componentes. |
 | 1.2 | 08/11/2026 | Elzo Brito dos Santos Filho | Baseline B′ sensível à autoridade; atribuição dos ganhos à filtragem da visão ativa; precisão e revocação de conflitos; proveniência condicional; dispersão de CP antes do corte; conclusão atualizada; correções de forma. |
 | 1.1 | 08/11/2026 | Elzo Brito dos Santos Filho | Separação entre métricas antes e depois do corte, oráculo de decisões, três orçamentos, ablações D1/D2, ordem de produção (CN) e diagnóstico da baseline B. |
@@ -62,7 +62,7 @@ O termo *sonhar* designa aqui um comando de consolidação. Não descreve experi
 
 Em [1], turnos visíveis são capturados por adaptadores e normalizados em um histórico acrescentável. Projeções como `handoff.md`, `state.md`, decisões e tarefas permitem que um agente retome um trabalho sem acesso direto à sessão interna de outro. A captura mecânica é separada da curadoria explícita de decisões e tarefas. O estudo de caso de [1] relata 570 eventos de laboratório e descreve a versão pública 1.1.0; não avalia a extensão Memory-TCG apresentada neste artigo.
 
-Esse modelo fornece uma propriedade central: a visão apresentada a um agente pode ser regenerada a partir de registros de origem. Entretanto, um histórico acrescentável não resolve sozinho a distinção entre informação vigente e obsoleta. Tampouco garante que uma visão limitada por tokens inclua todas as evidências relevantes.
+No Conversation ESAA examinado, essa propriedade tem uma exceção operacional: a rotina `Repair-ActivityContract`, no caminho PowerShell de sincronização, reescreve `activity.jsonl` sem cópia de segurança (PS-08). Esse modelo fornece uma propriedade central: a visão apresentada a um agente pode ser regenerada a partir de registros de origem. Entretanto, um histórico acrescentável — mesmo com essa exceção — não resolve sozinho a distinção entre informação vigente e obsoleta. Tampouco garante que uma visão limitada por tokens inclua todas as evidências relevantes.
 
 ### 2.2 Outros sistemas de memória
 
@@ -78,7 +78,7 @@ O artigo também prevê que a lógica selecionista possa ter vantagens sobre est
 
 ### 3.1 Da conversa ao grafo
 
-O Conversation ESAA mantém `activity.jsonl` como fonte canônica de eventos conversacionais. Um adaptador cria um snapshot do workspace, identifica seu marco de eventos (*watermark*) e normaliza registros em fatos. O núcleo Memory-TCG constrói um grafo com episódios, decisões, tópicos e tarefas. Cada nó conserva identificadores de evidência; relações derivadas exigem regra e origem identificáveis.
+O Conversation ESAA mantém `activity.jsonl` como fonte canônica de eventos conversacionais. O arquivo é concebido como acrescentável; a rotina `Repair-ActivityContract` reescreve o ledger sem backup quando o contrato de eventos é considerado inválido (PS-08). Um adaptador cria um snapshot do workspace, identifica seu marco de eventos (*watermark*) e normaliza registros em fatos. O núcleo Memory-TCG constrói um grafo com episódios, decisões, tópicos e tarefas. Cada nó conserva identificadores de evidência; relações derivadas exigem regra e origem identificáveis.
 
 O grafo distingue relações derivadas de relações possíveis. Uma substituição registrada explicitamente pode sustentar a marcação de uma decisão como histórica. Uma associação lexical ou contradição sugerida por heurística permanece candidata; sua pontuação não a transforma automaticamente em fato verificado. Essa separação reduz o risco de converter semelhança textual ou repetição em autoridade.
 
@@ -114,7 +114,7 @@ Foram usadas fixtures sintéticas com 48, 480 e 1.920 fatos, decisões atuais e 
 - **D2** — RRR sem *resonance*;
 - **CQ** — mesmos candidatos de C, com 20% do orçamento reservado para conflitos na ordem canônica da proposta (`conflict_id`).
 
-A ordenação comum serializa primeiro as decisões ativas, depois os demais itens ativos e, por último, os conflitos candidatos. CN extrai a ordem integral do caminho de leitura de produção, incluindo itens não ativos que consomem orçamento, mas utiliza a mesma serialização JSON padronizada dos demais braços. É um ensaio da ordem de produção, não da saída Markdown exata. Os candidatos de conflito incluem pares de `proposal.unresolved`, inclusive possíveis contradições; falsos positivos são contados. CQ não altera a consolidação: só a política de encaixe sob o limite. A implementação não exporta um score de confiança por conflito; a ordem usada é a da proposta. Com 48 fatos e 512 tokens, a precisão é 0,800 em C e 0,571 em CQ.
+A ordenação comum serializa primeiro as decisões ativas, depois os demais itens ativos e, por último, os conflitos candidatos. CN extrai a ordem integral do caminho de leitura de produção, incluindo itens não ativos que consomem orçamento, mas utiliza a mesma serialização JSON padronizada dos demais braços. É um ensaio da ordem de produção, não da saída Markdown exata. Os candidatos de conflito incluem pares de `proposal.unresolved`, inclusive possíveis contradições; falsos positivos são contados. CQ não altera a consolidação: só a política de encaixe sob o limite. A implementação não exporta um score de confiança por conflito; a ordem usada é a da proposta.
 
 ### 4.2 Orçamento e oráculo
 
@@ -124,9 +124,9 @@ O oráculo conhece as decisões vigentes e ordena seus registros, com campo de p
 
 ### 4.3 Métricas e reprodução
 
-Relatamos revocação de decisões antes e depois do corte; precisão, revocação e F1 dos conflitos; e contaminação histórica, definida como a fração dos registros obsoletos do gabarito exibidos como ativos. A precisão de conflitos é indefinida quando não há predições. A revocação global de proveniência usada na versão anterior acompanhava exatamente a revocação de decisões, porque cada decisão leva consigo suas evidências, e por isso foi retirada da Tabela 1.
+Relatamos revocação de decisões antes e depois do corte; precisão, revocação e F1 dos conflitos; e contaminação histórica, definida como a fração dos registros obsoletos do gabarito exibidos como ativos. A precisão de conflitos é indefinida quando não há predições. A revocação global de proveniência acompanha exatamente a revocação de decisões, porque cada decisão leva consigo suas evidências, e por isso não figura na Tabela 1.
 
-Reportamos valores entre as cinco seeds como mediana [mínimo, máximo]. `elapsed_ms`, pico de RSS, dados individuais e custo de saída estão nos artefatos. Os scripts foram executados duas vezes; os campos determinísticos e hashes de saída coincidiram; tempo e RSS foram excluídos dessa comparação.
+Reportamos valores entre as cinco seeds como mediana [mínimo, máximo]. `elapsed_ms`, pico de RSS, dados individuais e custo de saída estão nos artefatos. Os scripts foram executados duas vezes; no mesmo caminho de workspace, os campos determinísticos e hashes de saída coincidiram; tempo e RSS foram excluídos dessa comparação.
 
 Um conjunto adicional de seis pares passou pelo adaptador real sem chaves de conflito fornecidas: três pares contraditórios e três negativos. Foi produzido pela mesma equipe e é pequeno. O repositório de artefatos [9] (commit `6a2ac1f9e1966403603b2f972453d12cdbbea3c3`) contém código, dados sintéticos, comandos e o relatório `CONV-RRR-V13-OUTPUT.json` (schema `conv-rrr.v13.v1`), incluindo B′, as métricas adicionais da versão 1.2 e a cota CQ. A avaliação não foi reproduzida de forma independente.
 
@@ -173,19 +173,19 @@ Os intervalos entre seeds na Tabela 1 são degenerados: após o corte, as cinco 
 
 **Tabela 2 — Revocação de decisões por orçamento e teto oracular**
 
-| Fatos | Tokens | C: ordem comum | CN: ordem de produção | B′ | Oráculo de decisões (determinístico) |
-|---:|---:|---:|---:|---:|---:|
-| 48 | 512 | 1,000 | 1,000 | 1,000 | 1,000 |
-| 48 | 1024 | 1,000 | 1,000 | 1,000 | 1,000 |
-| 48 | 4096 | 1,000 | 1,000 | 1,000 | 1,000 |
-| 480 | 512 | 0,220 | 0,220 | 0,220 | 0,280 |
-| 480 | 1024 | 0,440 | 0,440 | 0,440 | 0,580 |
-| 480 | 4096 | 1,000 | 1,000 | 1,000 | 1,000 |
-| 1920 | 512 | 0,055 | 0,055 | 0,055 | 0,070 |
-| 1920 | 1024 | 0,110 | 0,110 | 0,110 | 0,145 |
-| 1920 | 4096 | 0,445 | 0,445 | 0,445 | 0,585 |
+| Fatos | Tokens | C: ordem comum | CN: ordem de produção | B′ | D2: sem *resonance* | Oráculo de decisões (determinístico) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 48 | 512 | 1,000 | 1,000 | 1,000 | 1,000 | 1,000 |
+| 48 | 1024 | 1,000 | 1,000 | 1,000 | 1,000 | 1,000 |
+| 48 | 4096 | 1,000 | 1,000 | 1,000 | 1,000 | 1,000 |
+| 480 | 512 | 0,220 | 0,220 | 0,220 | 0,220 | 0,280 |
+| 480 | 1024 | 0,440 | 0,440 | 0,440 | 0,440 | 0,580 |
+| 480 | 4096 | 1,000 | 1,000 | 1,000 | 1,000 | 1,000 |
+| 1920 | 512 | 0,055 | 0,055 | 0,055 | 0,055 | 0,070 |
+| 1920 | 1024 | 0,110 | 0,110 | 0,110 | 0,110 | 0,145 |
+| 1920 | 4096 | 0,445 | 0,445 | 0,445 | 0,445 | 0,585 |
 
-Com 480 fatos e 1.024 tokens, C e CN recuperaram 0,44 das decisões, contra 0,06 em A: cerca de 7,3 vezes o valor da baseline cronológica nesta fixture, e aproximadamente 76% do teto oracular condicionado (0,58). Com 4.096 tokens, a 480 fatos, C, CN e B′ recuperaram todas as decisões, alcançando o oráculo. O oráculo não preserva evidências nem avalia conflitos.
+Com 480 fatos e 1.024 tokens, C e CN recuperaram 0,44 das decisões, contra 0,06 em A: cerca de 7,3 vezes o valor da baseline cronológica nesta fixture, e aproximadamente 76% do teto oracular condicionado (0,58). Com 4.096 tokens, a 480 fatos, C, CN, B′ e D2 recuperaram todas as decisões, alcançando o oráculo. D2 empata com C nas nove combinações (Tabela 2). O oráculo não preserva evidências nem avalia conflitos.
 
 **Tabela 3 — F1 de conflitos de CP antes do corte, por seed**
 
@@ -201,8 +201,8 @@ Em CP, a revocação de decisões antes do corte foi 1,000 em todas as seeds; s�
 
 A variante D2 isola a ausência de *resonance* neste desenho. D1 usa um corte anterior ao grafo e, portanto, não isola o *ringing* do produto.
 
-- D2 (sem *resonance*) empata com C em **revocação de decisões** nas nove combinações de escala e orçamento: 1,000, 0,440 e 0,110 sob 1.024 tokens. Esse empate não se aplica ao F1 de conflitos, que é 0,000 em D2.
-- D1 aplica FIFO antes de construir o grafo e retém, antes do corte de saída, 0,40 das decisões em 48 fatos e 0,56 em 480 e 1.920, contra 1,000 em C. Após o corte, a diferença é 0,60 em 48 fatos e 1.024 tokens e 0,44 em 480 fatos e 4.096 tokens; nas combinações restantes de 480 e 1.920 fatos, não ultrapassa 0,03. Como os fatos descartados por D1 nunca entram no grafo, essas diferenças não identificam a contribuição isolada do amostrador do produto.
+- D2 (sem *resonance*) empata com C em **revocação de decisões** nas nove combinações de escala e orçamento (Tabela 2). Esse empate não se aplica ao F1 de conflitos, que é 0,000 em D2.
+- D1 aplica FIFO antes de construir o grafo e retém, antes do corte de saída, 0,40 das decisões em 48 fatos e 0,56 em 480 e 1.920, contra 1,000 em C. Após o corte, a diferença é 0,60 em 48 fatos (todos os orçamentos) e 0,44 em 480 fatos e 4.096 tokens; nas combinações restantes de 480 e 1.920 fatos, não ultrapassa 0,03. Como os fatos descartados por D1 nunca entram no grafo, essas diferenças não identificam a contribuição isolada do amostrador do produto.
 - B′, que não executa nenhuma das três fases e apenas impede que um eco substitua a decisão explícita, empata com C em todas as nove combinações da Tabela 2.
 
 Nesta fixture, B′ empata com C em revocação de decisões sob orçamento, indicando que a regra sensível à autoridade é suficiente para reproduzir essa métrica nas condições avaliadas. O produto retém decisões ativas no grafo por regra; D1 não mede a contribuição isolada do *ringing*. D2 tem F1 de conflitos 0,000 antes e depois do corte, enquanto C atinge 0,615 antes do corte; essa diferença é restrita ao desenho e às métricas testadas.
@@ -270,7 +270,7 @@ As cinco seeds produziram resultados idênticos nos seis pares sem chaves de con
 
 ### 5.6 Evidência funcional
 
-Testes locais exercitaram modo *shadow*, rejeição de proposta defasada, promoção, rollback, replay, recuperação de proposta a partir do ledger, consulta por tópico, a baseline B′ e instalação em ambiente isolado. Não comprovam atualização da instalação global nem revisão independente.
+Testes Node exercitaram modo *shadow*, rejeição de proposta defasada, promoção, rollback, replay, recuperação de proposta a partir do ledger, consulta por tópico, a baseline B′ e instalação em ambiente isolado. A parte em PowerShell que liga a memória ao ledger (`conv-memory.ps1` e a bateria `conv-test*.ps1`) não cobre sonho, aceitação nem rollback (PS-18). Esses testes não comprovam atualização da instalação global nem revisão independente.
 
 ## 6. Discussão e ameaças à validade
 
@@ -278,7 +278,7 @@ O Memory-TCG mostra que é possível integrar as três etapas nomeadas no RRR a 
 
 **O que explica os resultados.** A recuperação de decisões sob orçamento neste experimento é compatível com a **filtragem por autoridade** na visão ativa quando as chaves são explícitas: B′ obtém a mesma revocação do RRR completo em todas as escalas. O comparador FIFO de D1 exclui fatos antes da construção do grafo, ao passo que o caminho do produto conserva decisões ativas por regra; a contribuição isolada do *ringing* para decisões não foi medida. No desenho avaliado, retirar *resonance* não alterou a revocação de decisões; alterou a detecção de conflitos antes do corte. Nas escalas maiores, essa diferença não aparece depois do corte quando os conflitos são serializados após os itens ativos.
 
-A cota de 20% para conflitos na ordem da proposta deixa de ser hipótese: com 480 fatos e 4.096 tokens, CQ mantém a revocação de decisões em 1,000 e leva o F1 de conflitos de 0,000 a 0,930 (Tabela 4). Nos cenários de 480 fatos com 512 ou 1.024 tokens e nos de 1.920 fatos, a cota recupera conflitos com precisão 1,000 e reduz a revocação de decisões; essa precisão não se generaliza aos cenários de 48 fatos. A ordenação usada é a da proposta (`conflict_id`), não um score de confiança exportado; em 48 fatos e 512 tokens, a precisão foi 0,800 em C e 0,571 em CQ, sem demonstrar que o início da fila seja sempre o melhor. Um campo explícito de confiança permanece não testado.
+A cota de 20% para conflitos na ordem da proposta altera o F1 observado: com 480 fatos e 4.096 tokens, CQ mantém a revocação de decisões em 1,000 e leva o F1 de conflitos de 0,000 a 0,930 (Tabela 4). Nos cenários de 480 fatos com 512 ou 1.024 tokens e nos de 1.920 fatos, a cota recupera conflitos com precisão 1,000 e reduz a revocação de decisões; essa precisão não se generaliza aos cenários de 48 fatos. A ordenação usada é a da proposta (`conflict_id`), não um score de confiança exportado; em 48 fatos e 512 tokens, a precisão foi 0,800 em C e 0,571 em CQ, sem demonstrar que o início da fila seja sempre o melhor. Um campo explícito de confiança permanece não testado.
 
 **A previsão de [2] não foi testada.** O empate entre B′ e C não refuta nem confirma a hipótese selecionista: as fixtures fornecem chaves estruturadas e relações explícitas de substituição, condição em que uma regra instrucionista é suficiente por construção. A vantagem prevista em [2] diz respeito a memórias grandes e interconectadas, sem chaves explícitas, que este desenho não representa. Além disso, a implementação avaliada é determinística e baseada em regras, não uma competição selecionista.
 
@@ -288,7 +288,9 @@ A cota de 20% para conflitos na ordem da proposta deixa de ser hipótese: com 48
 
 O caso de continuidade entre agentes é observacional e está no Apêndice A. A autoria de uma promoção antiga não é verificável e o teste de três identidades é sintético. Dados reais e trechos conversacionais exigem revisão humana de privacidade antes de divulgação.
 
-Os limiares de escala da política também mudam o caminho executado: a fixture de 480 nós ultrapassa os limiares de 50 e 200 nós e de 250 episódios; a de 1.920 nós também aciona a compactação acima de 500 nós, sem reduzir o grafo nessa fixture. Uma sonda sintética adicional de 480 fatos construiu uma visão ativa com o adaptador e consultou `memory context`: com orçamento solicitado de 3.200 caracteres foram exibidas 4 decisões e 4 conflitos e 295 itens foram omitidos; o Markdown final teve 3.235 caracteres, incluindo o aviso de omissões. Essa sonda não executou aceitação real nem mede o pack final; CN modela ordem e serialização da avaliação, e seus números não são medidas diretas do Markdown de produção.
+Os limiares de escala da política também mudam o caminho executado. Cada fato da fixture vira um nó; fatos não são nós de antemão. A escala de 48 fatos produz 48 nós (38 episódios e 10 decisões) e **não** ultrapassa o limiar de 50 nós, nem o de 200 nós, nem a janela lexical de 250 episódios. A de 480 fatos produz 480 nós (380 episódios e 100 decisões) e ultrapassa os limiares de 50 e 200 nós e a janela de 250 episódios. A de 1.920 fatos produz 1.920 nós (1.520 episódios e 400 decisões) e também aciona a compactação acima de 500 nós, sem reduzir o grafo nessa fixture.
+
+Uma sonda sintética adicional de 480 fatos construiu uma visão ativa com o adaptador e consultou `memory context`, sem aceitação real nem pack. Com orçamento solicitado de 3.200 caracteres foram exibidas 4 das 50 decisões vigentes (revocação 0,08) e 4 conflitos; 295 itens foram omitidos. No harness, CN recupera 0,44 das decisões no mesmo cenário a 1.024 tokens. O Markdown final teve 3.235 caracteres, incluindo o aviso de omissões: o produto estoura o orçamento pedido quando insere esse aviso. Essa sonda não mede o pack final; CN modela ordem e serialização da avaliação, e seus números não são medidas diretas do Markdown de produção.
 
 As próximas avaliações devem incluir conjuntos independentes e mais diversos, conflitos expressos sem chaves, memórias interconectadas sem relações explícitas de substituição — o regime em que [2] prevê vantagem selecionista —, um score de confiança por conflito e baselines externas adequadamente configuradas. Uma reprodução independente e uma avaliação de tarefas reais seriam necessárias para sustentar conclusões mais gerais. A existência de um marcador de conflito ausente ou de uma verificação estrutural bem-sucedida não prova que toda a memória está livre de contradições.
 
@@ -296,7 +298,7 @@ As próximas avaliações devem incluir conjuntos independentes e mais diversos,
 
 O Conversation ESAA fornece a base de continuidade e rastreabilidade; o Memory-TCG acrescenta uma consolidação offline inspirada nas três fases RRR. A combinação permite gerar, inspecionar, aceitar e reverter uma visão ativa sem apagar os eventos de origem. Trata-se de uma implementação operacional do **mapeamento de engenharia** entre as ideias dos dois artigos, com diferenças explícitas em relação à hipótese selecionista.
 
-Nos cenários avaliados, o RRR completo reteve todas as decisões vigentes antes do corte e, sob 1.024 tokens a 480 fatos, recuperou 0,44 delas — cerca de 7,3 vezes a janela cronológica e 76% do teto oracular —, chegando à recuperação completa com 4.096 tokens. Nesta avaliação, B′ mostra que uma regra sensível à autoridade reproduz essa revocação nas fixtures com chaves explícitas; a contribuição isolada do *ringing* para decisões não foi medida; a variante sem *resonance* empatou em revocação de decisões neste desenho. A *resonance* melhora a detecção de conflitos antes do corte, mas, com a ordenação que os coloca por último, eles são descartados pelo orçamento nas escalas maiores. Reservar 20% do orçamento para a fila de conflitos recupera esses pares — com 480 fatos e 4.096 tokens, sem perder decisões; em cinco das nove combinações, a cota reduz a revocação de decisões. Os casos adversariais revelaram contradições não detectadas. Esses achados justificam investigar a consolidação de memória como componente de sistemas multiagentes e, especificamente, a ordenação sob orçamento, sem concluir que a hipótese de Haber e Tononi foi testada ou comprovada, nem que agentes tenham experiência de sonhar.
+Nos cenários avaliados, o RRR completo reteve todas as decisões vigentes antes do corte e, sob 1.024 tokens a 480 fatos, recuperou 0,44 delas — cerca de 7,3 vezes a janela cronológica e 76% do teto oracular —, chegando à recuperação completa com 4.096 tokens. Nesta avaliação, B′ mostra que uma regra sensível à autoridade reproduz essa revocação nas fixtures com chaves explícitas; a contribuição isolada do *ringing* para decisões não foi medida; a variante sem *resonance* empatou em revocação de decisões nas nove combinações (Tabela 2). A *resonance* melhora a detecção de conflitos antes do corte, mas, com a ordenação que os coloca por último, eles são descartados pelo orçamento nas escalas maiores. Reservar 20% do orçamento para a fila de conflitos recupera esses pares — com 480 fatos e 4.096 tokens, sem perder decisões; em cinco das nove combinações, a cota reduz a revocação de decisões. Na sonda de `memory context` com 480 fatos, a saída real recuperou 0,08 das decisões vigentes, contra 0,44 do CN. Os casos adversariais revelaram contradições não detectadas. Esses achados justificam investigar a consolidação de memória como componente de sistemas multiagentes e, especificamente, a ordenação sob orçamento, sem concluir que a hipótese de Haber e Tononi foi testada ou comprovada, nem que agentes tenham experiência de sonhar.
 
 ## Apêndice A — Continuidade observada
 
@@ -321,17 +323,3 @@ Em um uso real, uma decisão de handoff foi registrada, uma geração aceita a r
 [8] TONONI, Giulio; CIRELLI, Chiara. **Sleep and the price of plasticity: from synaptic and cellular homeostasis to memory consolidation and integration**. *Neuron*, v. 81, n. 1, p. 12–34, 2014. [DOI: 10.1016/j.neuron.2013.12.025](https://doi.org/10.1016/j.neuron.2013.12.025).
 
 [9] SANTOS FILHO, Elzo Brito dos. **RRR Memory Consolidation: Synthetic Evaluation Artifacts**. Código e dados sintéticos, commit `6a2ac1f9e1966403603b2f972453d12cdbbea3c3`, 2026. [Repositório público e instruções de reprodução](https://github.com/elzobrito/conversation-esaa-rrr-artifacts/tree/6a2ac1f9e1966403603b2f972453d12cdbbea3c3).
-
----
-
-## Referências internas
-
-**Este documento referencia:**
-- [[conv-adr-013]] — contrato Memory-TCG/RRR
-- [[conv-rrr-v13-metodo]] — método da avaliação v1.3
-- [[CONV-RRR-V13-OUTPUT.json]] — resultados (405 execuções)
-- [[conv-rrr-matriz]] — matriz de evidências para redação
-
-**Este documento é referenciado por:**
-- [[conv-rrr-matriz]] — matriz de evidências que antecedeu a redação
-- [README.md](../README.md) — índice do repositório (Artigo RRR v1.3.1)
