@@ -17,6 +17,7 @@ param(
     [string]$CursorSessionId,
     [string]$CursorTranscriptPath,
     [string]$CursorPrompt,
+    [switch]$CursorPromptStdin,
     [ValidateSet('user', 'assistant')]
     [string]$CursorRole,
     [int]$CursorSourceIndex = -1,
@@ -245,7 +246,9 @@ function Resolve-WorkspacePath {
 function Invoke-ConvSyncCli {
     param(
         [string]$SyncCommand,
-        [string[]]$Extra = @()
+        [string[]]$Extra = @(),
+        [switch]$PipeStdin,
+        [string]$StdinText
     )
     $ws = Resolve-WorkspacePath
     $pwshExe = (Get-Command pwsh -ErrorAction Stop).Source
@@ -253,7 +256,7 @@ function Invoke-ConvSyncCli {
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convSync,
         $SyncCommand, '-WorkspaceRoot', $ws
     ) + $Extra
-    & $pwshExe @args
+    if ($PipeStdin) { $StdinText | & $pwshExe @args } else { & $pwshExe @args }
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
@@ -265,6 +268,7 @@ Usage:
   conversation-esaa init --workspace <path>
   conversation-esaa enable-hooks --agent <grok|claude|codex|antigravity|cursor> --workspace <path> [--trust] [--watcher]
   conversation-esaa sync --agent <grok|claude|codex|antigravity|cursor> --workspace <path>
+  conversation-esaa sync --agent cursor --workspace <path> -CursorRole <user|assistant> -CursorPromptStdin
   conversation-esaa pack --workspace <path> [--budget-tokens N] [--budget-chars N]
   conversation-esaa project --workspace <path>
   conversation-esaa verify --workspace <path>
@@ -340,10 +344,13 @@ switch ($Command) {
         if ($AntigravityConversationId) { $extra += '-AntigravityConversationId', $AntigravityConversationId }
         if ($CursorSessionId) { $extra += '-CursorSessionId', $CursorSessionId }
         if ($CursorTranscriptPath) { $extra += '-CursorTranscriptPath', $CursorTranscriptPath }
+        if ($CursorPromptStdin -and ($Agent -ne 'cursor' -or $CursorPrompt)) { throw 'CursorPromptStdin requires cursor and cannot be combined with CursorPrompt' }
+        $promptInput = $null
+        if ($CursorPromptStdin) { $promptInput = [Console]::In.ReadToEnd(); $extra += '-CursorPromptStdin' }
         if ($CursorPrompt) { $extra += '-CursorPrompt', $CursorPrompt }
         if ($CursorRole) { $extra += '-CursorRole', $CursorRole }
         if ($CursorSourceIndex -ge 0) { $extra += '-CursorSourceIndex', "$CursorSourceIndex" }
-        Invoke-ConvSyncCli -SyncCommand $map[$Agent] -Extra $extra
+        Invoke-ConvSyncCli -SyncCommand $map[$Agent] -Extra $extra -PipeStdin:$CursorPromptStdin -StdinText $promptInput
     }
     'project' { Invoke-ConvSyncCli -SyncCommand 'project' }
     'verify' { Invoke-ConvSyncCli -SyncCommand 'verify' }

@@ -269,6 +269,7 @@ via stdin. Como fallback, lê
 Cloud Agents gerenciados pelo Cursor **não** disparam `sessionStart`; o pack
 de cold start entra no primeiro `beforeSubmitPrompt` via `additional_context`.
 `sessionStart` e `pack` só lêem o ledger — não gravam em `activity.jsonl`.
+A captura do texto do Cursor usa stdin entre processos, inclusive para mensagens longas. A interface `sync` também aceita `-CursorRole` e `-CursorPromptStdin`; não combine essa opção com `-CursorPrompt`. Como nas versões anteriores, espaços nas extremidades do texto são removidos na importação.
 
 ```powershell
 node src/cli.js install --workspace $root --agent cursor --non-interactive

@@ -121,11 +121,15 @@ function Invoke-CursorSync {
     )
     if ($SessionId) { $args += '-CursorSessionId', $SessionId }
     if ($Role -and $Text) {
-        $args += '-CursorRole', $Role, '-CursorPrompt', $Text
+        $args += '-CursorRole', $Role, '-CursorPromptStdin'
     }
     if ($SourceIndex -ge 0) { $args += '-CursorSourceIndex', "$SourceIndex" }
     if ($TranscriptPath) { $args += '-CursorTranscriptPath', $TranscriptPath }
-    $syncOutput = (& $pwshExe @args 2>&1 | Out-String).Trim()
+    if ($Role -and $Text) {
+        $syncOutput = ($Text | & $pwshExe @args 2>&1 | Out-String).Trim()
+    } else {
+        $syncOutput = (& $pwshExe @args 2>&1 | Out-String).Trim()
+    }
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
         throw "sync exit=$LASTEXITCODE output=$syncOutput"
     }

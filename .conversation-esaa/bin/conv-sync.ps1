@@ -13,6 +13,7 @@ param(
     [string]$CursorSessionId,
     [string]$CursorTranscriptPath,
     [string]$CursorPrompt,
+    [switch]$CursorPromptStdin,
     [ValidateSet('user', 'assistant')]
     [string]$CursorRole,
     [int]$CursorSourceIndex = -1,
@@ -2730,6 +2731,10 @@ function Invoke-Verify {
     Write-Output 'verify: ok'
 }
 
+if ($CursorPromptStdin) {
+    if ($Command -ne 'sync-cursor' -or $CursorPrompt) { throw 'CursorPromptStdin requires sync-cursor and cannot be combined with CursorPrompt' }
+    $CursorPrompt = [Console]::In.ReadToEnd()
+}
 $root = Resolve-WorkspaceRoot
 $paths = Get-ConvPaths $root
 if (-not (Test-Path -LiteralPath $paths.Esaa)) {
