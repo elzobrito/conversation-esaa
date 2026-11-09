@@ -239,9 +239,15 @@ $convMemory = Join-Path $binDir 'conv-memory.ps1'
 
 function Resolve-WorkspacePath {
     if ($Workspace) { return (Resolve-Path -LiteralPath $Workspace).Path }
-    if ($env:GROK_WORKSPACE_ROOT) { return $env:GROK_WORKSPACE_ROOT }
-    $parent = Split-Path -Parent (Split-Path -Parent $binDir)
-    return (Resolve-Path -LiteralPath $parent).Path
+    $installRoot = (Resolve-Path -LiteralPath (Split-Path -Parent (Split-Path -Parent $binDir))).Path
+    # Environment routing is retained for the user-global installation only.
+    # A project-installed runtime otherwise targets its own workspace.
+    $homeRoot = (Resolve-Path -LiteralPath $HOME).Path
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if ($env:GROK_WORKSPACE_ROOT -and [string]::Equals($installRoot, $homeRoot, $comparison)) {
+        return (Resolve-Path -LiteralPath $env:GROK_WORKSPACE_ROOT).Path
+    }
+    return $installRoot
 }
 
 function Invoke-ConvSyncCli {

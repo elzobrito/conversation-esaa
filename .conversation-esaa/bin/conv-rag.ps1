@@ -27,8 +27,13 @@ $ErrorActionPreference = 'Stop'
 
 function Resolve-Ws {
     if ($WorkspaceRoot) { return (Resolve-Path -LiteralPath $WorkspaceRoot).Path }
-    if ($env:GROK_WORKSPACE_ROOT) { return $env:GROK_WORKSPACE_ROOT }
-    return (Resolve-Path -LiteralPath (Get-Location).Path).Path
+    $installRoot = (Resolve-Path -LiteralPath (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))).Path
+    $homeRoot = (Resolve-Path -LiteralPath $HOME).Path
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if ($env:GROK_WORKSPACE_ROOT -and [string]::Equals($installRoot, $homeRoot, $comparison)) {
+        return (Resolve-Path -LiteralPath $env:GROK_WORKSPACE_ROOT).Path
+    }
+    return $installRoot
 }
 
 function Get-DictVal {

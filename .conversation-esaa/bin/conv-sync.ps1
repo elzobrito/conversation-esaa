@@ -245,9 +245,15 @@ function Get-ConvPaths {
 
 function Resolve-WorkspaceRoot {
     if ($WorkspaceRoot) { return (Resolve-Path -LiteralPath $WorkspaceRoot).Path }
-    if ($env:GROK_WORKSPACE_ROOT) { return $env:GROK_WORKSPACE_ROOT }
-    $scriptDir = Split-Path -Parent $PSScriptRoot
-    return (Resolve-Path -LiteralPath (Split-Path -Parent $scriptDir)).Path
+    $installRoot = (Resolve-Path -LiteralPath (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))).Path
+    # Environment routing is retained for the user-global installation only.
+    # A project-installed runtime otherwise targets its own workspace.
+    $homeRoot = (Resolve-Path -LiteralPath $HOME).Path
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if ($env:GROK_WORKSPACE_ROOT -and [string]::Equals($installRoot, $homeRoot, $comparison)) {
+        return (Resolve-Path -LiteralPath $env:GROK_WORKSPACE_ROOT).Path
+    }
+    return $installRoot
 }
 
 function Encode-GrokCwd {
