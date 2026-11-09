@@ -19,6 +19,7 @@ param(
     [string]$Reason,
     [string]$TopicId,
     [int]$BudgetChars = 4000,
+    [Nullable[int]]$MaxPerSection = $null,
     [int]$MaxNodes = 0,
     [int]$MaxEdges = 0,
     [switch]$Accept,
@@ -101,6 +102,10 @@ if ($Action -eq 'context') {
     $effBudget = if ($BudgetChars -gt 0) { $BudgetChars } else { 4000 }
     $nodeArgs = @($cliScript, 'context', '--workspace', $ws, '--budget-chars', "$effBudget", '--json')
     if ($TopicId) { $nodeArgs += @('--topic-id', $TopicId) }
+    if ($null -ne $MaxPerSection) {
+        if ($MaxPerSection -le 0) { throw 'max-per-section must be a positive integer' }
+        $nodeArgs += @('--max-per-section', "$MaxPerSection")
+    }
     $rawOut = & $nodeCmd.Source @nodeArgs
     $exitCode = $LASTEXITCODE
     if ($exitCode -and $exitCode -ne 0) {

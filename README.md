@@ -91,6 +91,8 @@ Para informar o agente de uma operação de curadoria, use `--agent grok`, `--ag
 
 `memory context --topic-id TOP-001` restringe a leitura aos vínculos explícitos da geração ativa; decisões globais sem vínculo ficam fora. O tópico deve existir na geração consultada e vínculos novos exigem outra consolidação. Compare os watermarks em `memory status`: um histórico que avançou pode conter informações ausentes da geração ativa. Zero conflitos detectados significa apenas que as heurísticas não sinalizaram conflitos.
 
+Em `memory context`, `--max-per-section N` limita cada grupo de itens a um inteiro positivo escolhido pelo operador, sujeito também a `--budget-chars`. Sem a opção, permanecem os limites automáticos existentes (4 para decisões e conflitos em memórias grandes com orçamento de até 5000 caracteres, e limites próprios para outros grupos).
+
 #### Como funciona o sonho (Ciclo RRR)
 
 1. **Snapshot imutável e Watermark:**

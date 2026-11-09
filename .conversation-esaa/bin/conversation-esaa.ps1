@@ -22,6 +22,7 @@ param(
     [int]$CursorSourceIndex = -1,
     [int]$BudgetTokens = 0,
     [int]$BudgetChars = 0,
+    [Nullable[int]]$MaxPerSection = $null,
     [string]$Mode = 'normal',
     [int]$Seed = 42,
     [string]$Budget = 'all',
@@ -279,7 +280,7 @@ Usage:
   conversation-esaa rag enable|status|refresh|disable [--workspace <path>] [--command PATH] [--purge] [--force] [--json]
   conversation-esaa search "<query>" [--workspace <path>] [--top-k N] [--min-score F] [--json]
   conversation-esaa sonhar|dream [--workspace <path>] [--accept] [--mode shadow|manual] [--seed N] [--budget all|N] [--json]
-  conversation-esaa memory status|sleep|sonhar|dream|inspect|diff|accept|rollback|context|verify [--workspace <path>] [--accept] [--mode shadow|manual] [--seed N] [--budget all|N] [--proposal-id ID] [--generation-id ID] [--topic-id TOP-001] [--budget-chars N] [--json]
+  conversation-esaa memory status|sleep|sonhar|dream|inspect|diff|accept|rollback|context|verify [--workspace <path>] [--accept] [--mode shadow|manual] [--seed N] [--budget all|N] [--proposal-id ID] [--generation-id ID] [--topic-id TOP-001] [--budget-chars N] [--max-per-section N] [--json]
 '@ | Write-Output
 }
 
@@ -676,6 +677,10 @@ switch ($Command) {
             'context' {
                 if ($TopicId) { $extra += @('-TopicId', $TopicId) }
                 if ($BudgetChars -gt 0) { $extra += @('-BudgetChars', "$BudgetChars") }
+                if ($null -ne $MaxPerSection) {
+                    if ($MaxPerSection -le 0) { throw 'max-per-section must be a positive integer' }
+                    $extra += @('-MaxPerSection', "$MaxPerSection")
+                }
                 if ($Json) { $extra += '-Json' }
             }
             default {

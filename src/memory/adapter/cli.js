@@ -1132,6 +1132,16 @@ export function cmdContext(workspaceRoot, options = {}) {
       ? Number.parseInt(String(options.budgetChars), 10)
       : 4000;
 
+  let requestedSectionCap = null;
+  if (options.maxPerSection !== undefined && options.maxPerSection !== null) {
+    const rawCap = String(options.maxPerSection);
+    const cap = Number(rawCap);
+    if (!/^[1-9]\d*$/.test(rawCap) || !Number.isSafeInteger(cap)) {
+      throw new MemoryTcgError("INVALID_OPTION", "max-per-section must be a positive integer");
+    }
+    requestedSectionCap = cap;
+  }
+
   if (!existsSync(activePath)) {
     return {
       status: "OFF",
@@ -1305,7 +1315,7 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   const isLargeActiveStore =
     retainedDecisions.length + unresolvedConflicts.length > 20;
-  const maxPerSection = isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity;
+  const maxPerSection = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity);
 
   const lines = [];
   lines.push("## Memory-TCG Consolidated Context (Active Generation)");
@@ -1316,6 +1326,8 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   const includedIds = [];
   const omittedIds = [];
+  let omittedBySectionCap = false;
+  let omittedByBudget = false;
 
   const appendSectionItem = (
     id,
@@ -1325,6 +1337,7 @@ export function cmdContext(workspaceRoot, options = {}) {
     sectionHeader = null,
   ) => {
     if (sectionCount >= sectionCap) {
+      omittedBySectionCap = true;
       omittedIds.push(id);
       return false;
     }
@@ -1339,6 +1352,7 @@ export function cmdContext(workspaceRoot, options = {}) {
       budgetChars > 0 &&
       currentLen + headerLen + textToPush.length + 80 > budgetChars
     ) {
+      omittedByBudget = true;
       omittedIds.push(id);
       return false;
     }
@@ -1371,7 +1385,7 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   if (subjectEpisodes.length > 0 || groupedDuplicateSubjects.length > 0) {
     let secAdded = 0;
-    const subjCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    const subjCap = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity);
     for (const ep of subjectEpisodes) {
       const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
       const topicPrefix = ep.topic_id ? `[${ep.topic_id}] ` : "";
@@ -1388,7 +1402,7 @@ export function cmdContext(workspaceRoot, options = {}) {
       }
     }
     let grpAdded = 0;
-    const grpCap = isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity;
+    const grpCap = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity);
     for (const grp of groupedDuplicateSubjects) {
       const count = (grp.evidence_event_ids || []).length;
       const topicPrefix = grp.topic_id ? `[${grp.topic_id}] ` : "";
@@ -1396,7 +1410,7 @@ export function cmdContext(workspaceRoot, options = {}) {
         appendSectionItem(
           grp.memory_id,
           `- **${topicPrefix}[RECORRENTE x${count}]** \`${grp.memory_id}\`: ${grp.summary}`,
-          grpAdded,
+          requestedSectionCap === null ? grpAdded : secAdded,
           grpCap,
           secAdded === 0
             ? "### Consolidated Subjects Discussed (Assuntos Tratados)"
@@ -1411,7 +1425,7 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   if (unresolvedConflicts.length > 0) {
     let secAdded = 0;
-    const confCap = isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity;
+    const confCap = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 4 : Infinity);
     const shortId = (id) => {
       const s = String(id || "");
       if (!isLargeActiveStore) return s;
@@ -1477,7 +1491,7 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   if (retainedTopicsAndTasks.length > 0) {
     let secAdded = 0;
-    const ttCap = isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity;
+    const ttCap = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 3 : Infinity);
     for (const item of retainedTopicsAndTasks) {
       const evStr = (item.evidence_event_ids || []).slice(0, 3).join(", ");
       if (
@@ -1496,7 +1510,7 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   if (decisionSupportEpisodes.length > 0) {
     let secAdded = 0;
-    const dsCap = isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity;
+    const dsCap = requestedSectionCap ?? (isLargeActiveStore && budgetChars <= 5000 ? 2 : Infinity);
     for (const ep of decisionSupportEpisodes) {
       const evStr = (ep.evidence_event_ids || []).slice(0, 3).join(", ");
       if (
@@ -1518,8 +1532,11 @@ export function cmdContext(workspaceRoot, options = {}) {
     const previewOmitted = omittedIds.slice(0, 8).join(", ");
     const moreSuffix =
       omittedIds.length > 8 ? `, ... (+${omittedIds.length - 8} more)` : "";
+    const reason = requestedSectionCap !== null && omittedBySectionCap
+      ? `--max-per-section ${requestedSectionCap}${omittedByBudget ? ` and --budget-chars ${budgetChars}` : ""}`
+      : `--budget-chars ${budgetChars}`;
     lines.push(
-      `> *[Budget Truncated: ${omittedIds.length} item(s) omitted due to --budget-chars ${budgetChars}: ${previewOmitted}${moreSuffix}]*`,
+      `> *[Budget Truncated: ${omittedIds.length} item(s) omitted due to ${reason}: ${previewOmitted}${moreSuffix}]*`,
     );
   }
 
@@ -1601,6 +1618,7 @@ function main() {
         result = cmdContext(workspaceRoot, {
           topicId: flags["topic-id"] || null,
           budgetChars: flags["budget-chars"] || 4000,
+          maxPerSection: flags["max-per-section"],
         });
         break;
       default:
