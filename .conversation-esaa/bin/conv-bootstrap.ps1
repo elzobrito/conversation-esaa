@@ -371,7 +371,7 @@ if ($Agents -contains 'antigravity') {
     [void]$result.warnings.Add('Restart Antigravity to reload hooks.')
 }
 if ($Agents -contains 'cursor') {
-    [void]$result.warnings.Add('Reload Cursor project hooks (.cursor/hooks.json). Cloud Agents pick them up from the repo after install.')
+    [void]$result.warnings.Add('Reload Cursor project hooks (.cursor/hooks.json). Ledger and generated hook configuration are not automatically transferred to clones.')
 }
 
 if ($Json) {

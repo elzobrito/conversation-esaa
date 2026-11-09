@@ -1,6 +1,6 @@
 # ADR-012 — Cursor adapter and read-only session-start pack (P0)
 
-**Status:** Accepted
+**Status:** Accepted; amended by D-01 (local ledger only)
 **Date:** 2026-11-07
 **Depends on:** CONV-PRD-DX-001, ADR-011
 **Implements:** CONV-DX-P0-SPEC-001
@@ -30,16 +30,17 @@ still run `sessionStart`.
    - `afterAgentResponse` records visible assistant text (`actor=assistant`,
      `agent_id=cursor`, `source=cursor`).
    - Skip thinking (`afterAgentThought`), tool I/O, and empty payloads.
-   - Optional `stop` + `transcript_path` may re-sync the same turns;
-     `Import-Message` remains the idempotent dedupe.
+   - Optional `stop` + `transcript_path` may re-sync turns. Live capture and
+     transcript import do not guarantee a shared message identity; ambiguous
+     deliveries may be duplicated.
 3. Session-start **only reads**. It never appends `activity.jsonl`, never
    updates `sync-state.json`, and never runs `project`. It builds the
    mechanical cold-start pack and returns it as hook `additional_context`.
-4. Cloud-portable injector: `sessionStart` injects the pack where it runs
-   (desktop / self-hosted). On Cloud Agents, the **first**
-   `beforeSubmitPrompt` of a `conversation_id` injects the same pack. Later
-   prompts in that conversation do not re-inject. Injection tracking is
-   ephemeral under `.conversation-esaa/run/` and is not the ledger.
+4. Local injector: `sessionStart` injects the pack where it runs. When it is
+   not fired, the first `beforeSubmitPrompt` of a `conversation_id` attempts
+   injection from the ledger available in that workspace. Tracking is
+   ephemeral under `.conversation-esaa/run/`. The ledger is local; no transfer
+   to a Cloud Agent or continuity across clones is promised.
 5. The pack is bounded by `--budget-tokens` and `--budget-chars` (stricter
    bound wins; default 4000 estimated tokens). Truncation order, highest
    priority kept first: handoff, active decisions, open tasks, recent events
@@ -50,10 +51,10 @@ still run `sessionStart`.
    projections. Fail closed on invalid JSON; fail open on hook runtime
    errors so send is never blocked.
 7. The hook wrapper lives at `.conversation-esaa/bin/cursor-hook.ps1`. It
-   resolves the workspace from its own location (parent of
-   `.conversation-esaa`), so Cloud Agent clones are not tied to the install
-   machine's absolute path. Commands in `.cursor/hooks.json` may use `pwsh`
-   on PATH plus that relative script.
+   can resolve a workspace from its own location. Generated hook commands
+   may also contain absolute paths, and the local hook configuration is not
+   transferred automatically by Git. A clone must be installed and configured in its
+   own workspace; continuity from another workspace is not provided.
 8. Zero LLM on this path. ESAA-Core remains a separate store; this adapter
    does not read or write `.roadmap/`.
 
@@ -63,6 +64,6 @@ still run `sessionStart`.
   tests all gain `cursor`.
 - `.cursor/hooks.json` is installer-owned when generated (manifest hash);
   unrelated Cursor hooks are preserved.
-- A Cloud Agent that has the runtime installed receives the pack without
-  opening `handoff.md` by hand, and subsequent user/assistant turns land in
-  `activity.jsonl`.
+- A Cloud Agent may run supported hooks after local installation, but the
+  local ledger and generated hook configuration are not automatically transported by this adapter.
+  Cross-workspace handoff, redacted export and relocation remain future work.

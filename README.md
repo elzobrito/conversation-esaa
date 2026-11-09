@@ -266,8 +266,9 @@ via stdin. Como fallback, lê
 
 **Cursor** — o instalador mescla `sessionStart`, `beforeSubmitPrompt` e
 `afterAgentResponse` em `.cursor/hooks.json`. Recarregue os hooks do projeto.
-Cloud Agents gerenciados pelo Cursor **não** disparam `sessionStart`; o pack
-de cold start entra no primeiro `beforeSubmitPrompt` via `additional_context`.
+Cloud Agents gerenciados pelo Cursor podem executar hooks de conversa, mas o
+ledger e a configuração local de hooks não são transportados automaticamente
+para um clone. A continuidade entre workspaces ou na nuvem não é garantida.
 `sessionStart` e `pack` só lêem o ledger — não gravam em `activity.jsonl`.
 A captura do texto do Cursor usa stdin entre processos, inclusive para mensagens longas. A interface `sync` também aceita `-CursorRole` e `-CursorPromptStdin`; não combine essa opção com `-CursorPrompt`. Como nas versões anteriores, espaços nas extremidades do texto são removidos na importação.
 

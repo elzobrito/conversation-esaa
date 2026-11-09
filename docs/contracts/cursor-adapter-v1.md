@@ -52,8 +52,11 @@ Project hooks (Cloud Agents load only these):
 ```
 
 The Node adapter may substitute the absolute `pwsh` discovered at install
-time. The wrapper must still resolve `WorkspaceRoot` from the script path
-when `-WorkspaceRoot` is omitted, so a Cloud Agent checkout works.
+time. The wrapper can resolve `WorkspaceRoot` from its script path when
+`-WorkspaceRoot` is omitted, but generated hook commands can use absolute
+paths. The generated hook configuration is gitignored and is not transported
+automatically; the ledger remains local. A Cloud Agent clone needs its own
+installation, and continuity with another workspace is not guaranteed.
 
 Runtime file added to the packaged set: `cursor-hook.ps1`.
 
@@ -67,7 +70,7 @@ Canonical capture is the send hook, not session-start.
 | `afterAgentResponse` | Append assistant `conversation_turn` from `text` |
 | `afterAgentThought` | Ignore |
 | `sessionStart` | **No append** |
-| `stop` | Optional transcript resync; deduped |
+| `stop` | Optional transcript resync; cross-source identity is not guaranteed |
 
 Event fields (same contract as grok/claude/codex/antigravity):
 
@@ -76,7 +79,7 @@ Event fields (same contract as grok/claude/codex/antigravity):
 - assistant: `actor=assistant`, `agent_id=cursor`
 - `workspace_root` required
 - `source_session_id` = `conversation_id` (fallback `session_id`)
-- `source_index` stable per session (generation ordinal or transcript index)
+- `source_index` is a transcript index when supplied from a transcript; live-message identity and cross-source deduplication have outstanding limitations (PS-01).
 - skip empty / whitespace-only text
 
 `sync --agent cursor` maps to `sync-cursor` in `conv-sync.ps1`. The hook
@@ -102,7 +105,7 @@ Must not write the ledger (`activity.jsonl`), `sync-state.json`, or run
 | Harness | When the pack is injected |
 |---|---|
 | Desktop / self-hosted | `sessionStart` → `{ "additional_context": "<pack>" }` |
-| Cursor Cloud Agents | first `beforeSubmitPrompt` for that `conversation_id` |
+| Cursor Cloud Agents | when configured locally, first `beforeSubmitPrompt` attempts a pack from that workspace; no cross-workspace continuity guarantee |
 
 Re-injection for the same conversation is suppressed using an ephemeral
 marker under `.conversation-esaa/run/` (not a projection, not versioned).
@@ -182,8 +185,9 @@ contract-file edit, `diff AGENTS.md .claude/CLAUDE.md` is empty.
 - Installer: `--agent cursor` accepted; unsupported agents still rejected;
   e2e install creates `.cursor/hooks.json`; second install is idempotent;
   unrelated Cursor hooks survive.
-- Runtime: synthetic user+assistant payloads import two events; thinking
-  skipped; second sync is a no-op; session-start / `pack` does not grow
+- Runtime: synthetic user+assistant payloads import events; thinking is
+  skipped; transcript reimports are tested separately from live deliveries;
+  session-start / `pack` does not grow
   `activity.jsonl`; budget truncates in the specified order; verify
   explains a broken Cursor hook.
 - Zero network / zero LLM in these tests.
