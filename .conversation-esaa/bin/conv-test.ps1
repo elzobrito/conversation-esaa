@@ -438,6 +438,7 @@ try {
     # ADR-009 topic memory layer
     $topicCreate = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('create', 'Assunto de teste') -Params @{
         Summary = 'Resumo do assunto de teste'
+        Agent = 'grok'
     }
     Assert-True ($topicCreate.Output -match 'topic: created TOP-001') 'topic_create_event' $topicCreate.Output
     $topicsPath = Join-Path $ws '.conversation-esaa\topics.json'
@@ -468,6 +469,7 @@ try {
         Where-Object { $_ -match '"event":"topic.created"' } |
         Select-Object -First 1 |
         ConvertFrom-Json
+    Assert-True ($topicCreatedEvent.agent_id -eq 'grok') 'topic_create_records_explicit_agent'
     $topicLink = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('link', 'TOP-001') -Params @{
         EventId = $topicCreatedEvent.event_id
     }
@@ -488,6 +490,12 @@ try {
     $topicsJsonAfterClose = Get-Content -LiteralPath $topicsPath -Raw | ConvertFrom-Json
     $closedTopic = @($topicsJsonAfterClose.topics | Where-Object { $_.id -eq 'TOP-001' })
     Assert-True ($closedTopic[0].status -eq 'completed') 'topic_close_projects_completed'
+
+    $unknownTopic = Invoke-ConvCli -Workspace $ws -Command 'topics' -ExtraArgs @('create', 'Assunto sem agente') -Params @{
+        Summary = 'Identidade nao informada'
+    }
+    $unknownEvent = Get-Content -LiteralPath $activity | Where-Object { $_ -match '"event":"topic.created"' } | Select-Object -Last 1 | ConvertFrom-Json
+    Assert-True ($unknownTopic.Output -match 'topic: created' -and $unknownEvent.agent_id -eq 'unknown' -and $unknownEvent.agent_id_source -eq 'unknown') 'topic_create_defaults_to_unknown'
 
     # verify rejects duplicate event_id
     $lines = [System.IO.File]::ReadAllLines($activity)
