@@ -54,6 +54,8 @@ O artigo *Do agents need to sleep?* (Haber & Tononi, 2026) propõe a hipótese t
    - `flag_conflict` (pares contraditórios sem resolução autoritativa).
    Nenhuma ação de deleção física (`delete`), sobrescrita (`overwrite`) ou inferência de verdade (`assert_true`) é permitida.
 
+Eventos curados, inclusive aceitação ou rollback acionados por operador, registram `actor: assistant`. A identidade declarada é representada por `agent_id` e sua origem por `agent_id_source` (`declared` ou `unknown`); essa declaração não autentica o executor. Para eventos históricos sem origem explícita, `context` pode mostrar `legacy_unverified` sem reescrever o ledger.
+
 ## 4. Contratos Canônicos Associados
 
 - `docs/contracts/memory-tcg-facts.v1.schema.json`
