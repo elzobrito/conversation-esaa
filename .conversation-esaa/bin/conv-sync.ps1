@@ -1542,7 +1542,7 @@ function Invoke-Context {
         if ($idx -lt 0) { throw "Context target event not found: $ContextBefore" }
         $take = if ($ContextLast -gt 0) { $ContextLast } else { 2 }
         $start = [Math]::Max(0, $idx - $take)
-        $events = @($events[$start..($idx - 1)])
+        if ($idx -eq 0) { $events = @() } else { $events = @($events[$start..($idx - 1)]) }
     } elseif ($ContextAround) {
         $idx = [array]::IndexOf(@($events | ForEach-Object { Get-ContextEventId $_ }), $ContextAround)
         if ($idx -lt 0) { throw "Context target event not found: $ContextAround" }
@@ -1558,7 +1558,7 @@ function Invoke-Context {
         }
     }
     if ($ContextJson) {
-        $events | ConvertTo-Json -Depth 8
+        if (@($events).Count -eq 0) { Write-Output '[]' } else { $events | ConvertTo-Json -Depth 8 }
         return
     }
     $filter = @()
