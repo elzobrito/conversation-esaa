@@ -2,25 +2,25 @@
 titulo: "Quando agentes precisam consolidar memórias: o que a consolidação RRR explica, e o que não explica, no Conversation ESAA"
 tipo: "Artigo científico — estudo de engenharia"
 versao: "1.3.1"
-data: "08/11/2026"
+data: "09/11/2026"
 autores:
   - "Elzo Brito dos Santos Filho"
-status: "Em revisão"
-instituicao: "A confirmar"
-departamento: "A confirmar"
+status: "Aprovado"
+instituicao: "CEETEPS — Centro Paula Souza"
+departamento: "CGTIC"
 ---
 
 # Quando agentes precisam consolidar memórias: o que a consolidação RRR explica, e o que não explica, no Conversation ESAA
 
 ## Resumo
 
-Agentes baseados em modelos de linguagem podem compartilhar históricos entre sessões, mas persistência não assegura recuperação de decisões vigentes e proveniência. Este estudo de engenharia apresenta o Memory-TCG, extensão do Conversation ESAA inspirada em *ringing, resonance and renormalization* (RRR). Uma avaliação sintética exploratória compara recuperação cronológica, baselines simplificadas sensíveis à recência e à autoridade (B e B′), RRR e variantes sob três orçamentos de saída. Com 480 fatos e 1.024 tokens, RRR completo recuperou 0,44 das decisões vigentes, ante 0,06 da janela cronológica e teto oracular de 0,58; com 4.096 tokens, recuperou todas. B′ e a variante sem *resonance* empataram com RRR completo em revocação de decisões nas nove combinações. O comparador D1 aplica FIFO aos fatos antes da construção do grafo; sua perda de decisões não mede isoladamente o *ringing* do produto. A contribuição isolada do *ringing* para decisões não foi medida. Antes do corte de saída, o F1 de conflitos de RRR completo foi 0,615 nas três escalas; com 480 fatos e 1.024 tokens, caiu a 0,000. Reservar 20% do orçamento para conflitos elevou esse F1 a 0,431, enquanto a revocação de decisões caiu de 0,44 para 0,34; a 4.096 tokens o F1 chegou a 0,930 sem perda de decisões nesse cenário. As fixtures são repetitivas, os comparadores simplificados e a avaliação não foi reproduzida independentemente. Os resultados sustentam uma análise de engenharia, não uma afirmação de superioridade selecionista.
+Agentes baseados em modelos de linguagem podem compartilhar históricos entre sessões, mas persistência não assegura recuperação de decisões vigentes e proveniência. Este estudo de engenharia apresenta o Memory-TCG, extensão do Conversation ESAA inspirada em *ringing, resonance and renormalization* (RRR). Uma avaliação sintética exploratória compara recuperação cronológica, baselines simplificadas sensíveis à recência e à autoridade (B e B′), RRR e variantes sob três orçamentos de saída. Com 480 fatos e 1.024 tokens, RRR completo recuperou 0,44 das decisões vigentes, ante 0,06 da janela cronológica e teto oracular de 0,58; com 4.096 tokens, recuperou todas. B′ e a variante sem *resonance* empataram com RRR completo em revocação de decisões nas nove combinações. O comparador D1 aplica FIFO aos fatos antes da construção do grafo; sua perda de decisões não mede isoladamente o *ringing* do produto. A contribuição isolada do *ringing* para decisões não foi medida. Antes do corte de saída, o F1 de conflitos de RRR completo foi 0,615 nas três escalas; com 480 fatos e 1.024 tokens, caiu a 0,000. Reservar 20% do orçamento para conflitos (CQ) elevou esse F1 a 0,431 com 480 fatos e 1.024 tokens, enquanto a revocação de decisões caiu de 0,44 para 0,34; a 4.096 tokens o F1 chegou a 0,930 sem perda de decisões nesse cenário. A cota reduziu a revocação de decisões em cinco das nove combinações de escala e orçamento. As fixtures são repetitivas, os comparadores simplificados e a avaliação não foi reproduzida independentemente. Os resultados sustentam uma análise de engenharia, não uma afirmação de superioridade selecionista.
 
 **Palavras-chave:** agentes de inteligência artificial; memória conversacional; event sourcing; consolidação de memória; RRR; rastreabilidade.
 
 ## Abstract
 
-Language-model agents can share conversational history across sessions, but persistence does not guarantee retrieval of current decisions and their provenance. This engineering study presents Memory-TCG, a Conversation ESAA extension inspired by ringing, resonance and renormalization (RRR). An exploratory synthetic evaluation compares chronological retrieval, simplified recency- and authority-aware baselines (B and B′), RRR and variants under three output budgets. With 480 facts and 1,024 tokens, full RRR recalled 0.44 of current decisions, versus 0.06 for chronological retrieval and an oracle ceiling of 0.58; with 4,096 tokens it recalled all of them. B′ and the no-resonance variant matched full RRR in decision recall across all nine combinations. Comparator D1 applies FIFO to facts before graph construction; its decision losses do not isolate the product's ringing phase. The isolated contribution of ringing to decision recall was not measured. Before output truncation, full-RRR conflict F1 was 0.615 at all three scales; with 480 facts and 1,024 tokens it fell to 0.000. Reserving 20% of the budget for conflicts raised that F1 to 0.431 while decision recall fell from 0.44 to 0.34; at 4,096 tokens F1 reached 0.930 without decision loss in that scenario. Repetitive fixtures, simplified comparators and lack of independent replication limit these findings to an engineering study.
+Language-model agents can share conversational history across sessions, but persistence does not guarantee retrieval of current decisions and their provenance. This engineering study presents Memory-TCG, a Conversation ESAA extension inspired by ringing, resonance and renormalization (RRR). An exploratory synthetic evaluation compares chronological retrieval, simplified recency- and authority-aware baselines (B and B′), RRR and variants under three output budgets. With 480 facts and 1,024 tokens, full RRR recalled 0.44 of current decisions, versus 0.06 for chronological retrieval and an oracle ceiling of 0.58; with 4,096 tokens it recalled all of them. B′ and the no-resonance variant matched full RRR in decision recall across all nine combinations. Comparator D1 applies FIFO to facts before graph construction; its decision losses do not isolate the product's ringing phase. The isolated contribution of ringing to decision recall was not measured. Before output truncation, full-RRR conflict F1 was 0.615 at all three scales; with 480 facts and 1,024 tokens it fell to 0.000. Reserving 20% of the budget for conflicts (CQ) raised that F1 to 0.431 at 480 facts and 1,024 tokens while decision recall fell from 0.44 to 0.34; at 4,096 tokens F1 reached 0.930 without decision loss in that scenario. The quota reduced decision recall in five of the nine scale–budget combinations. Repetitive fixtures, simplified comparators and lack of independent replication limit these findings to an engineering study.
 
 **Keywords:** artificial intelligence agents; conversational memory; event sourcing; memory consolidation; RRR; traceability.
 
@@ -38,9 +38,9 @@ Language-model agents can share conversational history across sessions, but pers
 
 ## Controle de versões
 
-| Versão | Data | Autoria | Descrição |
+| Versão | Data | Autores | Descrição da alteração |
 |---|---|---|---|
-| 1.3.1 | 08/11/2026 | Elzo Brito dos Santos Filho | Correção da descrição de D1 e dos limites de atribuição ao ringing; revisão das afirmações sobre orçamento, conflitos e saída de produção. |
+| 1.3.1 | 09/11/2026 | Elzo Brito dos Santos Filho | Correção da descrição de D1 e dos limites de atribuição ao ringing; custo da cota CQ em cinco das nove combinações; restauro do sumário e do controle de versões; status Aprovado. |
 | 1.3 | 08/11/2026 | Elzo Brito dos Santos Filho | Correção da atribuição de D1 e do ringing (restrita a 480 e 1.920 fatos); tabela de conflitos por orçamento; cota de 20% (CQ); proveniência condicional em nota; artefatos públicos da v1.2/v1.3; título e pergunta de pesquisa alinhados à decomposição de componentes. |
 | 1.2 | 08/11/2026 | Elzo Brito dos Santos Filho | Baseline B′ sensível à autoridade; atribuição dos ganhos à filtragem da visão ativa; precisão e revocação de conflitos; proveniência condicional; dispersão de CP antes do corte; conclusão atualizada; correções de forma. |
 | 1.1 | 08/11/2026 | Elzo Brito dos Santos Filho | Separação entre métricas antes e depois do corte, oráculo de decisões, três orçamentos, ablações D1/D2, ordem de produção (CN) e diagnóstico da baseline B. |
@@ -296,7 +296,7 @@ As próximas avaliações devem incluir conjuntos independentes e mais diversos,
 
 O Conversation ESAA fornece a base de continuidade e rastreabilidade; o Memory-TCG acrescenta uma consolidação offline inspirada nas três fases RRR. A combinação permite gerar, inspecionar, aceitar e reverter uma visão ativa sem apagar os eventos de origem. Trata-se de uma implementação operacional do **mapeamento de engenharia** entre as ideias dos dois artigos, com diferenças explícitas em relação à hipótese selecionista.
 
-Nos cenários avaliados, o RRR completo reteve todas as decisões vigentes antes do corte e, sob 1.024 tokens a 480 fatos, recuperou 0,44 delas — cerca de 7,3 vezes a janela cronológica e 76% do teto oracular —, chegando à recuperação completa com 4.096 tokens. Nesta avaliação, B′ mostra que uma regra sensível à autoridade reproduz essa revocação nas fixtures com chaves explícitas; a contribuição isolada do *ringing* para decisões não foi medida; a variante sem *resonance* empatou em revocação de decisões neste desenho. A *resonance* melhora a detecção de conflitos antes do corte, mas, com a ordenação que os coloca por último, eles são descartados pelo orçamento nas escalas maiores. Reservar 20% do orçamento para a fila de conflitos recupera esses pares — com 480 fatos e 4.096 tokens, sem perder decisões. Os casos adversariais revelaram contradições não detectadas. Esses achados justificam investigar a consolidação de memória como componente de sistemas multiagentes e, especificamente, a ordenação sob orçamento, sem concluir que a hipótese de Haber e Tononi foi testada ou comprovada, nem que agentes tenham experiência de sonhar.
+Nos cenários avaliados, o RRR completo reteve todas as decisões vigentes antes do corte e, sob 1.024 tokens a 480 fatos, recuperou 0,44 delas — cerca de 7,3 vezes a janela cronológica e 76% do teto oracular —, chegando à recuperação completa com 4.096 tokens. Nesta avaliação, B′ mostra que uma regra sensível à autoridade reproduz essa revocação nas fixtures com chaves explícitas; a contribuição isolada do *ringing* para decisões não foi medida; a variante sem *resonance* empatou em revocação de decisões neste desenho. A *resonance* melhora a detecção de conflitos antes do corte, mas, com a ordenação que os coloca por último, eles são descartados pelo orçamento nas escalas maiores. Reservar 20% do orçamento para a fila de conflitos recupera esses pares — com 480 fatos e 4.096 tokens, sem perder decisões; em cinco das nove combinações, a cota reduz a revocação de decisões. Os casos adversariais revelaram contradições não detectadas. Esses achados justificam investigar a consolidação de memória como componente de sistemas multiagentes e, especificamente, a ordenação sob orçamento, sem concluir que a hipótese de Haber e Tononi foi testada ou comprovada, nem que agentes tenham experiência de sonhar.
 
 ## Apêndice A — Continuidade observada
 
@@ -321,3 +321,17 @@ Em um uso real, uma decisão de handoff foi registrada, uma geração aceita a r
 [8] TONONI, Giulio; CIRELLI, Chiara. **Sleep and the price of plasticity: from synaptic and cellular homeostasis to memory consolidation and integration**. *Neuron*, v. 81, n. 1, p. 12–34, 2014. [DOI: 10.1016/j.neuron.2013.12.025](https://doi.org/10.1016/j.neuron.2013.12.025).
 
 [9] SANTOS FILHO, Elzo Brito dos. **RRR Memory Consolidation: Synthetic Evaluation Artifacts**. Código e dados sintéticos, commit `6a2ac1f9e1966403603b2f972453d12cdbbea3c3`, 2026. [Repositório público e instruções de reprodução](https://github.com/elzobrito/conversation-esaa-rrr-artifacts/tree/6a2ac1f9e1966403603b2f972453d12cdbbea3c3).
+
+---
+
+## Referências internas
+
+**Este documento referencia:**
+- [[conv-adr-013]] — contrato Memory-TCG/RRR
+- [[conv-rrr-v13-metodo]] — método da avaliação v1.3
+- [[CONV-RRR-V13-OUTPUT.json]] — resultados (405 execuções)
+- [[conv-rrr-matriz]] — matriz de evidências para redação
+
+**Este documento é referenciado por:**
+- [[conv-rrr-matriz]] — matriz de evidências que antecedeu a redação
+- [README.md](../README.md) — índice do repositório (Artigo RRR v1.3.1)
