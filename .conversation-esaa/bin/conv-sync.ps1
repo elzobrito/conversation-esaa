@@ -2072,9 +2072,15 @@ function Invoke-MemoryReconstructIfPresent {
         return
     }
     $cliScript = Resolve-MemoryCliScriptForSync
-    if (-not $cliScript) { return }
+    if (-not $cliScript) {
+        if ($hasMemoryEvents) { throw 'Memory-TCG Node CLI required to reconstruct memory events' }
+        return
+    }
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
-    if (-not $nodeCmd) { return }
+    if (-not $nodeCmd) {
+        if ($hasMemoryEvents) { throw 'Node runtime required to reconstruct memory events' }
+        return
+    }
     $out = & $nodeCmd.Source $cliScript 'reconstruct-from-ledger' '--workspace' $Paths.Root '--json' 2>&1
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
         throw "Failed to reconstruct memory active view from ledger: $($out -join ' ')"
@@ -2710,6 +2716,9 @@ function Invoke-Verify {
     if ($hasMemoryLedgerEvents -or (Test-Path -LiteralPath $memoryDir)) {
         $cliScript = Resolve-MemoryCliScriptForSync
         $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+        if ($hasMemoryLedgerEvents -and (-not $cliScript -or -not $nodeCmd)) {
+            throw 'Memory-TCG engine and Node runtime required to verify memory events'
+        }
         if ($cliScript -and $nodeCmd) {
             $memVerifyOut = & $nodeCmd.Source $cliScript 'verify' '--workspace' $Paths.Root '--json' 2>&1
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
