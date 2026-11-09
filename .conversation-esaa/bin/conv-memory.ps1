@@ -10,6 +10,7 @@ param(
     [string]$Action = 'status',
 
     [string]$WorkspaceRoot,
+    [string]$Agent,
     [string]$Mode = 'shadow',
     [int]$Seed = 42,
     [string]$Budget = 'all',
@@ -42,13 +43,13 @@ function Resolve-MemoryCliScript {
     if ($env:CONV_ESAA_MEMORY_CLI -and (Test-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI)) {
         return (Resolve-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI).Path
     }
-    $repoCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory/adapter/cli.js'
-    if (Test-Path -LiteralPath $repoCandidate) {
-        return (Resolve-Path -LiteralPath $repoCandidate).Path
-    }
     $bundledCandidate = Join-Path $PSScriptRoot 'memory/adapter/cli.js'
     if (Test-Path -LiteralPath $bundledCandidate) {
         return (Resolve-Path -LiteralPath $bundledCandidate).Path
+    }
+    $repoCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory/adapter/cli.js'
+    if (Test-Path -LiteralPath $repoCandidate) {
+        return (Resolve-Path -LiteralPath $repoCandidate).Path
     }
     $fallbackRepoCandidate = '/home/elzobrito/desenvolvimento/conversation-esaa/src/memory/adapter/cli.js'
     if (Test-Path -LiteralPath $fallbackRepoCandidate) {
@@ -68,6 +69,7 @@ if ($Action -eq 'accept') {
         'memory-accept', '-WorkspaceRoot', $ws, '-MemoryProposalId', $targetId
     )
     if ($Json) { $syncArgs += '-MemoryJson' }
+    if ($Agent) { $syncArgs += @('-CuratorAgent', $Agent) }
     & $pwshExe @syncArgs
     $exitCode = $LASTEXITCODE
     if ($exitCode -and $exitCode -ne 0) { exit $exitCode }
@@ -85,6 +87,7 @@ if ($Action -eq 'rollback') {
         '-MemoryReason', $reasonText
     )
     if ($Json) { $syncArgs += '-MemoryJson' }
+    if ($Agent) { $syncArgs += @('-CuratorAgent', $Agent) }
     & $pwshExe @syncArgs
     $exitCode = $LASTEXITCODE
     if ($exitCode -and $exitCode -ne 0) { exit $exitCode }
@@ -165,6 +168,7 @@ if ($Action -eq 'sleep' -and $Accept) {
         'memory-accept', '-WorkspaceRoot', $ws, '-MemoryProposalId', $sleepObj.proposal_id
     )
     if ($Json) { $syncArgs += '-MemoryJson' }
+    if ($Agent) { $syncArgs += @('-CuratorAgent', $Agent) }
     $rawAccept = & $pwshExe @syncArgs
     $accExit = $LASTEXITCODE
     if ($accExit -and $accExit -ne 0) {

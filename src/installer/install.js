@@ -1,4 +1,4 @@
-import { access } from "node:fs/promises";
+import { access, cp, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { SUPPORTED_AGENTS } from "./args.js";
@@ -54,6 +54,33 @@ export async function install(options, dependencies = {}) {
     path.join(packageRoot, ".conversation-esaa", "bin", "conv-bootstrap.ps1");
   if (!(await exists(bootstrap))) {
     throw new Error(`packaged bootstrap not found: ${bootstrap}`);
+  }
+
+  // Ship the memory engine with each installation; never rely on a developer checkout.
+  const memorySource = path.join(packageRoot, "src", "memory");
+  const memoryTarget = path.join(workspace, ".conversation-esaa", "bin", "memory");
+  if (!options.force && await exists(memoryTarget)) {
+    const manifestPath = path.join(workspace, ".conversation-esaa", "install-manifest.json");
+    let prior = null;
+    try { prior = JSON.parse(await readFile(manifestPath, "utf8")); } catch { /* no trusted baseline */ }
+    for (const subdir of ["core", "adapter"]) {
+      for (const name of await readdir(path.join(memorySource, subdir))) {
+        const target = path.join(memoryTarget, subdir, name);
+        if (!(await exists(target))) continue;
+        const entry = prior?.files?.find((f) => f.path === workspaceRelative(workspace, target));
+        if ((!entry || entry.sha256 !== await sha256(target)) && await sha256(target) !== await sha256(path.join(memorySource, subdir, name))) {
+          throw new Error(`modified or unmanaged memory engine file requires --force: ${target}`);
+        }
+      }
+    }
+    const moduleFile = path.join(memoryTarget, "package.json");
+    if (await exists(moduleFile)) {
+      const entry = prior?.files?.find((f) => f.path === workspaceRelative(workspace, moduleFile));
+      const matchesBaseline = entry && entry.sha256 === await sha256(moduleFile);
+      if (!matchesBaseline && await readFile(moduleFile, "utf8") !== '{"type":"module"}\n') {
+        throw new Error(`modified or unmanaged memory module file requires --force: ${moduleFile}`);
+      }
+    }
   }
 
   const integrationPaths = {
@@ -115,7 +142,19 @@ export async function install(options, dependencies = {}) {
   };
   if (options.dryRun) return result;
 
+  await mkdir(memoryTarget, { recursive: true });
+  await cp(memorySource, memoryTarget, { recursive: true });
+  await writeFile(path.join(memoryTarget, "package.json"), '{"type":"module"}\n');
+
   const files = [];
+  for (const subdir of ["core", "adapter"]) {
+    for (const name of await readdir(path.join(memorySource, subdir))) {
+      const file = path.join(memoryTarget, subdir, name);
+      files.push({ path: workspaceRelative(workspace, file), sha256: await sha256(file), kind: "owned" });
+    }
+  }
+  const memoryPackage = path.join(memoryTarget, "package.json");
+  files.push({ path: workspaceRelative(workspace, memoryPackage), sha256: await sha256(memoryPackage), kind: "owned" });
   for (const name of runtimeNames) {
     const file = path.join(workspace, ".conversation-esaa", "bin", name);
     if (await exists(file)) {

@@ -195,6 +195,8 @@ export function buildCanonicalScenario() {
   };
 
   const groundTruth = {
+    topic_by_id: new Map(facts.map((f) => [f.id, f.topic_id])),
+    key_by_id: new Map(facts.map((f) => [f.id, f.conflict_key])),
     active_decisions: new Map([
       ["decision:E006", ["E005", "E006"]],
       ["decision:E011", ["E011"]],
@@ -208,8 +210,8 @@ export function buildCanonicalScenario() {
   return { name: "canonical-e001-e011", factsBundle, groundTruth };
 }
 
-export function buildScaledScenario() {
-  const workspaceId = sha256Prefixed("workspace:benchmark-scaled-50-v1");
+export function buildScaledScenario(topicCount = 5) {
+  const workspaceId = sha256Prefixed(`workspace:benchmark-scaled-${topicCount}-v1`);
   const facts = [];
   const relations = [];
   const activeDecisions = new Map();
@@ -217,10 +219,10 @@ export function buildScaledScenario() {
   const obsoleteEchoIds = new Set();
   const unresolvedConflictPairs = [];
 
-  for (let t = 1; t <= 5; t++) {
-    const topicId = `TOP-00${t}`;
-    const dayOld = `2026-11-0${t}`;
-    const dayNew = `2026-11-0${t + 1}`;
+  for (let t = 1; t <= topicCount; t++) {
+    const topicId = `TOP-${String(t).padStart(3, "0")}`;
+    const dayOld = `2026-11-${String(((t - 1) % 25) + 1).padStart(2, "0")}`;
+    const dayNew = `2026-11-${String(((t - 1) % 25) + 2).padStart(2, "0")}`;
     const oldDecId = `decision:T${t}-OLD`;
     const supEpId = `T${t}-SUP-EP`;
     const newDecId = `decision:T${t}-NEW`;
@@ -307,7 +309,7 @@ export function buildScaledScenario() {
     supersededDecisions.add(oldDecId);
     obsoleteEchoIds.add(echoId);
 
-    if (t <= 4) {
+    if (t % 5 !== 0) {
       const conf1 = `T${t}-CONF-1`;
       const conf2 = `T${t}-CONF-2`;
       facts.push(
@@ -356,16 +358,18 @@ export function buildScaledScenario() {
     schema_version: "memory-tcg.facts.v1",
     workspace_id: workspaceId,
     source_snapshot_id: sha256Prefixed({ workspaceId, facts, relations }),
-    watermark_event_id: "EV-5-N2",
+    watermark_event_id: `EV-${topicCount}-N2`,
     normalizer_version: NORMALIZER_VERSION,
     facts,
     relations,
   };
 
   return {
-    name: "scaled-multi-topic-50",
+    name: `scaled-multi-topic-${topicCount}`,
     factsBundle,
     groundTruth: {
+      topic_by_id: new Map(facts.map((f) => [f.id, f.topic_id])),
+      key_by_id: new Map(facts.map((f) => [f.id, f.conflict_key])),
       active_decisions: activeDecisions,
       superseded_decisions: supersededDecisions,
       obsolete_echo_ids: obsoleteEchoIds,
@@ -375,7 +379,7 @@ export function buildScaledScenario() {
 }
 
 // Arm A: Baseline v1.3.1 (chronological last-5 decisions + last-8 turns, no supersession filter)
-function runArmA(factsBundle) {
+export function runArmA(factsBundle) {
   const t0 = performance.now();
   const sortedByTime = [...factsBundle.facts].sort((a, b) =>
     String(a.timestamp || "").localeCompare(String(b.timestamp || "")),
@@ -405,7 +409,7 @@ function runArmA(factsBundle) {
 }
 
 // Arm B: Instructionist local (ADD/UPDATE/DELETE/NOOP by conflict_key recency)
-function runArmB(factsBundle) {
+export function runArmB(factsBundle) {
   const t0 = performance.now();
   const sortedByTime = [...factsBundle.facts].sort((a, b) =>
     String(a.timestamp || "").localeCompare(String(b.timestamp || "")),
@@ -441,7 +445,7 @@ function runArmB(factsBundle) {
 }
 
 // Arm C: Selectionist Memory-TCG + RRR
-function runArmC(factsBundle, { seed = 42, budget = "all" } = {}) {
+export function runArmC(factsBundle, { seed = 42, budget = "all" } = {}) {
   const t0 = performance.now();
   const { graph, proposal } = runRrrCycle(factsBundle, {
     seed,
@@ -471,7 +475,7 @@ function runArmC(factsBundle, { seed = 42, budget = "all" } = {}) {
 }
 
 // Arm D1: Ablation without stratified Ringing (naive FIFO truncation)
-function runArmD1NoRinging(factsBundle, { budget = 28 } = {}) {
+export function runArmD1NoRinging(factsBundle, { budget = 28 } = {}) {
   const t0 = performance.now();
   const sortedByTime = [...factsBundle.facts].sort((a, b) =>
     String(a.timestamp || "").localeCompare(String(b.timestamp || "")),
@@ -514,7 +518,7 @@ function runArmD1NoRinging(factsBundle, { budget = 28 } = {}) {
 }
 
 // Arm D2: Ablation without Resonance (skips runResonance)
-function runArmD2NoResonance(factsBundle, { seed = 42, budget = "all" } = {}) {
+export function runArmD2NoResonance(factsBundle, { seed = 42, budget = "all" } = {}) {
   const t0 = performance.now();
   const g0 = buildMemoryGraph(factsBundle, { seed });
   const ring = runRinging(g0, { seed, budget });
@@ -550,13 +554,19 @@ export function scoreArmResult(result, groundTruth) {
   let correctActive = 0;
   for (const id of expectedActiveIds) {
     const isPresent = result.active_ids.has(id);
+    const topic = groundTruth.topic_by_id.get(id);
+    if (!topic) throw new Error(`Missing ground-truth topic for ${id}`);
+    const key = groundTruth.key_by_id.get(id);
+    if (!key) throw new Error(`Missing ground-truth decision key for ${id}`);
+    const sameDecision = (otherId) => groundTruth.topic_by_id.get(otherId) === topic &&
+      key != null && groundTruth.key_by_id.get(otherId) === key;
     // If an obsolete superseded decision or echo for the same topic is also in active_ids, penalize CDA!
     let displacedOrAmbiguous = false;
     for (const supId of groundTruth.superseded_decisions) {
-      if (result.active_ids.has(supId)) displacedOrAmbiguous = true;
+      if (result.active_ids.has(supId) && sameDecision(supId)) displacedOrAmbiguous = true;
     }
     for (const echoId of groundTruth.obsolete_echo_ids) {
-      if (result.active_ids.has(echoId)) displacedOrAmbiguous = true;
+      if (result.active_ids.has(echoId) && sameDecision(echoId)) displacedOrAmbiguous = true;
     }
     if (isPresent && !displacedOrAmbiguous) {
       correctActive++;
@@ -710,6 +720,20 @@ test("comparative benchmark evaluates Arms A, B, C, D across 5 seeds with reprod
     assert.equal(run.hcc, 0.0, `seed=${run.seed} HCC`);
     assert.equal(run.provenance_recall, 1.0, `seed=${run.seed} provenance recall`);
   }
+});
+
+test("CDA penalizes a historical item only for the matching topic", () => {
+  const truth = {
+    active_decisions: new Map([["a", ["a"]], ["b", ["b"]]]),
+    superseded_decisions: new Set(["old-a"]), obsolete_echo_ids: new Set(),
+    unresolved_conflict_pairs: [],
+    topic_by_id: new Map([["a", "A"], ["old-a", "A"], ["b", "B"]]),
+    key_by_id: new Map([["a", "k"], ["old-a", "k"], ["b", "k"]]),
+  };
+  const result = { arm: "test", active_ids: new Set(["a", "b", "old-a"]),
+    provenance_by_id: new Map([["a", ["a"]], ["b", ["b"]]]),
+    flagged_conflict_pairs: [], duration_ms: 0 };
+  assert.equal(scoreArmResult(result, truth).cda, 0.5);
 });
 
 if (process.argv.includes("--report")) {

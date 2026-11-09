@@ -377,6 +377,14 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
     const eid = event.event_id ? String(event.event_id) : null;
     if (!eid) continue;
     const evType = String(event.event || "conversation_turn");
+    // Resolve memberships only after the first pass has discovered all topics.
+    if (evType === "conversation_turn" || evType === "pre_compact_sync") {
+      const eventTopics = [event.topic_id, ...(Array.isArray(event.topic_ids) ? event.topic_ids : [])].filter(Boolean);
+      for (const tid of new Set(eventTopics.map(String))) {
+        const topic = topicStateMap.get(tid);
+        if (topic) topic.linked_event_ids.add(eid);
+      }
+    }
     const ts = event.ts ? String(event.ts) : null;
     const timeBucket = extractTimeBucket(ts);
     const directTopic = event.topic_id

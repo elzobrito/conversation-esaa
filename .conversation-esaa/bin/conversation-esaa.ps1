@@ -294,6 +294,7 @@ function Invoke-ConvMemory {
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $convMemory,
         '-WorkspaceRoot', $ws
     ) + $Extra
+    if ($Agent) { $args += @('-Agent', $Agent) }
     & $pwshExe @args
     if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
@@ -535,6 +536,7 @@ switch ($Command) {
     'task' {
         if (-not $sub) { throw 'task requires create|update|close' }
         $extra = @('-TaskAction', $sub)
+        if ($Agent) { $extra += @('-CuratorAgent', $Agent) }
         switch ($sub) {
             'create' {
                 $text = if ($Rest.Count -ge 2) { ($Rest[1..($Rest.Count - 1)] -join ' ') } else { $Title }
@@ -561,6 +563,7 @@ switch ($Command) {
     { $_ -in @('topic', 'topics') } {
         if (-not $sub) { throw 'topics requires list|show|create|update|link|close' }
         $extra = @('-TopicAction', $sub)
+        if ($Agent) { $extra += @('-CuratorAgent', $Agent) }
         switch ($sub) {
             'list' {
                 if ($Status) { $extra += '-TopicStatus', $Status }

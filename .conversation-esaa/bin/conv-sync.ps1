@@ -35,7 +35,8 @@ param(
 
     [string]$DecisionText,
     [string]$DecisionRationale,
-    [string]$DecisionAgent = 'codex',
+    [string]$DecisionAgent = 'unknown',
+    [string]$CuratorAgent = 'unknown',
     [string]$DecisionSource,
     [string]$DecisionSupersedes,
     [string]$DecisionSupersededBy,
@@ -1327,6 +1328,9 @@ function New-CuratedEventId {
 
 function Append-CuratedEvent {
     param($Paths, $Record)
+    if ($Record -is [System.Collections.IDictionary]) {
+        $Record['agent_id_source'] = if ($Record.agent_id -and $Record.agent_id -ne 'unknown') { 'declared' } else { 'unknown' }
+    }
     $hasId = ($Record -is [System.Collections.IDictionary] -and $Record.Contains('event_id')) -or
         (('event_id' -in $Record.PSObject.Properties.Name) -and $Record.event_id)
     if (-not $hasId) {
@@ -1548,6 +1552,11 @@ function Invoke-Context {
     } elseif ($ContextLast -gt 0) {
         $events = @($events | Select-Object -Last $ContextLast)
     }
+    foreach ($e in $events) {
+        if ($e.event -match '^(decision|task|topic)\.' -and 'agent_id_source' -notin $e.PSObject.Properties.Name) {
+            $e | Add-Member -NotePropertyName agent_id_source -NotePropertyValue 'legacy_unverified' -Force
+        }
+    }
     if ($ContextJson) {
         $events | ConvertTo-Json -Depth 8
         return
@@ -1573,6 +1582,8 @@ function Invoke-Context {
         $actor = Get-ContextEventValue $e 'actor' 'unknown'
         $agent = Get-ContextEventValue $e 'agent_id'
         $who = if ($agent) { "$actor/$agent" } else { $actor }
+        $origin = Get-ContextEventValue $e 'agent_id_source'
+        if ($origin) { $who += " [agent_id_source=$origin]" }
         $eventId = Get-ContextEventId $e
         $eid = if ($eventId) { $eventId } else { '(legacy)' }
         $ts = Get-ContextEventValue $e 'ts' '(no-ts)'
@@ -1650,7 +1661,7 @@ function Invoke-TaskCommand {
                 ts = Get-IsoTimestamp
                 event = 'task.created'
                 actor = 'assistant'
-                agent_id = 'codex'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 task_id = $newId
                 title = $TaskTitle
@@ -1667,7 +1678,7 @@ function Invoke-TaskCommand {
                 ts = Get-IsoTimestamp
                 event = 'task.updated'
                 actor = 'assistant'
-                agent_id = 'codex'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 task_id = $TaskId
                 summary = "task.updated $TaskId"
@@ -1684,7 +1695,7 @@ function Invoke-TaskCommand {
                 ts = Get-IsoTimestamp
                 event = 'task.closed'
                 actor = 'assistant'
-                agent_id = 'codex'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 task_id = $TaskId
                 status = 'completed'
@@ -1754,7 +1765,7 @@ function Invoke-TopicCommand {
                 ts = Get-IsoTimestamp
                 event = 'topic.created'
                 actor = 'assistant'
-                agent_id = 'grok'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 topic_id = $topicId
                 title = $TopicTitle
@@ -1776,7 +1787,7 @@ function Invoke-TopicCommand {
                 ts = Get-IsoTimestamp
                 event = 'topic.updated'
                 actor = 'assistant'
-                agent_id = 'grok'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 topic_id = $TopicId
             }
@@ -1806,7 +1817,7 @@ function Invoke-TopicCommand {
                 ts = Get-IsoTimestamp
                 event = 'topic.event.linked'
                 actor = 'assistant'
-                agent_id = 'grok'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 topic_id = $TopicId
                 event_ids = $ids
@@ -1824,7 +1835,7 @@ function Invoke-TopicCommand {
                 ts = Get-IsoTimestamp
                 event = 'topic.closed'
                 actor = 'assistant'
-                agent_id = 'grok'
+                agent_id = $CuratorAgent
                 workspace_root = $Paths.Root
                 topic_id = $TopicId
                 status = 'completed'
@@ -1998,13 +2009,13 @@ function Resolve-MemoryCliScriptForSync {
     if ($env:CONV_ESAA_MEMORY_CLI -and (Test-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI)) {
         return (Resolve-Path -LiteralPath $env:CONV_ESAA_MEMORY_CLI).Path
     }
-    $repoCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory/adapter/cli.js'
-    if (Test-Path -LiteralPath $repoCandidate) {
-        return (Resolve-Path -LiteralPath $repoCandidate).Path
-    }
     $bundledCandidate = Join-Path $PSScriptRoot 'memory/adapter/cli.js'
     if (Test-Path -LiteralPath $bundledCandidate) {
         return (Resolve-Path -LiteralPath $bundledCandidate).Path
+    }
+    $repoCandidate = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory/adapter/cli.js'
+    if (Test-Path -LiteralPath $repoCandidate) {
+        return (Resolve-Path -LiteralPath $repoCandidate).Path
     }
     $fallbackRepoCandidate = '/home/elzobrito/desenvolvimento/conversation-esaa/src/memory/adapter/cli.js'
     if (Test-Path -LiteralPath $fallbackRepoCandidate) {
@@ -2050,7 +2061,7 @@ function Invoke-MemoryAccept {
         ts                      = Get-IsoTimestamp
         event                   = 'memory.consolidation.accepted'
         actor                   = 'assistant'
-        agent_id                = 'codex'
+        agent_id                = $CuratorAgent
         workspace_root          = $Paths.Root
         proposal_id             = $payload.proposal_id
         snapshot_id             = $payload.snapshot_id
@@ -2099,7 +2110,7 @@ function Invoke-MemoryRollback {
         ts                             = Get-IsoTimestamp
         event                          = 'memory.consolidation.rolled_back'
         actor                          = 'assistant'
-        agent_id                       = 'codex'
+        agent_id                       = $CuratorAgent
         workspace_root                 = $Paths.Root
         workspace_id                   = $payload.workspace_id
         rolled_back_from_generation_id = $payload.rolled_back_from_generation_id

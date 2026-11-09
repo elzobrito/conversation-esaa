@@ -9,6 +9,7 @@
   "files": [
     "src/cli.js",
     "src/installer/",
+    "src/memory/",
     ".conversation-esaa/bin/*.ps1",
     "LICENSE",
     "PRIVACY.md"

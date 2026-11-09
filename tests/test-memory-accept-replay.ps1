@@ -73,7 +73,7 @@ try {
     Assert-True ($LASTEXITCODE -eq 0) "Generated fresh proposal P2 in ws1"
     $sleep2 = $sleep2Raw | ConvertFrom-Json
 
-    $acc2Raw = & pwsh -NoProfile -File $cliPath memory accept --proposal-id $sleep2.proposal_id --workspace $tempWs1 --json
+    $acc2Raw = & pwsh -NoProfile -File $cliPath memory accept --proposal-id $sleep2.proposal_id --workspace $tempWs1 --agent grok --json
     Assert-True ($LASTEXITCODE -eq 0) "Accepted fresh proposal P2 in ws1"
     $acc2 = $acc2Raw | ConvertFrom-Json
     Assert-True ($acc2.status -eq 'OK' -and $acc2.graph_generation_id -eq $sleep2.graph_generation_id) "memory accept returned OK and activated G2"
@@ -86,6 +86,11 @@ try {
     $activityLines = [System.IO.File]::ReadAllLines((Join-Path $tempWs1 '.conversation-esaa/activity.jsonl'))
     $acceptedEvents = @($activityLines | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.event -eq 'memory.consolidation.accepted' })
     Assert-True ($acceptedEvents.Count -eq 1 -and $acceptedEvents[0].proposal_id -eq $sleep2.proposal_id) "Canonical memory.consolidation.accepted event recorded in activity.jsonl"
+    Assert-True ($acceptedEvents[0].agent_id -eq 'grok') "Explicit agent is recorded on accepted consolidation"
+    $proposalFile = Join-Path $tempWs1 ('.conversation-esaa/memory/shadow/' + ($sleep2.proposal_id -replace '^sha256:', '') + '.json')
+    Remove-Item -LiteralPath $proposalFile
+    $recovered = (& pwsh -NoProfile -File $cliPath memory inspect --proposal-id $sleep2.proposal_id --workspace $tempWs1 --json) | ConvertFrom-Json
+    Assert-True ($LASTEXITCODE -eq 0 -and $recovered.proposal_source -eq 'ledger' -and $recovered.acceptances[0].agent_id_source -eq 'declared') "Inspect recovers an accepted proposal from ledger with declared provenance"
 
     # 6. Create second accepted generation G3, then rollback to G2
     & pwsh -NoProfile -File $cliPath decide "Enforce TLS 1.3 everywhere" --rationale "Security baseline" --agent codex --workspace $tempWs1 | Out-Null
@@ -93,8 +98,10 @@ try {
     $acc3 = (& pwsh -NoProfile -File $cliPath memory accept --proposal-id $sleep3.proposal_id --workspace $tempWs1 --json) | ConvertFrom-Json
     Assert-True ($LASTEXITCODE -eq 0 -and $acc3.graph_generation_id -eq $sleep3.graph_generation_id) "Accepted second generation G3"
 
-    $rbRaw = & pwsh -NoProfile -File $cliPath memory rollback --generation-id $sleep2.graph_generation_id --reason "Operator rollback to G2" --workspace $tempWs1 --json
+    $rbRaw = & pwsh -NoProfile -File $cliPath memory rollback --generation-id $sleep2.graph_generation_id --reason "Operator rollback to G2" --workspace $tempWs1 --agent antigravity --json
     Assert-True ($LASTEXITCODE -eq 0) "Executed memory rollback to G2"
+    $rollbackEvent = @([System.IO.File]::ReadAllLines((Join-Path $tempWs1 '.conversation-esaa/activity.jsonl')) | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.event -eq 'memory.consolidation.rolled_back' })[-1]
+    Assert-True ($rollbackEvent.agent_id -eq 'antigravity') "Explicit agent is recorded on rollback"
     $rb = $rbRaw | ConvertFrom-Json
     Assert-True ($rb.rolled_back_from_generation_id -eq $sleep3.graph_generation_id -and $rb.restored_generation_id -eq $sleep2.graph_generation_id) "Rollback transitioned active generation from G3 back to G2"
 

@@ -87,6 +87,10 @@ continuam funcionando se o RAG estiver desligado ou indisponível.
 
 O **Memory-TCG** ([ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md)) é o mecanismo de consolidação periódica de memória em grafo do Conversation ESAA. No vocabulário e na CLI do sistema, **"sonhar" (`conversation-esaa sonhar`, `conversation-esaa dream` ou `conversation-esaa memory sleep|sonhar|dream`)** significa executar offline o ciclo determinístico **RRR** (*Ringing*, *Resonance*, *Renormalization*) sobre o ledger `activity.jsonl`, com **zero chamadas de LLM, zero embeddings obrigatórios e zero acesso à rede**.
 
+Para informar o agente de uma operação de curadoria, use `--agent grok`, `--agent codex` ou outro identificador na CLI, inclusive em `memory sleep --accept`, `memory accept`, `memory rollback`, `task` e `topics`. O novo campo `agent_id_source` distingue identidade `declared` de `unknown`; declaração não é autenticação. Eventos antigos de tarefa, tópico e consolidação podem ter recebido uma identidade fixa do programa: seu `agent_id` não é prova de autoria. Para eventos de curadoria que exibe, `context` marca a origem antiga como `legacy_unverified` sem reescrever o histórico; ele não lista eventos `memory.*`.
+
+`memory context --topic-id TOP-001` restringe a leitura aos vínculos explícitos da geração ativa; decisões globais sem vínculo ficam fora. O tópico deve existir na geração consultada e vínculos novos exigem outra consolidação. Compare os watermarks em `memory status`: um histórico que avançou pode conter informações ausentes da geração ativa. Zero conflitos detectados significa apenas que as heurísticas não sinalizaram conflitos.
+
 #### Como funciona o sonho (Ciclo RRR)
 
 1. **Snapshot imutável e Watermark:**

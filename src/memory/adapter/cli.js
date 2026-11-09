@@ -183,6 +183,12 @@ export function buildActiveViewFromProposal(proposal, graph = null, acceptedAtEv
   const nodeMap = new Map(
     graph && Array.isArray(graph.nodes) ? graph.nodes.map((n) => [n.id, n]) : [],
   );
+  const memberships = new Map();
+  for (const edge of graph?.derived_edges || []) {
+    if (edge.relation !== "topic_contains_event") continue;
+    if (!memberships.has(edge.target)) memberships.set(edge.target, new Set());
+    memberships.get(edge.target).add(edge.source);
+  }
 
   const retained = [];
   const groupedDuplicates = [];
@@ -196,6 +202,9 @@ export function buildActiveViewFromProposal(proposal, graph = null, acceptedAtEv
       memory_id: act.memory_id,
       kind: node ? node.kind : act.memory_id.startsWith("decision:") ? "decision" : "episode",
       topic_id: node ? node.topic_id : null,
+      topic_ids: [...new Set([act.memory_id, ...(act.target_memory_ids || [])].flatMap((id) => [
+        nodeMap.get(id)?.topic_id, ...(memberships.get(id) || []),
+      ]).filter(Boolean))].sort(),
       timestamp: node ? node.timestamp : null,
       summary: redactSensitiveText(act.summary || (node ? node.summary : act.memory_id)),
       text: redactSensitiveText(node ? node.text : act.summary || act.memory_id),
@@ -549,9 +558,33 @@ export function cmdInspect(workspaceRoot, proposalIdInput, options = {}) {
   const manifest = existsSync(manifestPath)
     ? readJsonChecked(manifestPath, canonicalRoot)
     : null;
-  const proposalPath = findProposalFile(shadowDir, proposalIdInput, manifest);
-  const proposal = readJsonChecked(proposalPath, canonicalRoot);
+  let proposalPath = null;
+  let proposal = null;
+  let source = "shadow";
+  let memoryEvents = null;
+  try {
+    proposalPath = findProposalFile(shadowDir, proposalIdInput, manifest);
+    proposal = readJsonChecked(proposalPath, canonicalRoot);
+  } catch (error) {
+    if (error.code !== "NOT_FOUND") throw error;
+    const requested = (!proposalIdInput || proposalIdInput === "latest")
+      ? manifest?.last_shadow_proposal_id : proposalIdInput;
+    if (!requested) throw error;
+    const prefix = normalizeDigestHex(requested);
+    memoryEvents = scanMemoryLedgerEvents(canonicalRoot);
+    const matches = memoryEvents.filter((event) => event.event === "memory.consolidation.accepted" &&
+      event.proposal && normalizeDigestHex(event.proposal_id).startsWith(prefix));
+    const ids = new Set(matches.map((event) => event.proposal_id));
+    if (ids.size > 1) throw new MemoryTcgError("AMBIGUOUS_ID", `Multiple ledger proposals match: ${requested}`);
+    if (!matches.length) throw error;
+    proposal = matches.at(-1).proposal;
+    source = "ledger";
+  }
   verifyProposalIntegrity(proposal);
+  memoryEvents ||= scanMemoryLedgerEvents(canonicalRoot);
+  const acceptances = memoryEvents.filter((event) => event.event === "memory.consolidation.accepted" && event.proposal_id === proposal.proposal_id)
+    .map((event) => ({ event_id: event.event_id, ts: event.ts, agent_id: event.agent_id,
+      agent_id_source: event.agent_id_source || "legacy_unverified" }));
 
   const maxDeprioritizedPreview = options.full ? Infinity : 50;
   const deprioritizedAll = proposal.actions.filter(
@@ -575,6 +608,8 @@ export function cmdInspect(workspaceRoot, proposalIdInput, options = {}) {
   return {
     status: "OK",
     proposal_path: proposalPath,
+    proposal_source: source,
+    acceptances,
     deprioritized_omitted_count: deprioritizedOmittedCount,
     proposal:
       deprioritizedOmittedCount > 0
@@ -1139,7 +1174,13 @@ export function cmdContext(workspaceRoot, options = {}) {
 
   const filterByTopic = (item) => {
     if (!topicFilter) return true;
-    return !item.topic_id || item.topic_id === topicFilter;
+    return item.topic_id === topicFilter || (item.topic_ids || []).includes(topicFilter) ||
+      (item.kind === "topic" && item.memory_id === topicFilter);
+  };
+  // Keep technical turn fragments in the ledger, but not in subject summaries.
+  const isTechnicalFragment = (item) => {
+    const text = String(item.summary || "").trim();
+    return /^(?:<\/?image>|i will wait for .+ to complete\.?|aguardando(?: a conclusão)?\.?|loading\.{0,3})$/i.test(text);
   };
 
   const sortByRecent = (a, b) =>
@@ -1155,23 +1196,24 @@ export function cmdContext(workspaceRoot, options = {}) {
   const retainedEpisodes = (activeView.retained || []).filter(
     (r) => r.kind === "episode" && filterByTopic(r),
   );
+  const suppressedTechnicalIds = [...retainedEpisodes, ...(activeView.grouped_duplicates || []).filter(filterByTopic)]
+    .filter(isTechnicalFragment).map((r) => r.memory_id);
   const subjectEpisodes = retainedEpisodes
-    .filter((r) => (r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"))
+    .filter((r) => (r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER") && !isTechnicalFragment(r))
     .sort(sortByRecent);
   const decisionSupportEpisodes = retainedEpisodes.filter(
     (r) => !(r.reason_codes || []).includes("CONSOLIDATED_SUBJECT_MATTER"),
   );
   const groupedDuplicateSubjects = (activeView.grouped_duplicates || [])
     .filter(filterByTopic)
-    .slice(0, 12);
+    .filter((r) => !isTechnicalFragment(r));
   const historicalDecisions = (activeView.historical_decisions || []).filter(
     filterByTopic,
   );
-  const flaggedConflicts = activeView.flagged_conflicts || [];
   const nodeById = new Map();
   for (const list of [
     activeView.retained || [],
-    flaggedConflicts,
+    activeView.flagged_conflicts || [],
     activeView.historical_decisions || [],
     activeView.deprioritized || [],
   ]) {
@@ -1181,6 +1223,12 @@ export function cmdContext(workspaceRoot, options = {}) {
       }
     }
   }
+  const conflictMatchesTopic = (conf) => !topicFilter ||
+    [...(conf.memory_ids || []), ...(conf.memory_id ? [conf.memory_id] : [])].some((id) => {
+      const node = nodeById.get(id);
+      return node && filterByTopic(node);
+    });
+  const flaggedConflicts = (activeView.flagged_conflicts || []).filter(conflictMatchesTopic);
   const activeDecisionIds = new Set(retainedDecisions.map((d) => d.memory_id));
   const activeDecisionEvidenceIds = new Set(
     retainedDecisions.flatMap((d) => d.evidence_event_ids || []),
@@ -1230,7 +1278,7 @@ export function cmdContext(workspaceRoot, options = {}) {
     };
   };
 
-  const unresolvedConflicts = [...(activeView.unresolved || [])].sort(
+  const unresolvedConflicts = [...(activeView.unresolved || [])].filter(conflictMatchesTopic).sort(
     (a, b) => {
       const sa = scoreConflictRelevance(a);
       const sb = scoreConflictRelevance(b);
@@ -1264,6 +1312,7 @@ export function cmdContext(workspaceRoot, options = {}) {
   lines.push(
     `- Generation: \`${activeView.graph_generation_id}\` | Proposal: \`${activeView.proposal_id}\` | Watermark: \`${activeView.watermark_event_id || "none"}\` | Unresolved: ${unresolvedConflicts.length} | Flagged Conflicts: ${flaggedConflicts.length}`,
   );
+  if (suppressedTechnicalIds.length) lines.push(`- Technical fragments suppressed: ${suppressedTechnicalIds.length}`);
 
   const includedIds = [];
   const omittedIds = [];
@@ -1474,17 +1523,21 @@ export function cmdContext(workspaceRoot, options = {}) {
     );
   }
 
+  const includedSet = new Set(includedIds);
   return {
     status: "OK",
     mode: "active",
     active_generation_id: activeView.graph_generation_id,
     proposal_id: activeView.proposal_id,
     watermark_event_id: activeView.watermark_event_id,
-    retained_decisions: retainedDecisions,
-    historical_decisions: historicalDecisions,
-    consolidated_subjects: subjectEpisodes,
-    grouped_duplicates: groupedDuplicateSubjects,
-    unresolved_conflicts: unresolvedConflicts,
+    retained_decisions: retainedDecisions.filter((x) => includedSet.has(x.memory_id)),
+    retained_topics_and_tasks: retainedTopicsAndTasks.filter((x) => includedSet.has(x.memory_id)),
+    supporting_episodes: decisionSupportEpisodes.filter((x) => includedSet.has(x.memory_id)),
+    historical_decisions: historicalDecisions.filter((x) => includedSet.has(x.memory_id)),
+    consolidated_subjects: subjectEpisodes.filter((x) => includedSet.has(x.memory_id)),
+    grouped_duplicates: groupedDuplicateSubjects.filter((x) => includedSet.has(x.memory_id)),
+    unresolved_conflicts: unresolvedConflicts.filter((x) => includedSet.has(x.conflict_id)),
+    suppressed_technical_memory_ids: suppressedTechnicalIds,
     included_memory_ids: includedIds,
     omitted_memory_ids: omittedIds,
     markdown: lines.join("\n"),

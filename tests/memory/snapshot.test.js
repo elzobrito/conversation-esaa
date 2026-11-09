@@ -26,6 +26,22 @@ function makeTempWorkspace() {
   return { ws, conv, activityPath: path.join(conv, "activity.jsonl") };
 }
 
+test("snapshot preserves explicit membership in multiple topics as derived relations", () => {
+  const { ws, activityPath } = makeTempWorkspace();
+  try {
+    const base = { ts: "2026-11-07T10:00:00Z", actor: "assistant", agent_id: "codex", workspace_root: ws };
+    const events = [
+      { ...base, event_id: "turn", event: "conversation_turn", topic_ids: ["TOP-001", "TOP-002"], summary: "shared", text: "shared" },
+      { ...base, event_id: "t1", event: "topic.created", topic_id: "TOP-001", title: "A" },
+      { ...base, event_id: "t2", event: "topic.created", topic_id: "TOP-002", title: "B" },
+    ];
+    writeFileSync(activityPath, events.map(JSON.stringify).join("\n") + "\n");
+    const { factsBundle } = createWorkspaceSnapshot(ws);
+    const links = factsBundle.relations.filter(x => x.relation === "topic_contains_event" && x.target === "turn");
+    assert.deepEqual(links.map(x => x.source).sort(), ["TOP-001", "TOP-002"]);
+  } finally { rmSync(ws, { recursive: true, force: true }); }
+});
+
 test("snapshot creates deterministic digest, watermark, and isolates workspace without touching ledger", () => {
   const { ws, activityPath } = makeTempWorkspace();
   const otherWs = "/tmp/other-workspace-never-include";

@@ -145,6 +145,13 @@ test("installer manages conv-memory.ps1 and preserves private .conversation-esaa
     assert.equal(await fileExists(activeFile), true);
     const activeBefore = await readFile(activeFile, "utf8");
 
+    // The installed engine must be present and executable without checkout resolution.
+    const bundledCli = path.join(workspace, ".conversation-esaa", "bin", "memory", "adapter", "cli.js");
+    assert.equal(await fileExists(bundledCli), true);
+    const directEngine = spawnSync(process.execPath, [bundledCli, "status", "--workspace", workspace, "--json"], { encoding: "utf8" });
+    assert.equal(directEngine.status, 0, directEngine.stderr || directEngine.stdout);
+    assert.equal(JSON.parse(directEngine.stdout).mode, "active");
+
     // Simulate runtime drift on conv-memory.ps1 and run repair + update
     const memScript = path.join(
       workspace,
