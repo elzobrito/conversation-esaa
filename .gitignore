@@ -21,3 +21,9 @@
 .conversation-esaa/run/cursor-injected.json
 Thumbs.db
 .DS_Store
+.conversation-esaa/topics.md
+.conversation-esaa/topics.json
+.conversation-esaa/antigravity-hook.log
+.conversation-esaa/*.bak-*
+.conversation-esaa/*.tmp-*
+.conversation-esaa/run/
