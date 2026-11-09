@@ -1,0 +1,13 @@
+{
+  "after_sha256": "57cb784d633c96f1e3328fcc63e11489536ae395ca6df937fd02fdfb526a6cd3",
+  "artifact_id": "ART-57cb784d633c96f1e3328fcc63e11489536ae395ca6df937fd02fdfb526a6cd3",
+  "artifact_sha256": "715c44732ce8d4566388c14b566e2ff75988e3e171fd9b072ac7e63e319ecab1",
+  "before_sha256": null,
+  "bytes": 232,
+  "content": "{\n  \"policy_version\": \"rrr-policy.v2\",\n  \"graph_generation_id\": \"sha256:ecc6c3e0e9506a96ae2e7d34a32cb679f0de02a98bb35ec2fe9985bce0f907d6\",\n  \"proposal_id\": \"sha256:e22c6ef0543c8ff0922d1127b167e3a6e832b8b2bf3f002e6e10f7faec4c16ea\"\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/fixtures/policy-v2-golden.json",
+  "source_path": "tests/memory/fixtures/policy-v2-golden.json",
+  "ts": "2026-11-09T12:40:56Z"
+}

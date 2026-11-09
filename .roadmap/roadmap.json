@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1272,
-      "projection_hash_sha256": "276c912936c6e3e55f01d4fa16c8602b4bdf867b69af356229272238cb849d17",
+      "last_event_seq": 1874,
+      "projection_hash_sha256": "cfb3ae49308938266e62e4c62b2b0e539dfe6f50e166c485ca8dfd75ce2ddd51",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-08T15:38:36Z"
+    "updated_at": "2026-11-09T17:06:17Z"
   },
   "project": {
     "name": "esaa-core",
@@ -3942,15 +3942,1672 @@
         ]
       },
       "completed_at": "2026-11-08T15:38:36Z"
+    },
+    {
+      "task_id": "CONV-RRR-REMEDIATION-20261108",
+      "task_kind": "impl",
+      "title": "Corrigir proveniência e recuperação da memória RRR e preparar avaliação",
+      "description": "Implementar plano aprovado: rastreabilidade multiagente, contexto por tópico, qualidade e avaliação reproduzível.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "src/memory/",
+        ".conversation-esaa/bin/",
+        "tests/",
+        "docs/",
+        "README.md",
+        "package.json"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "src/**",
+        ".conversation-esaa/bin/**",
+        "tests/**",
+        "docs/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Corrigir problemas com testes e documentar evidências e limitações"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T19:49:42Z",
+      "verification": {
+        "checks": [
+          "npm test: 27 passaram",
+          "Node memory benchmark e installer: 18 passaram",
+          "PowerShell shadow 27, leitura 21, accept/replay 21 e multiagente sintético passaram",
+          "Avaliação 1024 tokens 90 execuções, repetição determinística e casos adversariais documentados",
+          "git diff --check e revisão de referências: ok"
+        ]
+      },
+      "completed_at": "2026-11-08T21:01:02Z"
+    },
+    {
+      "task_id": "CONV-RRR-DOC-LINKS-20261108",
+      "task_kind": "impl",
+      "title": "Registrar referências dos artefatos de avaliação RRR",
+      "description": "Registrar referências dos artefatos de avaliação RRR",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".motor-IA/links/",
+        "docs/qa/"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".motor-IA/links/**",
+        "docs/qa/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Registrar documentos e referências cruzadas verificáveis"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T19:57:47Z",
+      "verification": {
+        "checks": [
+          "Referências registradas e caminhos conferidos"
+        ]
+      },
+      "completed_at": "2026-11-08T19:58:17Z"
+    },
+    {
+      "task_id": "CONV-RRR-RESULT-LINKS-20261108",
+      "task_kind": "impl",
+      "title": "Registrar resultados de avaliação RRR",
+      "description": "Registrar resultados de avaliação RRR",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        ".motor-IA/links/"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".motor-IA/links/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Arquivos de resultados registrados e verificados"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T20:59:55Z",
+      "verification": {
+        "checks": [
+          "Sete caminhos registrados existem e wikilinks resolvem"
+        ]
+      },
+      "completed_at": "2026-11-08T21:00:26Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-20261108",
+      "task_kind": "impl",
+      "title": "Redigir artigo científico sobre memória conversacional e consolidação RRR",
+      "description": "Produzir artigo Markdown com análise dos dois artigos e evidências locais reproduzíveis, sem publicar.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "documentacao-tecnica/",
+        ".motor-IA/links/"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "documentacao-tecnica/**",
+        ".motor-IA/links/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Artigo completo e fundamentado com método resultados limites e referências"
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T21:02:24Z",
+      "verification": {
+        "checks": [
+          "Tabela conferida com 90 resultados e seis pares adversariais",
+          "Referências primárias e oito wikilinks conferidos",
+          "Artigo sem caminhos privados ou emails; autoria pendente de confirmação"
+        ]
+      },
+      "completed_at": "2026-11-08T21:05:02Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-REVISION-20261108",
+      "task_kind": "impl",
+      "title": "Revisar desenho experimental e artigo RRR",
+      "description": "Preservar resultados anteriores, avaliar oráculo, ordenação e orçamentos múltiplos, revisar artigo e preparar artefatos públicos sintéticos.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "tests/memory/",
+        "docs/qa/",
+        "documentacao-tecnica/",
+        ".motor-IA/links/"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "tests/memory/**",
+        "docs/qa/**",
+        "documentacao-tecnica/**",
+        ".motor-IA/links/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Novos experimentos reproduzíveis e artigo revisado com resultados e limitações"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T21:10:40Z",
+      "verification": {
+        "checks": [
+          "315 cenários, oráculo e limites validados; reprodução isolada coincide exceto tempo e RSS",
+          "16 testes Node e teste de invariantes passaram; fontes e metadados primários conferidos",
+          "Dados sintéticos públicos verificados por SHA-256 e pacote reproduzido em cópia isolada",
+          "Artigo v1.1 preserva v1.0, cobre ablações, métricas e limites do oráculo"
+        ]
+      },
+      "completed_at": "2026-11-08T21:22:06Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-V12-20261108",
+      "task_kind": "impl",
+      "title": "Revisar artigo RRR e avaliar baseline sensível à autoridade",
+      "description": "Preservar v1.1; acrescentar B linha, analisar ablações, métricas e revisar v1.2 com evidências reproduzíveis.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "tests/memory/",
+        "docs/qa/",
+        "documentacao-tecnica/",
+        ".motor-IA/links/"
+      ],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "tests/memory/**",
+        "docs/qa/**",
+        "documentacao-tecnica/**",
+        ".motor-IA/links/**"
+      ],
+      "task_type": "feature",
+      "acceptance_criteria": [
+        "Avaliação B linha e revisão rastreável das conclusões e métricas"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T21:25:23Z",
+      "verification": {
+        "checks": [
+          "python3 tests/memory/test-v12-result.py: 360 runs, invariantes de oráculo, proveniência condicional e tp/fp de conflitos em 48 fatos",
+          "node --test tests/memory/authority-baseline.test.js: B′ escolhe a decisão explícita mais recente e ignora eco posterior",
+          "Tabelas 1 e 2 do artigo v1.2 conferem com docs/qa/CONV-RRR-V12-OUTPUT.json (B′ empata com C; D2 empata com C; 480 fatos/1024 tokens rec=0.44 vs A=0.06 vs oráculo=0.58)"
+        ]
+      },
+      "completed_at": "2026-11-08T22:08:24Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-V13-20261108",
+      "task_kind": "impl",
+      "title": "Artigo RRR v1.3: correção D1/ringing, tabela de conflitos e artefatos públicos",
+      "description": "v1.3 do artigo DC-consolidacao-memoria-agentes: restringir a afirmação D1≤0,03 a 480 e 1.920 fatos; reformular ringing vs resonance; tabela de precisão/revocação/F1 de conflitos por orçamento (C, CN, D1); experimento de cota 20% para conflitos se barato, senão hipótese; publicar commit de artefatos e atualizar [9] e 4.3; retirar caminho local e linha de wikilinks do artigo; mover proveniência condicional para nota; corrigir título da Tabela 3; atualizar título/pergunta de pesquisa; registrar wikilink em .motor-IA/links/referencias.md. Preservar v1.2. Não commitar o repositório de produto.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.md",
+          "docs/qa/CONV-RRR-V13-METHOD.md",
+          "docs/qa/CONV-RRR-V13-OUTPUT.json",
+          ".motor-IA/links/referencias.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "documentacao-tecnica/**",
+        "docs/qa/**",
+        "tests/memory/**",
+        ".motor-IA/links/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Afirmação D1 restrita a 480 e 1.920 fatos; ringing vs resonance reformulado no Resumo, Abstract, 5.2, Discussão e Conclusão; Tabela 1 citada na correção",
+        "Tabela de conflitos por orçamento para C, CN e D1; F1 pré-corte com TP/FP ou mesma proporção; título da Tabela 3 sem orçamento",
+        "Artefatos publicados em commit público; [9] e 4.3 com hash novo; caminho local removido",
+        "Cota 20% executada e reportada, ou marcada como hipótese"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-08T22:36:50Z",
+      "verification": {
+        "checks": [
+          "test-v13-result.py: 405 runs, schema conv-rrr.v13.v1, D1@48/1024 recall 0.4 vs C 1.0, C pre-cut TP/FP 4/5 40/50 160/200, CQ@480/4096 conflict_tp>0",
+          "authority-baseline.test.js: 1 passed",
+          "artifacts published: github.com/elzobrito/conversation-esaa-rrr-artifacts commit 6a2ac1f9e1966403603b2f972453d12cdbbea3c3",
+          "article v1.3: D1 claim restricted to 480 and 1920 facts with Table 1 citation; ringing vs resonance reformulated; Table 4 conflicts-by-budget; Table 3 title without budget; provenance in note; wiki footer removed; [9] and 4.3 hash updated"
+        ]
+      },
+      "completed_at": "2026-11-08T22:45:16Z"
+    },
+    {
+      "task_id": "FIX132-W0-BASELINE",
+      "task_kind": "impl",
+      "title": "FIX132 W0 baseline: linha de base da rodada v1.3.2 (somente evidência)",
+      "description": "Fase 0 do plano verificar→corrigir→provar. Grava 00-baseline.md e, se o baseline estiver vermelho, 03-final-report.md com condição de parada §6.1. Não altera runtime, motor nem artigo. Sem commit/push/bump.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "docs/qa/fix-v1.3.2/00-baseline.md",
+          "docs/qa/fix-v1.3.2/03-final-report.md",
+          "docs/qa/fix-v1.3.2/_helpers.ps1"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/qa/**"
+      ],
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "00-baseline.md registra HEAD, status, versões, hash do ledger real, backup e contagens das suítes",
+        "Se qualquer suíte estiver vermelha, a rodada para em §6.1 sem Fase 2"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T00:08:14Z",
+      "verification": {
+        "checks": [
+          "npm test: 27 pass / 0 fail",
+          "node --test tests/memory/*.test.js: 15 pass / 0 fail",
+          "conv-test.ps1: 111 pass / 1 fail (handoff_includes_recent_events) — STOP §6.1",
+          "R4 ledger SHA-256 unchanged 2bd12689fc24b8acb4b9911735283a5bfabc23588b80cff0e97209218e2a58a2"
+        ]
+      },
+      "completed_at": "2026-11-09T00:09:05Z"
+    },
+    {
+      "task_id": "FIX132-BASELINE-RED-01",
+      "task_kind": "impl",
+      "title": "FIX132 BASELINE-RED-01: isolar handoff_includes_recent_events (HEAD limpo vs árvore suja)",
+      "description": "Emenda E-01 (humano 08/11/2026). Somente leitura. git worktree em HEAD (NÃO stash, NÃO mexer na árvore suja). Rodar conv-test.ps1 no worktree. Se passar no HEAD e falhar na árvore suja: git diff de .conversation-esaa/bin/conv-sync.ps1 e localizar a mudança (bisseção por hunk, em cópia). Se falhar também no HEAD: falha anterior; registrar o commit em que passou (git bisect em worktree). Responder: a causa é a mesma de PS-01 ou PS-09? Sim/não com evidência. NÃO corrigir BASELINE-RED-01 nesta fase.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "docs/qa/fix-v1.3.2/evidence/BASELINE-RED-01/report.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/qa/**"
+      ],
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "Worktree HEAD criado sem stash e sem alterar a árvore suja",
+        "conv-test.ps1 executado no worktree HEAD; resultado comparado com a árvore suja (111/1)",
+        "Resposta Sim/Não com evidência: causa igual a PS-01 ou PS-09",
+        "Ledger real SHA-256 inalterado"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T01:21:41Z",
+      "verification": {
+        "checks": [
+          "worktree /tmp/fix132-head-clean at baea68d with 0 dirty paths",
+          "HEAD conv-test.ps1 112 pass / 0 fail",
+          "dirty tree 111 pass / 1 fail handoff_includes_recent_events",
+          "cause is CuratorAgent default unknown; NOT PS-01 source_index; NOT PS-09 pack",
+          "lab ledger SHA-256 unchanged 2bd12689fc24b8acb4b9911735283a5bfabc23588b80cff0e97209218e2a58a2"
+        ]
+      },
+      "completed_at": "2026-11-09T01:42:11Z"
+    },
+    {
+      "task_id": "FIX132-W1-VERIFY",
+      "task_kind": "impl",
+      "title": "FIX132 W1: Passo V do catálogo (somente leitura, E-01)",
+      "description": "Emenda E-01. Fase 1 somente leitura AUTORIZADA. Fase 2 BLOQUEADA até G1. Registrar E-01 e BASELINE-RED-01 em 00-baseline.md. Executar Passo V de PS/JS/DOC/ART (PS-01/09/18 só depois de FIX132-BASELINE-RED-01). Cada VER registra git rev-parse --short HEAD, SHA-256 de conv-sync.ps1, cli.js e artigo, e medido em árvore suja ou HEAD limpo. Compilar 01-verification-report.md e decisions/D-01..D-04. NÃO corrigir. NÃO commitar produto. ART-10 não produz v1.3.1 nesta fase.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": [
+          "docs/qa/fix-v1.3.2/00-baseline.md",
+          "docs/qa/fix-v1.3.2/01-verification-report.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "docs/qa/**"
+      ],
+      "task_type": "audit",
+      "acceptance_criteria": [
+        "00-baseline.md registra E-01 e BASELINE-RED-01",
+        "01-verification-report.md com veredito por ID e metadados E-01",
+        "PS-01/09/18 só após RED-01",
+        "Nenhuma correção de produto; ledger SHA-256 inalterado"
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T01:21:42Z",
+      "verification": {
+        "checks": [
+          "00-baseline.md records E-01 and BASELINE-RED-01",
+          "01-verification-report.md has per-ID verdicts and E-01 metadata",
+          "PS-01/09/18 verdicts emitted only after RED-01 (cause is not CuratorAgent)",
+          "no product source patches; lab ledger SHA-256 unchanged 2bd12689fc24b8acb4b9911735283a5bfabc23588b80cff0e97209218e2a58a2"
+        ]
+      },
+      "completed_at": "2026-11-09T01:42:14Z"
+    },
+    {
+      "task_id": "FIX132-PS07",
+      "task_kind": "impl",
+      "title": "FIX132 PS-07: perfilar e otimizar sincronização",
+      "description": "Perfilar custo fixo N=0 e N=1000 em workspace sintético; otimizar incrementalmente e demonstrar equivalência dos read models; manter limites de evidência de N=20000.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/qa/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Registrar perfil e demonstrar equivalência das projeções e testes de regressão."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T01:53:15Z",
+      "verification": {
+        "checks": [
+          "Perfil sintético N=0 e N=1000; verify 16,551s para 3,965s em medição única N=1000",
+          "Mesmo ledger sintético: verify ok e hashes das projeções e ledger inalterados; 3 testes dirigidos passaram; revisão comparativa independente em oito casos"
+        ]
+      },
+      "completed_at": "2026-11-09T02:00:32Z"
+    },
+    {
+      "task_id": "FIX132-BASELINE-RED-01-FIX",
+      "task_kind": "impl",
+      "title": "FIX132 BASELINE-RED-01-FIX: correção e verificação independente",
+      "description": "Implementar BASELINE-RED-01-FIX conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam BASELINE-RED-01-FIX, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:03:03Z",
+      "verification": {
+        "checks": [
+          "conv-test.ps1 em worktree com PS-07: 114 testes passaram, 0 falharam",
+          "Tópico explicita grok; tópico adicional verifica agent_id e agent_id_source unknown quando Agent é omitido"
+        ]
+      },
+      "completed_at": "2026-11-09T02:07:30Z"
+    },
+    {
+      "task_id": "FIX132-PS01",
+      "task_kind": "impl",
+      "title": "FIX132 PS01: correção e verificação independente",
+      "description": "Implementar PS01 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS01, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:12:21Z",
+      "verification": {
+        "checks": [
+          "Decisão humana: preservar entregas ambíguas, mesmo com possíveis duplicatas em retries",
+          "Testes independentes de legado, índices explícitos, geração, live/transcript e snapshot passaram; limitação de lock PS-03 documentada"
+        ]
+      },
+      "completed_at": "2026-11-09T12:23:39Z"
+    },
+    {
+      "task_id": "FIX132-PS02",
+      "task_kind": "impl",
+      "title": "FIX132 PS02: correção e verificação independente",
+      "description": "Implementar PS02 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS02, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:13:32Z",
+      "verification": {
+        "checks": [
+          "Matcher e watcher integrados: 3 testes passaram; Windows skipped",
+          "Revisão independente reproduziu segurança contra raiz irmã, .. e symlink fora de HOME; teste de watcher com duas sessões"
+        ]
+      },
+      "completed_at": "2026-11-09T02:19:57Z"
+    },
+    {
+      "task_id": "FIX132-PS03",
+      "task_kind": "impl",
+      "title": "FIX132 PS03: correção e verificação independente",
+      "description": "Implementar PS03 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [
+        "FIX132-PS07"
+      ],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS03, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:00:44Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-skip-if-locked-orphan -v: 2 passed (orphan+SkipIfLocked reclaims; live FileShare.None still skips with pipeline lock busy)",
+          "SkipIfLocked no longer returns false on Test-Path alone; reclaim path runs before skip; Windows FileShare unmeasured"
+        ]
+      },
+      "completed_at": "2026-11-09T15:37:57Z"
+    },
+    {
+      "task_id": "FIX132-PS04",
+      "task_kind": "impl",
+      "title": "FIX132 PS04: correção e verificação independente",
+      "description": "Implementar PS04 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS04, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:20:14Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-decide-fail-closed -v: 2 passed (invalid decide/accept/task create leave ledger bytes unchanged; valid decide still appends)",
+          "python3 -m unittest tests.test-append-only -v: 2 passed (append-only regression still green)",
+          "decide/task/topic-write/memory-accept/memory-rollback call Test-ActivityEvents before append; lab ledger not written"
+        ]
+      },
+      "completed_at": "2026-11-09T15:24:07Z"
+    },
+    {
+      "task_id": "FIX132-PS05",
+      "task_kind": "impl",
+      "title": "FIX132 PS05: correção e verificação independente",
+      "description": "Implementar PS05 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS05, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:19:33Z",
+      "verification": {
+        "checks": [
+          "D-01 A: ADR, contrato, README e aviso do bootstrap limitam continuidade ao ledger local",
+          "Hooks Cloud não são proibidos; transferência automática de ledger e configuração não é prometida"
+        ]
+      },
+      "completed_at": "2026-11-09T12:22:05Z"
+    },
+    {
+      "task_id": "FIX132-PS06",
+      "task_kind": "impl",
+      "title": "FIX132 PS06: correção e verificação independente",
+      "description": "Implementar PS06 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS06, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:38:59Z",
+      "verification": {
+        "checks": [
+          "Hook capturou 200 mil caracteres Unicode com quebras internas via stdin; beforeSubmit e afterAgentResponse",
+          "Testados opções conflitantes, grafia GNU e falha do subprocesso com JSON fail-open; revisão independente; Windows não testado"
+        ]
+      },
+      "completed_at": "2026-11-09T02:42:36Z"
+    },
+    {
+      "task_id": "FIX132-PS08",
+      "task_kind": "impl",
+      "title": "FIX132 PS08: correção e verificação independente",
+      "description": "Implementar PS08 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS08, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:41:29Z",
+      "verification": {
+        "checks": [
+          "tests.test-append-only: 2 passed (legado sem rewrite, raiz estrangeira rejeitada antes do append, JSON inválido e decisão malformada não gravam, prefixo sem newline/CR/CRLF preservado e lido pelo snapshot Node)",
+          "conv-test.ps1 no repo produto: 114 passed, 0 failed (log /tmp/fix132-ps08-conv-test-product.log)",
+          "Repair-ActivityContract ausente; sync-* chama Test-ActivityEvents antes de append; ledger real do laboratório não foi escrito"
+        ]
+      },
+      "completed_at": "2026-11-09T13:05:11Z"
+    },
+    {
+      "task_id": "FIX132-PS09",
+      "task_kind": "impl",
+      "title": "FIX132 PS09: correção e verificação independente",
+      "description": "Implementar PS09 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS09, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:15:14Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-pack-decision-ids -v: 1 passed (5 decision: IDs each appear once in pack after accept)",
+          "pwsh tests/test-memory-read-path.ps1: 21 passed (pack still shows [ACTIVE]/[HISTORICAL]/conflict/subject; handoff still projects Memory-TCG)"
+        ]
+      },
+      "completed_at": "2026-11-09T15:38:19Z"
+    },
+    {
+      "task_id": "FIX132-PS10",
+      "task_kind": "impl",
+      "title": "FIX132 PS10: correção e verificação independente",
+      "description": "Implementar PS10 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS10, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:31:10Z",
+      "verification": {
+        "checks": [
+          "Testes independentes 2/2: instalação npm, idempotência, JSON/BOM, comandos compostos, matcher, symlink e modo Unix",
+          "Escrita temporária, comparação prévia e limitação de concorrência documentada; Windows não testado"
+        ]
+      },
+      "completed_at": "2026-11-09T02:40:34Z"
+    },
+    {
+      "task_id": "FIX132-PS11",
+      "task_kind": "impl",
+      "title": "FIX132 PS11: correção e verificação independente",
+      "description": "Implementar PS11 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS11, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:23:56Z",
+      "verification": {
+        "checks": [
+          "Teste independente em A/B/home: precedência correta em CLI, sync, memory e RAG; purge sintético isolado",
+          "Fallback direto do RAG alterado para raiz da instalação e documentado; Windows e links simbólicos não testados"
+        ]
+      },
+      "completed_at": "2026-11-09T12:28:15Z"
+    },
+    {
+      "task_id": "FIX132-PS12",
+      "task_kind": "impl",
+      "title": "FIX132 PS12: correção e verificação independente",
+      "description": "Implementar PS12 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS12, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:24:18Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-memory-engine-bundled -v: 4 passed (no home fallback; bootstrap ships adapter/cli.js; isolated runtime resolves without env; isolated scripts without engine fail closed; modified engine preserved without -Force)",
+          "python3 -m unittest tests.test-memory-engine-required -v: 1 passed",
+          "pwsh tests/test-installer-bootstrap.ps1 PASS; node --test tests/installer/memory/memory.test.js 2/0; JS installer modified-file protection unchanged"
+        ]
+      },
+      "completed_at": "2026-11-09T15:28:00Z"
+    },
+    {
+      "task_id": "FIX132-PS13",
+      "task_kind": "impl",
+      "title": "FIX132 PS13: correção e verificação independente",
+      "description": "Implementar PS13 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS13, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:21:52Z",
+      "verification": {
+        "checks": [
+          "CLI ausente, Node ausente e engine exit 1 rejeitados em verify e project com evento de memória",
+          "Workspace legado sem eventos continua verify ok; Windows não testado"
+        ]
+      },
+      "completed_at": "2026-11-09T02:24:17Z"
+    },
+    {
+      "task_id": "FIX132-PS14",
+      "task_kind": "impl",
+      "title": "FIX132 PS14: correção e verificação independente",
+      "description": "Implementar PS14 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS14, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:28:10Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-curated-event-id -v: 3 passed (two identical decides distinct ids+verify; frozen ts still unique; source has .fff and |n cap)",
+          "python3 -m unittest tests.test-decide-fail-closed -v: 2 passed"
+        ]
+      },
+      "completed_at": "2026-11-09T15:29:57Z"
+    },
+    {
+      "task_id": "FIX132-PS15",
+      "task_kind": "impl",
+      "title": "FIX132 PS15: correção e verificação independente",
+      "description": "Implementar PS15 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS15, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:05:56Z",
+      "verification": {
+        "checks": [
+          "Teste sintético vermelho na versão anterior: before do primeiro retornava 2 eventos",
+          "Candidata: before do primeiro retorna JSON []; before do terceiro retorna os dois anteriores"
+        ]
+      },
+      "completed_at": "2026-11-09T02:07:26Z"
+    },
+    {
+      "task_id": "FIX132-PS16",
+      "task_kind": "impl",
+      "title": "FIX132 PS16: correção e verificação independente",
+      "description": "Implementar PS16 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS16, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:30:09Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-quote-hook-part -v: 3 passed (source doubles quotes; runtime a\"b → \"a\"\"b\"; bootstrap hook quotes workspace with embedded quote)",
+          "pwsh tests/test-installer-bootstrap.ps1 PASS; Windows cmd.exe unmeasured"
+        ]
+      },
+      "completed_at": "2026-11-09T15:31:34Z"
+    },
+    {
+      "task_id": "FIX132-PS17",
+      "task_kind": "impl",
+      "title": "FIX132 PS17: correção e verificação independente",
+      "description": "Implementar PS17 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS17, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:10:18Z",
+      "verification": {
+        "checks": [
+          "Bootstrap duas vezes em repositório sintético: gitignore idempotente",
+          "git check-ignore confirma 12 caminhos de ledger, projeções, logs, backup e temporários"
+        ]
+      },
+      "completed_at": "2026-11-09T02:12:35Z"
+    },
+    {
+      "task_id": "FIX132-PS18",
+      "task_kind": "impl",
+      "title": "FIX132 PS18: correção e verificação independente",
+      "description": "Implementar PS18 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam PS18, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:24:43Z",
+      "verification": {
+        "checks": [
+          "Bateria em worktree sintético: 183 passou, 0 falhou; lab e ESAA pulados; 69 testes de memória",
+          "Teste independente de falhas, execução parcial, ausência e skip da bateria aprovado; Windows não testado"
+        ]
+      },
+      "completed_at": "2026-11-09T02:30:24Z"
+    },
+    {
+      "task_id": "FIX132-JS01",
+      "task_kind": "impl",
+      "title": "FIX132 JS01: correção e verificação independente",
+      "description": "Implementar JS01 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS01, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:44:37Z",
+      "verification": {
+        "checks": [
+          "Teste Node 22/Linux passou com espaço, acento, #, %, symlink e import sem execução",
+          "Revisão independente aprovou escopo Linux; Node 18 e Windows não executados"
+        ]
+      },
+      "completed_at": "2026-11-09T02:46:04Z"
+    },
+    {
+      "task_id": "FIX132-JS02",
+      "task_kind": "impl",
+      "title": "FIX132 JS02: correção e verificação independente",
+      "description": "Implementar JS02 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS02, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:25:23Z",
+      "verification": {
+        "checks": [
+          "Ordenação por tópico ativo v2 e compatibilidade da ordenação v1: teste dirigido aprovado",
+          "Ativação coordenada em JS03; revisão independente aprovou ambas as tarefas"
+        ]
+      },
+      "completed_at": "2026-11-09T12:41:11Z"
+    },
+    {
+      "task_id": "FIX132-JS03",
+      "task_kind": "impl",
+      "title": "FIX132 JS03: correção e verificação independente",
+      "description": "Implementar JS03 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS03, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:31:10Z",
+      "verification": {
+        "checks": [
+          "25 testes Node de memory aprovados; schemas facts e graph validados",
+          "Replay sintético v1: accept, reconstrução da visão ativa, v2, rollback e rejeição stale aprovados",
+          "Revisão independente aprovou JS02 e JS03 em conjunto; benchmark científico não reexecutado"
+        ]
+      },
+      "completed_at": "2026-11-09T12:41:03Z"
+    },
+    {
+      "task_id": "FIX132-JS04",
+      "task_kind": "impl",
+      "title": "FIX132 JS04: correção e verificação independente",
+      "description": "Implementar JS04 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS04, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:00:44Z",
+      "verification": {
+        "checks": [
+          "python3 -m unittest tests.test-accept-digest-path -v",
+          "node --test tests/memory/*.test.js",
+          "npm test",
+          "pwsh -NoProfile -File .conversation-esaa/bin/conv-test.ps1",
+          "pwsh -NoProfile -File tests/test-memory-accept-replay.ps1"
+        ]
+      },
+      "completed_at": "2026-11-09T15:13:05Z"
+    },
+    {
+      "task_id": "FIX132-JS05",
+      "task_kind": "impl",
+      "title": "FIX132 JS05: correção e verificação independente",
+      "description": "Implementar JS05 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS05, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:04:05Z",
+      "verification": {
+        "checks": [
+          "npm test em worktree sintético: 44 testes passaram, incluindo memória e instalador de memória; Node 22/Linux",
+          "Descoberta dos arquivos .test.js sem glob do shell; Node 18 e Windows não foram executados"
+        ]
+      },
+      "completed_at": "2026-11-09T02:05:48Z"
+    },
+    {
+      "task_id": "FIX132-JS06",
+      "task_kind": "impl",
+      "title": "FIX132 JS06: correção e verificação independente",
+      "description": "Implementar JS06 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam JS06, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:07:40Z",
+      "verification": {
+        "checks": [
+          "Limite explícito aplicado à soma dos grupos na seção compartilhada; mensagem diferencia limite e orçamento",
+          "Teste dirigido passou: default, cap 2, inválidos e CLI PowerShell com --opção valor, --opção=valor e operador & -Command"
+        ]
+      },
+      "completed_at": "2026-11-09T02:12:34Z"
+    },
+    {
+      "task_id": "FIX132-DOC01",
+      "task_kind": "impl",
+      "title": "FIX132 DOC01: correção e verificação independente",
+      "description": "Implementar DOC01 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam DOC01, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:43:32Z",
+      "verification": {
+        "checks": [
+          "Definição inicial de D1 alinhada à correção e aos dados históricos"
+        ]
+      },
+      "completed_at": "2026-11-09T02:45:17Z"
+    },
+    {
+      "task_id": "FIX132-DOC02",
+      "task_kind": "impl",
+      "title": "FIX132 DOC02: correção e verificação independente",
+      "description": "Implementar DOC02 conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam DOC02, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:45:29Z",
+      "verification": {
+        "checks": [
+          "README, ADR-013 e artigo registram actor assistant fixo e identidade declarada sem autenticação",
+          "Somente contexto anota eventos antigos legacy_unverified; nenhuma alteração de schema"
+        ]
+      },
+      "completed_at": "2026-11-09T02:46:21Z"
+    },
+    {
+      "task_id": "FIX132-ARTICLE",
+      "task_kind": "impl",
+      "title": "FIX132 ARTICLE: correção e verificação independente",
+      "description": "Implementar ARTICLE conforme G1 E-02 e relatório docs/qa/fix-v1.3.2/01-verification-report.md; preservar limitações, teste dirigido e compatibilidade; sem push ou bump de pacote.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "docs/**",
+        "documentacao-tecnica/**",
+        "README.md",
+        "package.json"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Evidência e testes verificam ARTICLE, sem extrapolar resultados não medidos."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:25:46Z",
+      "verification": {
+        "checks": [
+          "Revisão independente da redação: ART-01 a ART-09 e restrições de atribuição; v1.3 preservada",
+          "Sonda sintética 480 fatos: 4 decisões e 4 conflitos a orçamento solicitado 3200; script e resultados registrados; sem accept nem pack"
+        ]
+      },
+      "completed_at": "2026-11-09T02:30:35Z"
+    },
+    {
+      "task_id": "FIX132-PS17-REPO",
+      "task_kind": "impl",
+      "title": "FIX132 PS-17: proteger dados privados no gitignore do repositório",
+      "description": "Complemento PS-17: ignorar logs, temporários e projeções privadas sem alterar arquivos do usuário; verificar git check-ignore.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".gitignore"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Padrões cobrem arquivos privados e não ignoram código versionado."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:12:00Z",
+      "verification": {
+        "checks": [
+          "git check-ignore cobre topics, logs e temporários sintéticos",
+          "git check-ignore --no-index não ignora .conversation-esaa/bin/conv-sync.ps1"
+        ]
+      },
+      "completed_at": "2026-11-09T02:12:35Z"
+    },
+    {
+      "task_id": "FIX132-DOC-INDEX",
+      "task_kind": "impl",
+      "title": "Atualizar índice local dos artefatos revisados",
+      "description": "Atualizar referências do artigo v1.3.1 e registrar o relatório PS-07 e a sonda ART-07 preservando demais entradas.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".motor-IA/links/referencias.md"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Índice aponta para arquivos existentes sem remover entradas anteriores."
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:33:34Z",
+      "verification": {
+        "checks": [
+          "Quatro caminhos alterados ou acrescentados existem; referências anteriores preservadas"
+        ]
+      },
+      "completed_at": "2026-11-09T02:34:09Z"
+    },
+    {
+      "task_id": "FIX132-PS10-TEMP-IGNORE",
+      "task_kind": "impl",
+      "title": "Ignorar temporários privados de configuração Claude",
+      "description": "Proteger temporários atômicos de settings.json contra versionamento acidental em bootstrap e no repo.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".gitignore",
+        ".conversation-esaa/bin/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "git check-ignore cobre temporário sintético em workspace inicializado e repositório."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T02:37:42Z",
+      "verification": {
+        "checks": [
+          "Teste de bootstrap e git check-ignore confirma proteção de .claude/.settings.json.tmp-* em ambos os contextos"
+        ]
+      },
+      "completed_at": "2026-11-09T02:38:28Z"
+    },
+    {
+      "task_id": "FIX132-JS02-PREP",
+      "task_kind": "impl",
+      "title": "Preparar ordenação v2 sem ativação",
+      "description": "Aplicar correção de ordenação exclusivamente para visões v2, mantendo gerador em v1 até JS03 e verificação de replay.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [],
+      "outputs": {
+        "files": []
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Ordenação v1 permanece; fixture v2 evidencia precedência de tópico ativo; política gerada continua v1."
+      ],
+      "required_review_mode": "regression",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T12:30:46Z",
+      "verification": {
+        "checks": [
+          "Fixture v1/v2 verifica ordenação; constante de geração permanece rrr-policy.v1",
+          "Ativação da v2 e teste de replay de v1 ficam em JS03; não se declara correção operacional ativa"
+        ]
+      },
+      "completed_at": "2026-11-09T12:31:00Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-PUB-20261109",
+      "task_kind": "impl",
+      "title": "Revisar, fechar e publicar artigo RRR v1.3.1",
+      "description": "Revisão de fechamento do artigo documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md: restaurar sumário e controle de versões, status Aprovado, explicitar custo da cota CQ em 5/9 combinações, registrar wikilinks, commit e push apenas do artigo. Preservar v1.2 e v1.3. Não incluir código FIX132 C nem bump npm.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md",
+        ".motor-IA/links/referencias.md"
+      ],
+      "outputs": {
+        "files": [
+          "documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "documentacao-tecnica/**",
+        ".motor-IA/links/**"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "Artigo v1.3.1 com status Aprovado, sumário e controle de versões restaurados.",
+        "Resumo e abstract explicitam que CQ reduz revocação de decisões em cinco das nove combinações.",
+        "Commit git contém só artefatos do artigo; v1.2 e v1.3 preservados; verify ESAA ok."
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T15:49:35Z",
+      "verification": {
+        "checks": [
+          "frontmatter status=Aprovado data=09/11/2026",
+          "sumario e controle de versoes presentes",
+          "resumo e abstract citam cinco das nove combinacoes CQ",
+          "v1.2 e v1.3 intactos no working tree"
+        ]
+      },
+      "completed_at": "2026-11-09T15:51:19Z"
+    },
+    {
+      "task_id": "CONV-RRR-ARTICLE-V131-FIX-20261109",
+      "task_kind": "impl",
+      "title": "Ajustes obrigatórios do artigo RRR v1.3.1 (ART-04/07/08, PS-08/18, forma)",
+      "description": "Incorporar no DC-consolidacao-memoria-agentes-v1.3.1.md: coluna D2 na Tabela 2; ressalvas PS-08 e PS-18; números da sonda ART-07 (0,08 e estouro 3235/3200); nós vs fatos ART-08; forma (D1 48 fatos todos orçamentos; presente; resultado fora do método; hashes no mesmo caminho); status Pronto para revisão externa; sumário/controle; sem wikilinks. Reabrir CONV-019. Preservar v1.2 e v1.3.",
+      "status": "done",
+      "depends_on": [],
+      "targets": [
+        "documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md"
+      ],
+      "outputs": {
+        "files": [
+          "documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        "documentacao-tecnica/**"
+      ],
+      "task_type": "maintenance",
+      "acceptance_criteria": [
+        "Tabela 2 tem coluna D2 nas nove combinações, iguais a C no JSON v13.",
+        "PS-08 e PS-18 constam como ressalvas; ART-07 traz 0,08 e a nota de estouro; ART-08 traz nós e episódios reais.",
+        "status Pronto para revisão externa; sem Referências internas; sumário e controle de versões presentes; CONV-019 reaberto."
+      ],
+      "required_review_mode": "docs",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T16:02:16Z",
+      "verification": {
+        "checks": [
+          "Tabela 2 coluna D2 igual a C nas nove combinacoes do JSON v13",
+          "PS-08 Repair-ActivityContract em 2.1 e 3.1; PS-18 em 5.6",
+          "ART-07 recall 0,08 e markdown 3235/3200; ART-08 48/480/1920 nos e episodios",
+          "status Pronto para revisao externa; sumario e controle presentes; sem Referencias internas"
+        ]
+      },
+      "completed_at": "2026-11-09T16:05:07Z"
+    },
+    {
+      "task_id": "FIX132-GIT-PUSH-20261109",
+      "task_kind": "impl",
+      "title": "Commit e push FIX132 C e camera-ready do artigo RRR v1.3.1",
+      "description": "Operador autorizou commit/push do conversation-esaa. O artigo canônico v1.3.1 já está em origin/fix-v1.3.2 (4856975). Esta tarefa versiona o trabalho FIX132 C ainda na working tree (append-only, digest_path, engine bundle, testes) e os artefatos camera-ready (reescrito.md, tex EN, avaliação, plano). Não incluir pycache, .mdstudio, all.md nem .roadmap/staging.",
+      "status": "in_progress",
+      "depends_on": [],
+      "targets": [
+        ".conversation-esaa/bin/",
+        "src/memory/adapter/cli.js",
+        "tests/",
+        "documentacao-tecnica/",
+        "docs/"
+      ],
+      "outputs": {
+        "files": [
+          "origin/fix-v1.3.2"
+        ]
+      },
+      "immutability": {
+        "done_is_immutable": true
+      },
+      "boundary_grant": [
+        ".conversation-esaa/bin/**",
+        "README.md",
+        "docs/**",
+        "documentacao-tecnica/**",
+        ".motor-IA/**"
+      ],
+      "task_type": "release",
+      "acceptance_criteria": [
+        "origin/fix-v1.3.2 contém os commits do produto FIX132 C e dos artefatos camera-ready",
+        "pycache, documentacao-tecnica/.mdstudio e all.md permanecem fora do commit"
+      ],
+      "required_review_mode": "release",
+      "assigned_to": "agent-impl",
+      "started_at": "2026-11-09T17:06:17Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 92,
+      "done": 136,
+      "in_progress": 1,
       "todo": 7
     },
     "by_kind": {
-      "impl": 72,
+      "impl": 117,
       "qa": 13,
       "spec": 14
     }

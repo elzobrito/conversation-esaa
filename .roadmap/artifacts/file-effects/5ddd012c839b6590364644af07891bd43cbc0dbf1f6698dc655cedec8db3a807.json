@@ -1,0 +1,13 @@
+{
+  "after_sha256": "23ddaffa1166017ce7dc4e0e0a4204f9c3371b6df905861e116882de41035fad",
+  "artifact_id": "ART-23ddaffa1166017ce7dc4e0e0a4204f9c3371b6df905861e116882de41035fad",
+  "artifact_sha256": "5ddd012c839b6590364644af07891bd43cbc0dbf1f6698dc655cedec8db3a807",
+  "before_sha256": "31419c1b6a5da1b7132f66e782b164c1c70453285777726636346e6b1b9885b1",
+  "bytes": 1397,
+  "content": "import subprocess,tempfile,unittest\nfrom pathlib import Path\nimport shutil\nROOT=Path(__file__).resolve().parents[1]; PW=shutil.which('pwsh') or str(Path.home()/'.local/bin/pwsh')\nclass IgnoreTest(unittest.TestCase):\n def test_generated_private_paths_are_ignored_and_bootstrap_idempotent(self):\n  with tempfile.TemporaryDirectory(prefix='conv-ignore-') as tmp:\n   subprocess.run(['git','init','-q',tmp],check=True)\n   cmd=[PW,'-NoProfile','-File',str(ROOT/'.conversation-esaa/bin/conv-bootstrap.ps1'),'-WorkspaceRoot',tmp,'-SkipAgentIntegrations']\n   subprocess.run(cmd,capture_output=True,text=True,check=True)\n   ignore=Path(tmp)/'.gitignore'; before=ignore.read_text(); subprocess.run(cmd,capture_output=True,text=True,check=True); self.assertEqual(ignore.read_text(),before)\n   names=['activity.jsonl','decisions.md','tasks.json','topics.md','topics.json','codex-watch.log','antigravity-hook.log','cursor-hook.log','run/cursor-foo.txt','run/conversation-esaa.lock','activity.jsonl.bak-1','activity.jsonl.tmp-1']\n   for name in names:\n    with self.subTest(name=name):\n     r=subprocess.run(['git','-C',tmp,'check-ignore','-q','--no-index',f'.conversation-esaa/{name}'])\n     self.assertEqual(r.returncode,0)\n   r=subprocess.run(['git','-C',tmp,'check-ignore','-q','--no-index','.claude/.settings.json.tmp-synthetic'])\n   self.assertEqual(r.returncode,0)\nif __name__=='__main__':unittest.main()\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/test-private-ignore.py",
+  "source_path": "tests/test-private-ignore.py",
+  "ts": "2026-11-09T02:38:04Z"
+}

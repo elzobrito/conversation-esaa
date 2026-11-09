@@ -1,0 +1,13 @@
+{
+  "after_sha256": "549269061c72b49432f2f2fa527ecb60d7eb193385c8e2ce17aa7dbb0a3ebfd7",
+  "artifact_id": "ART-549269061c72b49432f2f2fa527ecb60d7eb193385c8e2ce17aa7dbb0a3ebfd7",
+  "artifact_sha256": "b8a4dede1542771abacb7b54cbd2563b6e671614aa1d17c5ccec87d52fb392d3",
+  "before_sha256": "59db5497608669976d25f4dbd1e8c9aa0ad4230d75e91b979dcaded7413b3550",
+  "bytes": 2104,
+  "content": "#requires -Version 7.0\nparam(\n    [string]$WorkspaceRoot,\n    [int]$PollSeconds = 5\n)\n\nSet-StrictMode -Version Latest\n$ErrorActionPreference = 'Stop'\n\nfunction Resolve-WorkspaceRoot {\n    if ($WorkspaceRoot) { return (Resolve-Path -LiteralPath $WorkspaceRoot).Path }\n    $scriptDir = Split-Path -Parent $PSScriptRoot\n    return (Resolve-Path -LiteralPath (Split-Path -Parent $scriptDir)).Path\n}\n\n\n$root = Resolve-WorkspaceRoot\n$syncScript = Join-Path $root '.conversation-esaa\\bin\\conv-sync.ps1'\n$logPath = Join-Path $root '.conversation-esaa\\codex-watch.log'\n\nif (-not (Test-Path -LiteralPath $syncScript)) {\n    throw \"conv-sync.ps1 not found at $syncScript\"\n}\n\n$lastPath = $null\n$lastWrite = [datetime]::MinValue\n$lastLength = -1L\n\n\"$(Get-Date -Format o) codex-watch started workspace=$root poll=${PollSeconds}s\" |\n    Out-File -LiteralPath $logPath -Encoding utf8 -Append\n\nwhile ($true) {\n    try {\n        $selection = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $syncScript find-codex-rollout -WorkspaceRoot $root)\n        if ($LASTEXITCODE -ne 0) { throw \"rollout selection failed ($LASTEXITCODE)\" }\n        $rollout = if ($selection.Count -gt 0) { [string]$selection[-1] } else { $null }\n        if ($rollout -and (Test-Path -LiteralPath $rollout)) {\n            $item = Get-Item -LiteralPath $rollout\n            $changed = ($rollout -ne $lastPath) -or ($item.LastWriteTime -ne $lastWrite) -or ($item.Length -ne $lastLength)\n            if ($changed) {\n                & pwsh -NoProfile -ExecutionPolicy Bypass -File $syncScript sync-codex -WorkspaceRoot $root -CodexSessionPath $rollout |\n                    Out-File -LiteralPath $logPath -Encoding utf8 -Append\n                if ($LASTEXITCODE -ne 0) { throw \"sync failed ($LASTEXITCODE)\" }\n                $lastPath = $rollout\n                $lastWrite = $item.LastWriteTime\n                $lastLength = $item.Length\n            }\n        }\n    } catch {\n        \"$(Get-Date -Format o) ERROR $($_.Exception.Message)\" |\n            Out-File -LiteralPath $logPath -Encoding utf8 -Append\n    }\n\n    Start-Sleep -Seconds $PollSeconds\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".conversation-esaa/bin/codex-watch.ps1",
+  "source_path": ".conversation-esaa/bin/codex-watch.ps1",
+  "ts": "2026-11-09T02:19:54Z"
+}

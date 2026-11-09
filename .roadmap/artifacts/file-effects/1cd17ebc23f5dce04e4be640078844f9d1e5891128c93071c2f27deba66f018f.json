@@ -1,0 +1,13 @@
+{
+  "after_sha256": "ead971e1fca3639aee3f7fb10bfc4afcaa5d1f5f3966971a7673d5cf996a0c16",
+  "artifact_id": "ART-ead971e1fca3639aee3f7fb10bfc4afcaa5d1f5f3966971a7673d5cf996a0c16",
+  "artifact_sha256": "1cd17ebc23f5dce04e4be640078844f9d1e5891128c93071c2f27deba66f018f",
+  "before_sha256": null,
+  "bytes": 2010,
+  "content": "import os,shutil,subprocess,tempfile,unittest\nfrom pathlib import Path\npw=shutil.which('pwsh') or str(Path.home()/'.local/bin/pwsh'); battery=os.environ.get('CONV_BATTERY_UNDER_TEST',str(Path(__file__).resolve().parents[1]/'.conversation-esaa/bin/conv-test-battery.ps1'))\nclass BatteryReporting(unittest.TestCase):\n def test_missing_partial_and_failing_suites(self):\n  with tempfile.TemporaryDirectory() as tmp:\n   root=Path(tmp); b=root/'.conversation-esaa/bin';b.mkdir(parents=True);(b/'conv-test.ps1').write_text(\"Write-Output 'conv-test: 1 passed, 0 failed'\\n\")\n   def run():return subprocess.run([pw,'-NoProfile','-File',battery,'-RepoRoot',tmp,'-SkipLab','-SkipEsaa'],capture_output=True,text=True)\n   a=run();self.assertEqual(a.returncode,0,a.stderr);self.assertIn('SKIP  memory_e2e',a.stdout)\n   conv=root/'.conversation-esaa/bin/conv-test.ps1'\n   conv.write_text(\"Write-Output 'conv-test: 1 passed, 0 failed'\\nexit 1\\n\")\n   bad=run();self.assertNotEqual(bad.returncode,0)\n   conv.write_text(\"Write-Output 'no summary'\\nexit 0\\n\")\n   missing=run();self.assertNotEqual(missing.returncode,0)\n   conv.write_text(\"Write-Output 'conv-test: 1 passed, 0 failed'\\n\")\n   tests=root/'tests';tests.mkdir();(tests/'test-memory-shadow.ps1').write_text(\"Write-Output '=== Summary: 1 passed, 0 failed ==='\\n\")\n   b=run();self.assertNotEqual(b.returncode,0);self.assertIn('incomplete repository test suite',b.stdout)\n   skip=subprocess.run([pw,'-NoProfile','-File',battery,'-RepoRoot',tmp,'-SkipLab','-SkipEsaa','-SkipMemory'],capture_output=True,text=True)\n   self.assertEqual(skip.returncode,0);self.assertIn('operator requested',skip.stdout)\n   (tests/'test-memory-read-path.ps1').write_text(\"Write-Output '=== Summary: 1 passed, 0 failed ==='\\n\")\n   (tests/'test-memory-accept-replay.ps1').write_text(\"Write-Output '=== Summary: 1 passed, 0 failed ==='\\nexit 1\\n\")\n   c=run();self.assertNotEqual(c.returncode,0);self.assertIn('FAIL  test-memory-accept-replay.ps1',c.stdout)\nif __name__=='__main__':unittest.main()\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/test-battery-reporting.py",
+  "source_path": "tests/test-battery-reporting.py",
+  "ts": "2026-11-09T02:30:16Z"
+}

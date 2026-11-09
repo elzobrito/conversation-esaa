@@ -58,10 +58,6 @@ function Resolve-MemoryCliScript {
     if (Test-Path -LiteralPath $repoCandidate) {
         return (Resolve-Path -LiteralPath $repoCandidate).Path
     }
-    $fallbackRepoCandidate = '/home/elzobrito/desenvolvimento/conversation-esaa/src/memory/adapter/cli.js'
-    if (Test-Path -LiteralPath $fallbackRepoCandidate) {
-        return (Resolve-Path -LiteralPath $fallbackRepoCandidate).Path
-    }
     throw "Memory-TCG Node CLI not found relative to $PSScriptRoot"
 }
 

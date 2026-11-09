@@ -1,0 +1,13 @@
+{
+  "after_sha256": "aafa90eb19f610c8294fde16dcff0128eada2c76d6ba55a5882a3d0391d453ee",
+  "artifact_id": "ART-aafa90eb19f610c8294fde16dcff0128eada2c76d6ba55a5882a3d0391d453ee",
+  "artifact_sha256": "ee73f6514c50f63c99c47dec149ab99c5e55f9615b0a3e3ab9a228ca627de5c1",
+  "before_sha256": "aafa90eb19f610c8294fde16dcff0128eada2c76d6ba55a5882a3d0391d453ee",
+  "bytes": 1173,
+  "content": "# D-04 — Teto de 4 itens/secção e 200 caracteres no `context`\n\n**Status:** decisão humana. Sem Passo C.\n\n## Fatos medidos (JS-06)\n\nQuando `retainedDecisions + unresolvedConflicts > 20` **e** `--budget-chars <= 5000`, `cmdContext` aplica `maxPerSection=4` e corta linhas em 200 chars.\n\nSintético 30 decisões + 12 conflitos:\n\n| canal | displayed decisões | displayed conflitos | omitted | chars | linhas cortadas |\n|---|---:|---:|---:|---:|---:|\n| `memory context` 4000 | 4 | 4 | 34 | 2232 | 8 |\n| pack/context 3200 | 4 | 4 | 34 | 2232 | 8 |\n| budget 20000 | 30 | 12 | 0 | 8835 | 0 |\n\nO orçamento de caracteres **não** é o que corta: 2232 < 4000. O cap 4 corta primeiro. Subir o budget acima de 5000 desliga o cap.\n\n## Opções\n\n| | Opção | Efeito |\n|---|---|---|\n| Manter | comportamento atual, documentar |\n| Parametrizar `--max-per-section` (default 4) | operador/pack escolhem; testes a 4000 e 20000 |\n| Remover | `context` cresce com a vista ativa; ART-07/CN mudam de figura |\n\n## Recomendação\n\n**Parametrizar** com default 4 e corte 200, documentados. Não remover sem reavaliar ART-07 (o CN já não reproduz a saída Markdown).\n\nItem bloqueado: JS-06.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/fix-v1.3.2/decisions/D-04-memo.md",
+  "source_path": "docs/qa/fix-v1.3.2/decisions/D-04-memo.md",
+  "ts": "2026-11-09T01:40:14Z"
+}

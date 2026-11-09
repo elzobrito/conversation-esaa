@@ -1,0 +1,13 @@
+{
+  "after_sha256": "d9c9be7cf331b59260dd374dd0d2d494382f46c33a1f2eae6d8b13433c7dc0c9",
+  "artifact_id": "ART-d9c9be7cf331b59260dd374dd0d2d494382f46c33a1f2eae6d8b13433c7dc0c9",
+  "artifact_sha256": "e525bde037a9d6f395dfe94855665b7491a71cecef77ab61b94aadded8f15021",
+  "before_sha256": null,
+  "bytes": 724,
+  "content": "{\n  \"scenario\": \"buildScaledScenario(50)\",\n  \"facts\": 480,\n  \"seed\": 11,\n  \"budget\": \"all\",\n  \"method\": \"runRrrCycle, buildActiveViewFromProposal, cmdContext over a temporary synthetic active.json; no accept or pack\",\n  \"results\": [\n    {\"budget_chars\": 3200, \"decisions\": 4, \"conflicts\": 4, \"omitted\": 295, \"markdown_chars\": 3235},\n    {\"budget_chars\": 4000, \"decisions\": 4, \"conflicts\": 4, \"omitted\": 293, \"markdown_chars\": 3447},\n    {\"budget_chars\": 20000, \"decisions\": 50, \"conflicts\": 33, \"omitted\": 156, \"markdown_chars\": 20232}\n  ],\n  \"limits\": \"Character counts are JavaScript string lengths; the omission marker can exceed the requested budget. This is not an end-to-end product acceptance or pack measurement.\"\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/fix-v1.3.2/art07-context-probe.json",
+  "source_path": "docs/qa/fix-v1.3.2/art07-context-probe.json",
+  "ts": "2026-11-09T02:30:01Z"
+}

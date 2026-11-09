@@ -132,9 +132,6 @@ function Acquire-PipelineLock {
     $deadline = [datetime]::UtcNow.AddSeconds($TimeoutSeconds)
 
     while ([datetime]::UtcNow -lt $deadline) {
-        if ($SkipIfLocked -and (Test-Path -LiteralPath $lockPath)) {
-            return $false
-        }
         $created = Try-OpenExclusiveLockFile -LockPath $lockPath -Mode ([System.IO.FileMode]::CreateNew)
         if ($created) {
             try {
@@ -152,6 +149,7 @@ function Acquire-PipelineLock {
         # Exclusive Open succeeds only when no process holds the stream
         # (crash leftover or old metadata-only lock). Never delete a lock we
         # cannot open exclusively: that file is held by a live writer.
+        # SkipIfLocked skips only a live holder; an unheld leftover is reclaimed.
         $existingStream = Try-OpenExclusiveLockFile -LockPath $lockPath -Mode ([System.IO.FileMode]::Open)
         if ($existingStream) {
             $existingPid = $null
@@ -178,6 +176,10 @@ function Acquire-PipelineLock {
                 $existingStream.Dispose()
                 throw
             }
+        }
+
+        if ($SkipIfLocked) {
+            return $false
         }
 
         Start-Sleep -Milliseconds 200
@@ -282,7 +284,7 @@ function Get-IsoTimestamp {
     } else {
         [DateTimeOffset]::Now.ToOffset($offset)
     }
-    return $dto.ToString("yyyy-MM-dd'T'HH:mm:ssK")
+    return $dto.ToString("yyyy-MM-dd'T'HH:mm:ss.fffK")
 }
 
 function Parse-SourceTimestamp {
@@ -322,73 +324,6 @@ function Compute-EventId {
     return ([BitConverter]::ToString($hash).Replace('-', '').ToLowerInvariant())
 }
 
-function Test-ActivityNeedsRepair {
-    param([string]$ActivityPath)
-    if (-not (Test-Path -LiteralPath $ActivityPath)) { return $false }
-    foreach ($line in [System.IO.File]::ReadLines($ActivityPath)) {
-        if ([string]::IsNullOrWhiteSpace($line)) { continue }
-        try {
-            $event = $line | ConvertFrom-Json
-        } catch {
-            continue
-        }
-        if (('source' -in $event.PSObject.Properties.Name) -and $event.source) {
-            if ('agent_id' -notin $event.PSObject.Properties.Name) { return $true }
-            if ($event.actor -eq 'user' -and ($null -ne $event.agent_id) -and [string]$event.agent_id -eq '') { return $true }
-            if (-not (('workspace_root' -in $event.PSObject.Properties.Name) -and $event.workspace_root)) { return $true }
-        }
-    }
-    return $false
-}
-
-function Repair-ActivityContract {
-    param([string]$ActivityPath)
-    if (-not (Test-ActivityNeedsRepair $ActivityPath)) { return }
-
-    $esaaDir = Split-Path -Parent $ActivityPath
-    $workspaceRoot = (Resolve-Path -LiteralPath (Split-Path -Parent $esaaDir)).Path
-
-    $lines = [System.IO.File]::ReadAllLines($ActivityPath)
-    $fixed = [System.Collections.Generic.List[string]]::new()
-
-    foreach ($line in $lines) {
-        if ([string]::IsNullOrWhiteSpace($line)) {
-            $fixed.Add($line)
-            continue
-        }
-        try {
-            $event = $line | ConvertFrom-Json
-        } catch {
-            $fixed.Add($line)
-            continue
-        }
-
-        if (('source' -in $event.PSObject.Properties.Name) -and $event.source) {
-            $needsFix = $false
-            if ('agent_id' -notin $event.PSObject.Properties.Name) {
-                $event | Add-Member -NotePropertyName agent_id -NotePropertyValue $null -Force
-                $needsFix = $true
-            } elseif ($event.actor -eq 'user' -and ($null -ne $event.agent_id) -and [string]$event.agent_id -eq '') {
-                $event.agent_id = $null
-                $needsFix = $true
-            }
-            if (-not (('workspace_root' -in $event.PSObject.Properties.Name) -and $event.workspace_root)) {
-                $event | Add-Member -NotePropertyName workspace_root -NotePropertyValue $workspaceRoot -Force
-                $needsFix = $true
-            }
-            if ($needsFix) {
-                $fixed.Add(($event | ConvertTo-Json -Compress -Depth 8))
-                continue
-            }
-        }
-        $fixed.Add($line)
-    }
-
-    $text = ($fixed -join [Environment]::NewLine).TrimEnd() + [Environment]::NewLine
-    [System.IO.File]::WriteAllText($ActivityPath, $text, [System.Text.UTF8Encoding]::new($false))
-    Write-Output 'repair-activity: normalized agent_id and workspace_root on synced events'
-}
-
 function Get-ActivityEventIds {
     param([string]$ActivityPath)
     $ids = [System.Collections.Generic.List[string]]::new()
@@ -426,7 +361,20 @@ function Save-SyncState {
 function Append-ActivityEvent {
     param($Event, [string]$Path)
     $line = ($Event | ConvertTo-Json -Compress -Depth 20)
-    [System.IO.File]::AppendAllText($Path, $line + "`n", [System.Text.UTF8Encoding]::new($false))
+    # A valid legacy JSONL file may have no final newline. Preserve every byte
+    # and append a separator before the next event while holding the pipeline lock.
+    $prefix = ''
+    if (Test-Path -LiteralPath $Path) {
+        $stream = [System.IO.File]::Open($Path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        try {
+            if ($stream.Length -gt 0) {
+                [void]$stream.Seek(-1, [System.IO.SeekOrigin]::End)
+                $last = $stream.ReadByte()
+                if ($last -ne 10) { $prefix = "`n" }
+            }
+        } finally { $stream.Dispose() }
+    }
+    [System.IO.File]::AppendAllText($Path, $prefix + $line + "`n", [System.Text.UTF8Encoding]::new($false))
 }
 
 function Read-JsonlLines {
@@ -1117,6 +1065,20 @@ function Get-EstimatedTokenCount {
     return [int][Math]::Ceiling($chars / 4.0)
 }
 
+function Get-HandoffWithoutMemoryProjection {
+    param([string]$Handoff)
+    if ([string]::IsNullOrWhiteSpace($Handoff)) { return $Handoff }
+    $marker = '## Memory-TCG Consolidated Context'
+    $idx = $Handoff.IndexOf($marker)
+    if ($idx -lt 0) { return $Handoff }
+    $after = $Handoff.Substring($idx + $marker.Length)
+    $tail = [regex]::Match($after, '(?m)^## (?:Se o resumo nao for suficiente|Contrato operacional)\b')
+    if ($tail.Success) {
+        return ($Handoff.Substring(0, $idx).TrimEnd() + [Environment]::NewLine + [Environment]::NewLine + $after.Substring($tail.Index)).TrimEnd()
+    }
+    return $Handoff.Substring(0, $idx).TrimEnd()
+}
+
 function Test-PackFitsBudget {
     param(
         [string]$Text,
@@ -1142,6 +1104,7 @@ function Invoke-Pack {
         $rawHandoff = Get-Content -LiteralPath $Paths.Handoff -Raw -Encoding UTF8
         if (-not [string]::IsNullOrWhiteSpace($rawHandoff)) { $handoffBody = $rawHandoff.Trim() }
     }
+    $handoffBody = Get-HandoffWithoutMemoryProjection $handoffBody
 
     $decisionLines = [System.Collections.Generic.List[string]]::new()
     $activeMemPath = Join-Path (Join-Path $Paths.Esaa 'memory') 'active.json'
@@ -1155,27 +1118,38 @@ function Invoke-Pack {
                 try {
                     $memCtx = ($rawMemCtx -join "`n") | ConvertFrom-Json
                     if ($memCtx.status -eq 'OK') {
+                        $seenPackMemoryIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+                        function Add-PackMemoryLine {
+                            param([string]$Id, [string]$Line)
+                            if ([string]::IsNullOrWhiteSpace($Id)) {
+                                [void]$decisionLines.Add($Line)
+                                return
+                            }
+                            if ($seenPackMemoryIds.Contains($Id)) { return }
+                            [void]$seenPackMemoryIds.Add($Id)
+                            [void]$decisionLines.Add($Line)
+                        }
                         foreach ($d in @($memCtx.retained_decisions)) {
                             $evIds = @($d.evidence_event_ids) -join ', '
-                            [void]$decisionLines.Add("- **[ACTIVE]** ($($d.memory_id)) $($d.summary) *(evidence: $evIds)*")
+                            Add-PackMemoryLine ([string]$d.memory_id) "- **[ACTIVE]** ($($d.memory_id)) $($d.summary) *(evidence: $evIds)*"
                         }
                         foreach ($u in @($memCtx.unresolved_conflicts)) {
                             $evIds = @($u.evidence_event_ids) -join ', '
-                            [void]$decisionLines.Add("- **[UNRESOLVED CONFLICT]** ($($u.conflict_id): $($u.reason_code)) *(evidence: $evIds)*")
+                            Add-PackMemoryLine ([string]$u.conflict_id) "- **[UNRESOLVED CONFLICT]** ($($u.conflict_id): $($u.reason_code)) *(evidence: $evIds)*"
                         }
                         foreach ($h in @($memCtx.historical_decisions)) {
                             $evIds = @($h.evidence_event_ids) -join ', '
                             $supBy = if ($h.superseded_by_id) { " -> superseded by $($h.superseded_by_id)" } else { '' }
-                            [void]$decisionLines.Add("- **[HISTORICAL / SUPERSEDED]** ($($h.memory_id)) $($h.summary)$supBy *(evidence: $evIds)*")
+                            Add-PackMemoryLine ([string]$h.memory_id) "- **[HISTORICAL / SUPERSEDED]** ($($h.memory_id)) $($h.summary)$supBy *(evidence: $evIds)*"
                         }
                         foreach ($s in @($memCtx.consolidated_subjects)) {
                             $evIds = @($s.evidence_event_ids) -join ', '
                             $topicTag = if ($s.topic_id) { " [$($s.topic_id)]" } else { '' }
-                            [void]$decisionLines.Add("- **[SUBJECT / ASSUNTO]**$topicTag ($($s.memory_id)) $($s.summary) *(evidence: $evIds)*")
+                            Add-PackMemoryLine ([string]$s.memory_id) "- **[SUBJECT / ASSUNTO]**$topicTag ($($s.memory_id)) $($s.summary) *(evidence: $evIds)*"
                         }
                         foreach ($g in @($memCtx.grouped_duplicates)) {
                             $evIds = @($g.evidence_event_ids) -join ', '
-                            [void]$decisionLines.Add("- **[RECURRING SUBJECT]** ($($g.memory_id), $($g.duplicate_count) turns) $($g.summary) *(evidence: $evIds)*")
+                            Add-PackMemoryLine ([string]$g.memory_id) "- **[RECURRING SUBJECT]** ($($g.memory_id), $($g.duplicate_count) turns) $($g.summary) *(evidence: $evIds)*"
                         }
                         if (@($memCtx.omitted_memory_ids).Count -gt 0) {
                             [void]$decisionLines.Add("- *(budget omitted: $(@($memCtx.omitted_memory_ids) -join ', '))*")
@@ -1415,11 +1389,28 @@ function Append-CuratedEvent {
     $hasId = ($Record -is [System.Collections.IDictionary] -and $Record.Contains('event_id')) -or
         (('event_id' -in $Record.PSObject.Properties.Name) -and $Record.event_id)
     if (-not $hasId) {
-        $payload = "$($Record.event)|$($Paths.Root)|$($Record.ts)|$($Record | ConvertTo-Json -Compress -Depth 20)"
+        $json = $Record | ConvertTo-Json -Compress -Depth 20
+        $basePayload = "$($Record.event)|$($Paths.Root)|$($Record.ts)|$json"
+        $existing = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        foreach ($id in @(Get-ActivityEventIds $Paths.Activity)) {
+            if ($id) { [void]$existing.Add([string]$id) }
+        }
+        $eventId = $null
+        for ($n = 0; $n -lt 1000; $n++) {
+            $payload = if ($n -eq 0) { $basePayload } else { "$basePayload|$n" }
+            $candidate = New-CuratedEventId $payload
+            if (-not $existing.Contains($candidate)) {
+                $eventId = $candidate
+                break
+            }
+        }
+        if (-not $eventId) {
+            throw 'Unable to allocate unique curated event_id after 1000 attempts'
+        }
         if ($Record -is [System.Collections.IDictionary]) {
-            $Record['event_id'] = New-CuratedEventId $payload
+            $Record['event_id'] = $eventId
         } else {
-            $Record | Add-Member -NotePropertyName event_id -NotePropertyValue (New-CuratedEventId $payload) -Force
+            $Record | Add-Member -NotePropertyName event_id -NotePropertyValue $eventId -Force
         }
     }
     Append-ActivityEvent $Record $Paths.Activity
@@ -2098,10 +2089,6 @@ function Resolve-MemoryCliScriptForSync {
     if (Test-Path -LiteralPath $repoCandidate) {
         return (Resolve-Path -LiteralPath $repoCandidate).Path
     }
-    $fallbackRepoCandidate = '/home/elzobrito/desenvolvimento/conversation-esaa/src/memory/adapter/cli.js'
-    if (Test-Path -LiteralPath $fallbackRepoCandidate) {
-        return (Resolve-Path -LiteralPath $fallbackRepoCandidate).Path
-    }
     return $null
 }
 
@@ -2158,9 +2145,9 @@ function Invoke-MemoryAccept {
         policy_version          = $payload.policy_version
         workspace_id            = $payload.workspace_id
         active_digest           = $payload.active_digest
-        active_view             = $payload.active_view
-        proposal                = $payload.proposal
-        graph                   = $payload.graph
+        artifact_encoding       = $payload.artifact_encoding
+        proposal_path           = $payload.proposal_path
+        graph_path              = $payload.graph_path
         summary                 = "memory.consolidation.accepted $($payload.proposal_id) -> $($payload.graph_generation_id)"
         text                    = "Accepted memory consolidation proposal $($payload.proposal_id) producing generation $($payload.graph_generation_id)"
     }
@@ -2504,19 +2491,17 @@ function Test-TopicsProjectionMatch {
     return $true
 }
 
-function Invoke-Verify {
+function Test-ActivityEvents {
     param($Paths)
-
-    if (-not (Test-Path -LiteralPath $Paths.Activity)) {
-        throw 'activity.jsonl not found'
-    }
-
-    $tasks = Get-Content -LiteralPath $Paths.Tasks -Raw -Encoding UTF8 | ConvertFrom-Json
-    # An empty tasks array (fresh/bootstrapped workspace) is valid; only the
-    # absence of the property is an error.
-    if (-not ($tasks.PSObject.Properties.Name -contains 'tasks')) { throw 'tasks.json has no tasks array' }
-
+    if (-not (Test-Path -LiteralPath $Paths.Activity)) { throw 'activity.jsonl not found' }
     $expectedRoot = (Resolve-Path -LiteralPath $Paths.Root).Path
+    $resolvedEventRoots = @{}
+    function Resolve-EventRootCached([string]$Value) {
+        if (-not $resolvedEventRoots.ContainsKey($Value)) {
+            $resolvedEventRoots[$Value] = (Resolve-Path -LiteralPath $Value).Path
+        }
+        return $resolvedEventRoots[$Value]
+    }
     $seen = @{}
     $allSeen = @{}
     $allEvents = [System.Collections.Generic.List[object]]::new()
@@ -2547,6 +2532,10 @@ function Invoke-Verify {
         } catch {
             throw "Invalid JSON at activity.jsonl line $lineNo"
         }
+        if (('workspace_root' -in $event.PSObject.Properties.Name) -and $event.workspace_root) {
+            try { $declaredRoot = (Resolve-EventRootCached ([string]$event.workspace_root)) } catch { throw "Invalid workspace_root at line $lineNo" }
+            if ($declaredRoot -ne $expectedRoot) { throw "Event belongs to another workspace at line $lineNo" }
+        }
         $allEvents.Add($event)
         if ('event_id' -in $event.PSObject.Properties.Name -and $event.event_id) {
             if ($allSeen.ContainsKey($event.event_id)) {
@@ -2573,7 +2562,7 @@ function Invoke-Verify {
                 throw "Synced event missing 'workspace_root' at line $lineNo"
             }
             try {
-                $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+                $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             } catch {
                 throw "Synced event has invalid workspace_root at line $lineNo"
             }
@@ -2595,7 +2584,7 @@ function Invoke-Verify {
             if ('rationale' -notin $event.PSObject.Properties.Name) {
                 throw "Decision event missing 'rationale' at line $lineNo"
             }
-            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             if ($eventRoot -ne $expectedRoot) {
                 throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
             }
@@ -2618,7 +2607,7 @@ function Invoke-Verify {
                     }
                 }
             }
-            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             if ($eventRoot -ne $expectedRoot) {
                 throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
             }
@@ -2654,7 +2643,7 @@ function Invoke-Verify {
             if ($event.topic_id -notmatch '^TOP-\d{3,}$') {
                 throw "Invalid topic_id '$($event.topic_id)' at line $lineNo"
             }
-            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             if ($eventRoot -ne $expectedRoot) {
                 throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
             }
@@ -2681,7 +2670,7 @@ function Invoke-Verify {
                     throw "Memory accept event missing '$field' at line $lineNo"
                 }
             }
-            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             if ($eventRoot -ne $expectedRoot) {
                 throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
             }
@@ -2696,7 +2685,7 @@ function Invoke-Verify {
                     throw "Memory rollback event missing '$field' at line $lineNo"
                 }
             }
-            $eventRoot = (Resolve-Path -LiteralPath $event.workspace_root).Path
+            $eventRoot = (Resolve-EventRootCached ([string]$event.workspace_root))
             if ($eventRoot -ne $expectedRoot) {
                 throw "Event $($event.event_id) belongs to another workspace: $($event.workspace_root)"
             }
@@ -2705,6 +2694,25 @@ function Invoke-Verify {
             }
         }
     }
+
+    return [pscustomobject]@{ ExpectedRoot = $expectedRoot; Events = $allEvents }
+}
+
+function Invoke-Verify {
+    param($Paths)
+
+    if (-not (Test-Path -LiteralPath $Paths.Activity)) {
+        throw 'activity.jsonl not found'
+    }
+
+    $tasks = Get-Content -LiteralPath $Paths.Tasks -Raw -Encoding UTF8 | ConvertFrom-Json
+    # An empty tasks array (fresh/bootstrapped workspace) is valid; only the
+    # absence of the property is an error.
+    if (-not ($tasks.PSObject.Properties.Name -contains 'tasks')) { throw 'tasks.json has no tasks array' }
+
+    $validated = Test-ActivityEvents $Paths
+    $expectedRoot = $validated.ExpectedRoot
+    $allEvents = $validated.Events
 
     if (-not (Test-Path -LiteralPath $Paths.Topics)) {
         throw 'topics.json not found'
@@ -2802,7 +2810,7 @@ switch ($Command) {
     'find-codex-rollout' { Find-LatestCodexRollout -WorkspaceRoot $paths.Root }
     'sync-grok' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
-            Repair-ActivityContract $paths.Activity
+            $null = Test-ActivityEvents $paths
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncGrok -Paths $paths -SyncState $state
             Save-SyncState $state $paths.SyncState
@@ -2813,7 +2821,7 @@ switch ($Command) {
     }
     'sync-codex' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
-            Repair-ActivityContract $paths.Activity
+            $null = Test-ActivityEvents $paths
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncCodex -Paths $paths -SyncState $state
             Save-SyncState $state $paths.SyncState
@@ -2824,7 +2832,7 @@ switch ($Command) {
     }
     'sync-claude' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
-            Repair-ActivityContract $paths.Activity
+            $null = Test-ActivityEvents $paths
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncClaude -Paths $paths -SyncState $state
             Save-SyncState $state $paths.SyncState
@@ -2835,7 +2843,7 @@ switch ($Command) {
     }
     'sync-antigravity' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
-            Repair-ActivityContract $paths.Activity
+            $null = Test-ActivityEvents $paths
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncAntigravity -Paths $paths -SyncState $state
             Save-SyncState $state $paths.SyncState
@@ -2846,7 +2854,7 @@ switch ($Command) {
     }
     'sync-cursor' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
-            Repair-ActivityContract $paths.Activity
+            $null = Test-ActivityEvents $paths
             $state = Load-SyncState $paths.SyncState $paths.Activity
             $null = Invoke-SyncCursor -Paths $paths -SyncState $state
             Save-SyncState $state $paths.SyncState
@@ -2872,6 +2880,7 @@ switch ($Command) {
     }
     'decide' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            $null = Test-ActivityEvents $paths
             Invoke-Decide -Paths $paths
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
@@ -2880,6 +2889,7 @@ switch ($Command) {
     }
     'task' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            $null = Test-ActivityEvents $paths
             Invoke-TaskCommand -Paths $paths
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
@@ -2891,6 +2901,7 @@ switch ($Command) {
             Invoke-TopicCommand -Paths $paths
         } else {
             Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+                $null = Test-ActivityEvents $paths
                 Invoke-TopicCommand -Paths $paths
                 Invoke-Project -Paths $paths
                 Invoke-Verify -Paths $paths
@@ -2901,6 +2912,7 @@ switch ($Command) {
     'memory-accept' {
         $script:LastMemoryOpResult = $null
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            $null = Test-ActivityEvents $paths
             Invoke-MemoryAccept -Paths $paths
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths
@@ -2912,6 +2924,7 @@ switch ($Command) {
     'memory-rollback' {
         $script:LastMemoryOpResult = $null
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
+            $null = Test-ActivityEvents $paths
             Invoke-MemoryRollback -Paths $paths
             Invoke-Project -Paths $paths
             Invoke-Verify -Paths $paths

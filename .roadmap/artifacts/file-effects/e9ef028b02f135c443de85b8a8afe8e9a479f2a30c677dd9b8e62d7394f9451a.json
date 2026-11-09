@@ -1,0 +1,13 @@
+{
+  "after_sha256": "85abf337a2964d3d58c91497bf52ea03524a3212fce9bb70a3bf2da0068b0548",
+  "artifact_id": "ART-85abf337a2964d3d58c91497bf52ea03524a3212fce9bb70a3bf2da0068b0548",
+  "artifact_sha256": "e9ef028b02f135c443de85b8a8afe8e9a479f2a30c677dd9b8e62d7394f9451a",
+  "before_sha256": "85abf337a2964d3d58c91497bf52ea03524a3212fce9bb70a3bf2da0068b0548",
+  "bytes": 926,
+  "content": "// Instructionist baseline: most recent explicit decision per topic and key.\n// Episodes never replace decisions; no conflict detector is assumed.\nexport function runAuthorityBaseline(bundle) {\n  const ordered = [...bundle.facts].sort((a, b) =>\n    String(a.timestamp || \"\").localeCompare(String(b.timestamp || \"\")) || a.id.localeCompare(b.id));\n  const slots = new Map();\n  for (const fact of ordered) {\n    if (fact.kind !== \"decision\" || fact.authority !== \"explicit_decision\") continue;\n    const key = fact.conflict_key ? `${fact.topic_id || \"\"}|${fact.conflict_key}` : `id:${fact.id}`;\n    if (fact.supersedes_id && !fact.conflict_key) slots.delete(`id:${fact.supersedes_id}`);\n    slots.set(key, fact);\n  }\n  const active = [...slots.values()];\n  return { active_ids: new Set(active.map(f => f.id)),\n    provenance_by_id: new Map(active.map(f => [f.id, [...f.evidence_event_ids]])),\n    flagged_conflict_pairs: [] };\n}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/authority-baseline.js",
+  "source_path": "tests/memory/authority-baseline.js",
+  "ts": "2026-11-08T22:08:17Z"
+}

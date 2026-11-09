@@ -1,0 +1,13 @@
+{
+  "after_sha256": "802b0be549b09d5254bca701bc592c118f69fbda58274ce3bd3dcb74cb0379ca",
+  "artifact_id": "ART-802b0be549b09d5254bca701bc592c118f69fbda58274ce3bd3dcb74cb0379ca",
+  "artifact_sha256": "ce4937536c2b1cbffd9c9787d80f56bd8521141eac124c513039a8f94f284303",
+  "before_sha256": "802b0be549b09d5254bca701bc592c118f69fbda58274ce3bd3dcb74cb0379ca",
+  "bytes": 1400,
+  "content": "# D-03 — Como conter o crescimento do ledger por `accept`?\n\n**Status:** decisão humana. Sem Passo C. Limiar do cartão **ultrapassado**.\n\n## Fatos medidos (JS-04, workspace TEMP)\n\n| Fatos | bytes da linha `memory.consolidation.accepted` |\n|---:|---:|\n| 48 | 473 241 (462 KiB) |\n| 480 | **3 517 869 (3,35 MiB)** |\n| 1920 (stored 179 nós) | 308 336 |\n\nLimiar: 256 KiB a 480 fatos. Já 48 fatos excede.\n\n~90–98% do payload é o **grafo**. `cmdPrepareAccept` embebe `graph` quando `nodes.length <= 500` — o caso 480 é o pior. Cinco accepts a 48 fatos → +2,38 MiB mesmo sem fatos novos (`memory.*` fora do snapshot).\n\n`verify` / `reconstruct` neste N não mostraram superlinearidade clara (dezenas a ~150 ms). O custo operacional é o tamanho da linha e o `ConvertTo-Json` no PowerShell (3–6 s por accept).\n\n## Opções\n\n| | Opção | Replay | Tamanho |\n|---|---|---|---|\n| Manter | replay integral no jsonl | 3 MiB/accept a 480 |\n| Digest + path | relê `generations/<hex>/graph.json` e `shadow/<hex>.json` | linha curta; replay depende dos ficheiros |\n| Snapshot periódico | evento de compactação | médio |\n\n## Recomendação\n\n**Digest + path** (os ficheiros já existem). Teste de regressão: linha accept a 480 fatos ≤ 256 KiB (ou tecto documentado). Não serializar `graph`/`proposal`/`active_view` completos no jsonl.\n\nItem bloqueado: JS-04 (não tem Passo C até esta decisão).\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/fix-v1.3.2/decisions/D-03-memo.md",
+  "source_path": "docs/qa/fix-v1.3.2/decisions/D-03-memo.md",
+  "ts": "2026-11-09T01:40:14Z"
+}

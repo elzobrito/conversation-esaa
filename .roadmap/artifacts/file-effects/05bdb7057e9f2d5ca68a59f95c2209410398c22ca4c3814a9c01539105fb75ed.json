@@ -1,0 +1,13 @@
+{
+  "after_sha256": "9626234800dfdc617359e1ec5031a9f488c8a7bd220078de64badc52cafc3ba4",
+  "artifact_id": "ART-9626234800dfdc617359e1ec5031a9f488c8a7bd220078de64badc52cafc3ba4",
+  "artifact_sha256": "05bdb7057e9f2d5ca68a59f95c2209410398c22ca4c3814a9c01539105fb75ed",
+  "before_sha256": "9626234800dfdc617359e1ec5031a9f488c8a7bd220078de64badc52cafc3ba4",
+  "bytes": 804,
+  "content": "import test from \"node:test\";\nimport assert from \"node:assert/strict\";\nimport { runAuthorityBaseline } from \"./authority-baseline.js\";\n\ntest(\"authority baseline chooses the latest explicit decision and ignores later echoes\", () => {\n  const fact = (id, kind, timestamp, extra = {}) => ({ id, kind, timestamp, topic_id: \"T\", conflict_key: \"k\", authority: kind === \"decision\" ? \"explicit_decision\" : \"conversation_turn\", evidence_event_ids: [id], ...extra });\n  const result = runAuthorityBaseline({ facts: [fact(\"old\", \"decision\", \"2026-01-01\"), fact(\"new\", \"decision\", \"2026-01-02\"), fact(\"echo\", \"episode\", \"2026-01-03\")] });\n  assert.deepEqual([...result.active_ids], [\"new\"]);\n  assert.deepEqual(result.provenance_by_id.get(\"new\"), [\"new\"]);\n  assert.deepEqual(result.flagged_conflict_pairs, []);\n});\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/authority-baseline.test.js",
+  "source_path": "tests/memory/authority-baseline.test.js",
+  "ts": "2026-11-08T22:08:17Z"
+}

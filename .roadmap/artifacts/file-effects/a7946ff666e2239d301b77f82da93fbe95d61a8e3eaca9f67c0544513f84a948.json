@@ -1,0 +1,13 @@
+{
+  "after_sha256": "d8bb40bbbe58e806954c03e7297a2fa45e2ebf75486b58c027832e548c6ce97c",
+  "artifact_id": "ART-d8bb40bbbe58e806954c03e7297a2fa45e2ebf75486b58c027832e548c6ce97c",
+  "artifact_sha256": "a7946ff666e2239d301b77f82da93fbe95d61a8e3eaca9f67c0544513f84a948",
+  "before_sha256": null,
+  "bytes": 1135,
+  "content": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { mkdtempSync,mkdirSync,writeFileSync,rmSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport path from 'node:path';\nimport { createWorkspaceSnapshot } from '../../src/memory/adapter/snapshot.js';\ntest('snapshot keeps distinct legacy Cursor hook events that reused an index',()=>{\n const root=mkdtempSync(path.join(tmpdir(),'cursor-snapshot-'));\n try{const dir=path.join(root,'.conversation-esaa');mkdirSync(dir);const base={ts:'2026-01-01T00:00:00Z',event:'conversation_turn',actor:'assistant',agent_id:'cursor',workspace_root:root,source:'cursor',source_path:'cursor-hook',source_session_id:'s',source_index:1};\n const events=[{...base,event_id:'old-a',summary:'alpha',text:'alpha'},{...base,event_id:'old-b',summary:'beta',text:'beta'}];writeFileSync(path.join(dir,'activity.jsonl'),events.map(JSON.stringify).join('\\n')+'\\n');\n const {factsBundle}=createWorkspaceSnapshot(root);const ids=factsBundle.facts.map(x=>x.id);assert.ok(ids.includes('old-a'));assert.ok(ids.includes('old-b'));\n }finally{rmSync(root,{recursive:true,force:true});}\n});\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/cursor-legacy-snapshot.test.js",
+  "source_path": "tests/memory/cursor-legacy-snapshot.test.js",
+  "ts": "2026-11-09T12:23:34Z"
+}

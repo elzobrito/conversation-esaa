@@ -1,0 +1,13 @@
+{
+  "after_sha256": "900825a0212c8ffb442c8b6a1c231f2a2648eb6c1100db1ed9f728bdd5f1ce63",
+  "artifact_id": "ART-900825a0212c8ffb442c8b6a1c231f2a2648eb6c1100db1ed9f728bdd5f1ce63",
+  "artifact_sha256": "b2ef0a5056fd16568d412000216192e7933b66aee0eca514deb5d4f04d92eafc",
+  "before_sha256": null,
+  "bytes": 1643,
+  "content": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { mkdtempSync, mkdirSync, cpSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport path from 'node:path';\nimport { spawnSync } from 'node:child_process';\nimport { pathToFileURL } from 'node:url';\n\ntest('memory CLI executes with spaces, accents and symlink; importing does not execute it', (t) => {\n const tmp=mkdtempSync(path.join(tmpdir(),'memory cli ç-'));\n try {\n  const root=path.join(tmp,'dir com espaço ç # 100%');mkdirSync(root);writeFileSync(path.join(root,'package.json'),'{\"type\":\"module\"}');\n  cpSync(path.resolve('src/memory'),path.join(root,'memory'),{recursive:true});\n  const cli=path.join(root,'memory/adapter/cli.js'), ws=path.join(tmp,'workspace');mkdirSync(ws);\n  const run=(file)=>spawnSync(process.execPath,[file,'status','--workspace',ws,'--json'],{encoding:'utf8'});\n  let result=run(cli);assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).status,'OK');\n  const imported=spawnSync(process.execPath,['--input-type=module','-e',`await import(${JSON.stringify(pathToFileURL(cli).href)})`],{encoding:'utf8'});\n  assert.equal(imported.status,0,imported.stderr);assert.equal(imported.stdout,'');\n  if(process.platform!=='win32'){const link=path.join(tmp,'cli-link.js');symlinkSync(cli,link);result=run(link);assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).status,'OK');}\n  else t.diagnostic('Windows paths are exercised when the test runs on Windows; symlink case skipped');\n } finally {rmSync(tmp,{recursive:true,force:true});}\n});\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/cli-path.test.js",
+  "source_path": "tests/memory/cli-path.test.js",
+  "ts": "2026-11-09T02:45:58Z"
+}

@@ -1,0 +1,13 @@
+{
+  "after_sha256": "f3e873db0647d9bcd04aa508dce43ba9ac03bb5145452790b8d8e3d34a70e3a9",
+  "artifact_id": "ART-f3e873db0647d9bcd04aa508dce43ba9ac03bb5145452790b8d8e3d34a70e3a9",
+  "artifact_sha256": "d3e6bafa7ffd4e0c1e7a94f82d80b0383d425e8e7bdc2560a0893037f3af8bba",
+  "before_sha256": null,
+  "bytes": 1374,
+  "content": "import json,os,shutil,subprocess,tempfile,unittest\nfrom pathlib import Path\nPW=shutil.which('pwsh') or str(Path.home()/'.local/bin/pwsh')\nROOT=Path(__file__).resolve().parents[1]\nBIN=ROOT/'.conversation-esaa/bin'\nSYNC=Path(os.environ.get('CONV_SYNC_UNDER_TEST', BIN/'conv-sync.ps1'))\nclass ContextBefore(unittest.TestCase):\n def test_before_first_and_later_events(self):\n  with tempfile.TemporaryDirectory(prefix='conv-context-before-') as tmp:\n   subprocess.run([PW,'-NoProfile','-File',str(BIN/'conv-bootstrap.ps1'),'-WorkspaceRoot',tmp,'-SkipAgentIntegrations'],capture_output=True,check=True)\n   events=[]\n   for i in range(3):\n    events.append(dict(event_id=f'event-{i}',ts='2026-01-01T00:00:00Z',event='decision.recorded',actor='assistant',agent_id='codex',workspace_root=tmp,decision=f'synthetic {i}',rationale=''))\n   (Path(tmp)/'.conversation-esaa/activity.jsonl').write_text('\\n'.join(json.dumps(e) for e in events)+'\\n')\n   def invoke(before):\n    r=subprocess.run([PW,'-NoProfile','-File',str(SYNC),'context','-WorkspaceRoot',tmp,'-ContextBefore',before,'-ContextJson'],capture_output=True,text=True)\n    self.assertEqual(r.returncode,0,r.stderr)\n    return json.loads(r.stdout)\n   self.assertEqual(invoke('event-0'),[])\n   later=invoke('event-2'); self.assertEqual([e['event_id'] for e in later],['event-0','event-1'])\nif __name__=='__main__': unittest.main()\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/test-context-before-first.py",
+  "source_path": "tests/test-context-before-first.py",
+  "ts": "2026-11-09T02:07:02Z"
+}

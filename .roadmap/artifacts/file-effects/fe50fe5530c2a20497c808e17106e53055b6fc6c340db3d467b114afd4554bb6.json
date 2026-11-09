@@ -1,0 +1,13 @@
+{
+  "after_sha256": "c87d0332ae75364c66953c1115ddd7ce301e44484b2ac3084356e10c1fd688f2",
+  "artifact_id": "ART-c87d0332ae75364c66953c1115ddd7ce301e44484b2ac3084356e10c1fd688f2",
+  "artifact_sha256": "fe50fe5530c2a20497c808e17106e53055b6fc6c340db3d467b114afd4554bb6",
+  "before_sha256": null,
+  "bytes": 712,
+  "content": "import { readdirSync } from 'node:fs';\nimport { spawnSync } from 'node:child_process';\nimport { join } from 'node:path';\n\nconst memoryTests = readdirSync('tests/memory')\n  .filter((name) => name.endsWith('.test.js'))\n  .sort()\n  .map((name) => join('tests/memory', name));\nif (memoryTests.length === 0) {\n  throw new Error('No memory tests found in tests/memory');\n}\nconst tests = [\n  'tests/installer/all.test.js',\n  'tests/installer/args.test.js',\n  'tests/installer/install.test.js',\n  'tests/installer/memory/memory.test.js',\n  ...memoryTests,\n];\nconst child = spawnSync(process.execPath, ['--test', ...tests], { stdio: 'inherit' });\nif (child.error) throw child.error;\nprocess.exitCode = child.status ?? 1;\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/run-all-tests.js",
+  "source_path": "tests/run-all-tests.js",
+  "ts": "2026-11-09T02:05:29Z"
+}

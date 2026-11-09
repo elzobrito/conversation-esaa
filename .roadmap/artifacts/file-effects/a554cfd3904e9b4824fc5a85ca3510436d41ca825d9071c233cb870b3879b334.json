@@ -1,0 +1,13 @@
+{
+  "after_sha256": "81f13124e94101a9ce1a9251f7767bd7e1175581e1cab0d64abad04c442af079",
+  "artifact_id": "ART-81f13124e94101a9ce1a9251f7767bd7e1175581e1cab0d64abad04c442af079",
+  "artifact_sha256": "a554cfd3904e9b4824fc5a85ca3510436d41ca825d9071c233cb870b3879b334",
+  "before_sha256": "81f13124e94101a9ce1a9251f7767bd7e1175581e1cab0d64abad04c442af079",
+  "bytes": 1447,
+  "content": "# D-02 — JS-02 / JS-03 devem bump de `policy_version`?\n\n**Status:** decisão humana. Sem Passo C. Medido em árvore suja, HEAD `baea68d`.\n\n## Problema\n\nDuas correções no motor mudam digest/ordem:\n\n1. **JS-02** — `scoreConflictRelevance`: `activeTopicIds.has(node.topic_id) || node.topic_id` é verdadeiro para qualquer `topic_id` não vazio. Par activo vs frio: scores iguais. Nos fixtures 48/480 o motor **não** retém nós `kind=topic`, então `activeTopicIds` é vazio e **0 posições trocam** hoje; um fixture com tópicos mistos reordenaria.\n2. **JS-03** — `resonance.js` lê `a.session_id`. Nós do grafo **não têm** esse campo (`graph.js` expõe `topic_id`, `time_bucket`, `timestamp`, …). A expressão avalia `false`. Injectar `session_id` igual cria `possibly_contradicts` que a produção não emite.\n\n## Opções\n\n| | Opção | Efeito | Custo |\n|---|---|---|---|\n| **Bump** `rrr-policy.v2` | golden files novos; resultados publicados ficam da v1 | médio (goldens + nota no artigo) |\n| **Correção silenciosa** | mesmos IDs de política; reprodução dos artefatos v1.3 quebra | baixo agora, alto depois |\n\n## Recomendação\n\n**Bump** (`rrr-policy.v2` + goldens novos + nota no artigo: números públicos são da política v1), como o plano. Para JS-03, a opção de implementação (derivar sessão das evidências vs remover a condição morta vs renomear campo) só depois deste bump.\n\nItens bloqueados: JS-02, JS-03.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/fix-v1.3.2/decisions/D-02-memo.md",
+  "source_path": "docs/qa/fix-v1.3.2/decisions/D-02-memo.md",
+  "ts": "2026-11-09T01:40:14Z"
+}

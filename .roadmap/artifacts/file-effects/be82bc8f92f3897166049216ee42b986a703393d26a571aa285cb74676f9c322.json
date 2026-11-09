@@ -1,0 +1,13 @@
+{
+  "after_sha256": "e0282da86771a4bce6d2940bbd1dcf39ec7be4f2c354ade930ac042cbb8b2703",
+  "artifact_id": "ART-e0282da86771a4bce6d2940bbd1dcf39ec7be4f2c354ade930ac042cbb8b2703",
+  "artifact_sha256": "be82bc8f92f3897166049216ee42b986a703393d26a571aa285cb74676f9c322",
+  "before_sha256": "e0282da86771a4bce6d2940bbd1dcf39ec7be4f2c354ade930ac042cbb8b2703",
+  "bytes": 1544,
+  "content": "import json\nfrom pathlib import Path\nimport unittest\n\nROOT = Path(__file__).resolve().parents[2]\n\nclass V12ResultTest(unittest.TestCase):\n    def test_report_invariants(self):\n        rows = json.loads((ROOT / 'docs/qa/CONV-RRR-V12-OUTPUT.json').read_text())['runs']\n        self.assertEqual(len(rows), 3 * 5 * 8 * 3)\n        for r in rows:\n            self.assertLessEqual(r['tokens'], r['budget'])\n            self.assertTrue(r['oracle_bound_applicable'])\n            self.assertLessEqual(r['decision_recall'], r['oracle_decision_recall'])\n            if r['selected_decisions']:\n                self.assertEqual(r['conditional_provenance_recall'], 1)\n            else:\n                self.assertIsNone(r['conditional_provenance_recall'])\n        by = {(r['facts'], r['seed'], r['budget'], r['arm']): r for r in rows}\n        for r in rows:\n            if r['arm'] != 'C': continue\n            n = by[(r['facts'], r['seed'], r['budget'], 'CN')]\n            self.assertEqual(r['pre_budget_decision_recall'], n['pre_budget_decision_recall'])\n            self.assertEqual(r['pre_budget_conflict_f1'], n['pre_budget_conflict_f1'])\n            bp = by[(r['facts'], r['seed'], r['budget'], 'BP')]\n            self.assertEqual(bp['pre_budget_decision_recall'], 1)\n        small = by[(48, 42, 512, 'C')]\n        larger = by[(48, 42, 1024, 'C')]\n        self.assertEqual((small['conflict_tp'], small['conflict_fp']), (4, 1))\n        self.assertEqual((larger['conflict_tp'], larger['conflict_fp']), (4, 5))\n\nif __name__ == '__main__': unittest.main()\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/test-v12-result.py",
+  "source_path": "tests/memory/test-v12-result.py",
+  "ts": "2026-11-08T22:08:17Z"
+}

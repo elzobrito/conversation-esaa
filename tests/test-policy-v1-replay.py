@@ -17,7 +17,7 @@ class PolicyReplay(unittest.TestCase):
    self.assertEqual(pending['status'],'OK')
    accepted=json.loads(run(['memory','accept','--proposal-id',pending['proposal_id'],'--json'],env2));self.assertEqual(accepted.get('status'),'OK')
    memory=ws/'.conversation-esaa/memory';before=json.loads((memory/'active.json').read_text());self.assertEqual(before['policy_version'],'rrr-policy.v1')
-   context_before=json.loads(run(['memory','context','--budget-chars','4000','--json'],env1));shutil.rmtree(memory)
+   context_before=json.loads(run(['memory','context','--budget-chars','4000','--json'],env1));(memory/'active.json').unlink();(memory/'manifest.json').unlink()
    run(['project'],env2);run(['verify'],env2)
    after=json.loads((memory/'active.json').read_text());self.assertEqual(after['active_digest'],before['active_digest']);self.assertEqual(after['graph_generation_id'],before['graph_generation_id']);self.assertEqual(after['policy_version'],'rrr-policy.v1')
    context_after=json.loads(run(['memory','context','--budget-chars','4000','--json'],env2));self.assertEqual(context_before['markdown'],context_after['markdown'])

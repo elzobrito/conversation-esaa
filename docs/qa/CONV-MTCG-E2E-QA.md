@@ -38,8 +38,8 @@ Auditoria completa das fases de promoção explícita (`memory accept`), revers�
    - `conv-rag.ps1` ignora eventos `memory.*` na exportação do corpus RAG, impedindo auto-reforço.
 5. **Proposta Stale (`STALE_PROPOSAL`) e Workspace Incorreta (`WRONG_WORKSPACE`):**
    - Verificado em `tests/test-memory-accept-replay.ps1`: avanço do ledger após geração da proposta bloqueia `memory accept` com `STALE_PROPOSAL`; proposta originada em outro workspace é rejeitada com `WRONG_WORKSPACE`.
-6. **Crash Recovery / Replay de Fonte Única (`activity.jsonl`):**
-   - Verificado em `tests/test-memory-accept-replay.ps1`: após `Remove-Item -Recurse -Force .conversation-esaa/memory`, a execução de `conversation-esaa project` seguida de `conversation-esaa verify` reconstrói integralmente `.conversation-esaa/memory/active.json`, `manifest.json`, `shadow/<prop>.json` e `generations/<gen>/graph.json` a partir dos eventos `memory.consolidation.accepted` e `memory.consolidation.rolled_back` em `activity.jsonl`, preservando o mesmo `active_digest`.
+6. **Crash Recovery / Replay (`digest_path.v1` + ficheiros):**
+   - Verificado em `tests/test-memory-accept-replay.ps1` e `tests/memory/accept-digest-path.test.js`: após apagar `active.json` e `manifest.json`, `project`/`verify` reconstroem a visão ativa a partir dos eventos `memory.consolidation.accepted` / `rolled_back` mais `shadow/<prop>.json` e `generations/<gen>/graph.json`, preservando o mesmo `active_digest`. Eventos antigos com payload embutido ainda reconstroem depois de apagar `.conversation-esaa/memory`. Eventos `digest_path.v1` sem esses ficheiros falham fechado (`INTEGRITY_FAILURE`).
 
 ### 2.3 Preservação de Dados pelo Bundle / Instalador (`update`, `repair`, `uninstall`)
 - Verificado em `tests/installer/memory/memory.test.js`:

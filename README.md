@@ -63,6 +63,8 @@ agente → hook/watcher → conversation-esaa sync
 | `.conversation-esaa/rag/` (opt-in) | Projeção descartável (corpus + SQLite); nunca fonte canônica |
 | `.conversation-esaa/memory/` (opt-in) | Grafo Memory-TCG, propostas RRR (`shadow`/`generations`) e projeção `active.json` |
 
+Se eventos sincronizados antigos não possuírem campos obrigatórios, `verify` acusa a inconsistência e `sync` para antes de acrescentar novos eventos. O histórico é preservado; não é possível confirmar a origem de um evento sem `workspace_root` apenas pela presença dele no arquivo. Consulte o contexto e resolva a inconsistência antes de retomar a sincronização.
+
 ### Busca semântica opcional
 
 O instalador mantém o RAG desligado por padrão. Os modos são:
@@ -115,7 +117,7 @@ A política `rrr-policy.v2` considera a sessão de origem na detecção de poss�
 #### Se um agente sonhar, todos os outros usufruem
 
 Quando um sonho é promovido (`memory sleep --accept` ou `memory accept`):
-- O evento auditável `memory.consolidation.accepted` é gravado em `activity.jsonl` e a visão ativa é materializada em `.conversation-esaa/memory/active.json`.
+- O evento auditável `memory.consolidation.accepted` é gravado em `activity.jsonl` com metadados, digests e caminhos relativos para `.conversation-esaa/memory/shadow/<hex>.json` e `generations/<hex>/graph.json` (não serializa o grafo, a proposta nem a visão ativa). A visão ativa é materializada em `.conversation-esaa/memory/active.json`. Eventos antigos com payload embutido continuam reproduzíveis; se os ficheiros de um evento `digest_path.v1` faltarem, `project`/`verify` falham fechado.
 - O `conv-sync.ps1 project` injeta **automaticamente** a seção **`## Memory-TCG Consolidated Context (Active Generation)`** (contendo decisões vigentes, conflitos em aberto, decisões históricas superadas, tópicos/tarefas e **`### Consolidated Subjects Discussed (Assuntos Tratados)`**) diretamente em:
   - `.conversation-esaa/handoff.md`
   - `.conversation-esaa/state.md`

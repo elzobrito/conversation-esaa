@@ -87,10 +87,15 @@ try {
     $acceptedEvents = @($activityLines | ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.event -eq 'memory.consolidation.accepted' })
     Assert-True ($acceptedEvents.Count -eq 1 -and $acceptedEvents[0].proposal_id -eq $sleep2.proposal_id) "Canonical memory.consolidation.accepted event recorded in activity.jsonl"
     Assert-True ($acceptedEvents[0].agent_id -eq 'grok') "Explicit agent is recorded on accepted consolidation"
-    $proposalFile = Join-Path $tempWs1 ('.conversation-esaa/memory/shadow/' + ($sleep2.proposal_id -replace '^sha256:', '') + '.json')
-    Remove-Item -LiteralPath $proposalFile
+    $acceptedLine = @($activityLines | Where-Object { $_ -match '"memory\.consolidation\.accepted"' })[0]
+    $acceptedBytes = [System.Text.Encoding]::UTF8.GetByteCount($acceptedLine)
+    Assert-True ($acceptedBytes -le (256 * 1024)) "Accepted jsonl line is at most 256 KiB (JS-04/D-03)"
+    Assert-True ($acceptedEvents[0].artifact_encoding -eq 'digest_path.v1') "Accept event uses digest_path.v1"
+    Assert-True (-not ($acceptedEvents[0].PSObject.Properties.Name -contains 'graph') -or $null -eq $acceptedEvents[0].graph) "Accept event does not embed graph"
+    Assert-True (-not ($acceptedEvents[0].PSObject.Properties.Name -contains 'proposal') -or $null -eq $acceptedEvents[0].proposal) "Accept event does not embed proposal"
+    Assert-True (-not ($acceptedEvents[0].PSObject.Properties.Name -contains 'active_view') -or $null -eq $acceptedEvents[0].active_view) "Accept event does not embed active_view"
     $recovered = (& pwsh -NoProfile -File $cliPath memory inspect --proposal-id $sleep2.proposal_id --workspace $tempWs1 --json) | ConvertFrom-Json
-    Assert-True ($LASTEXITCODE -eq 0 -and $recovered.proposal_source -eq 'ledger' -and $recovered.acceptances[0].agent_id_source -eq 'declared') "Inspect recovers an accepted proposal from ledger with declared provenance"
+    Assert-True ($LASTEXITCODE -eq 0 -and $recovered.proposal_source -eq 'shadow' -and $recovered.acceptances[0].agent_id_source -eq 'declared') "Inspect reads the accepted proposal from shadow with declared provenance"
 
     # 6. Create second accepted generation G3, then rollback to G2
     & pwsh -NoProfile -File $cliPath decide "Enforce TLS 1.3 everywhere" --rationale "Security baseline" --agent codex --workspace $tempWs1 | Out-Null
@@ -108,19 +113,25 @@ try {
     $statusAfterRb = (& pwsh -NoProfile -File $cliPath memory status --workspace $tempWs1 --json) | ConvertFrom-Json
     Assert-True ($statusAfterRb.active_generation_id -eq $sleep2.graph_generation_id) "memory status confirms active generation is G2 after rollback"
 
-    # 7. Crash recovery / Replay from activity.jsonl alone (delete .conversation-esaa/memory completely)
-    $activeBeforeDelete = Get-Content -LiteralPath (Join-Path $tempWs1 '.conversation-esaa/memory/active.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Remove-Item -LiteralPath (Join-Path $tempWs1 '.conversation-esaa/memory') -Recurse -Force
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $tempWs1 '.conversation-esaa/memory'))) "Deleted .conversation-esaa/memory directory to simulate crash/clean checkout"
+    # 7. Crash recovery / Replay from digest+path (D-03): drop derived views, keep generation/shadow files
+    $memoryDir = Join-Path $tempWs1 '.conversation-esaa/memory'
+    $activeBeforeDelete = Get-Content -LiteralPath (Join-Path $memoryDir 'active.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Remove-Item -LiteralPath (Join-Path $memoryDir 'active.json') -Force
+    Remove-Item -LiteralPath (Join-Path $memoryDir 'manifest.json') -Force
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $memoryDir 'active.json'))) "Deleted derived active.json to simulate lost projection"
 
     & pwsh -NoProfile -File $cliPath project --workspace $tempWs1 | Out-Null
-    Assert-True ($LASTEXITCODE -eq 0) "conversation-esaa project succeeded after deleting memory directory"
+    Assert-True ($LASTEXITCODE -eq 0) "conversation-esaa project succeeded after deleting active.json/manifest.json"
 
     & pwsh -NoProfile -File $cliPath verify --workspace $tempWs1 | Out-Null
-    Assert-True ($LASTEXITCODE -eq 0) "conversation-esaa verify succeeded after reconstructing memory from activity.jsonl"
+    Assert-True ($LASTEXITCODE -eq 0) "conversation-esaa verify succeeded after reconstructing from digest+path files"
 
-    $activeAfterReplay = Get-Content -LiteralPath (Join-Path $tempWs1 '.conversation-esaa/memory/active.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert-True ($activeAfterReplay.active_digest -eq $activeBeforeDelete.active_digest -and $activeAfterReplay.graph_generation_id -eq $sleep2.graph_generation_id) "Reconstructed active.json matches exact active_digest and generation G2 from ledger alone"
+    $activeAfterReplay = Get-Content -LiteralPath (Join-Path $memoryDir 'active.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($activeAfterReplay.active_digest -eq $activeBeforeDelete.active_digest -and $activeAfterReplay.graph_generation_id -eq $sleep2.graph_generation_id) "Reconstructed active.json matches exact active_digest and generation G2 from ledger refs + files"
+
+    Remove-Item -LiteralPath $memoryDir -Recurse -Force
+    & pwsh -NoProfile -File $cliPath project --workspace $tempWs1 2>&1 | Out-Null
+    Assert-True ($LASTEXITCODE -ne 0) "project fails closed when digest+path files are missing"
 
     Write-Output "=== Summary: $passed passed, $failed failed ==="
     if ($failed -gt 0) { exit 1 }

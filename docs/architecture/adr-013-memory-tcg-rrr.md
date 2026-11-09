@@ -19,7 +19,7 @@ O artigo *Do agents need to sleep?* (Haber & Tononi, 2026) propõe a hipótese t
 - **D-01 (Domínio separado):** Denominar o mecanismo **Memory-TCG** (*Memory Traceability and Consolidation Graph*). Não acoplar ao repositório Python `elzobrito/tcg` (focado em análise estática de código/rotas).
 - **D-02 (Núcleo puro e extraível):** Implementar o núcleo em Node.js ESM puro (`src/memory/core/`) sem dependência de paths `.conversation-esaa`, `.roadmap`, PowerShell ou hooks. O adaptador (`src/memory/adapter/` + `.conversation-esaa/bin/conv-memory.ps1`) traduz `activity.jsonl` para o contrato `memory-tcg.facts.v1`.
 - **D-03 (Numeração):** Formalizado como **ADR-013**, sucedendo ADR-010 (RAG), ADR-011 (Installer) e ADR-012 (Cursor Adapter).
-- **D-04 (Fonte única da verdade):** `activity.jsonl` permanece append-only e única fonte canônica. `memory/active.json` é projeção derivada e integralmente reconstruível via replay.
+- **D-04 (Fonte única da verdade):** `activity.jsonl` permanece append-only e única fonte canônica do que foi aceito (metadados, digests e, a partir de JS-04/D-03, caminhos relativos). `memory/active.json` é projeção derivada. Eventos `digest_path.v1` reconstroem a visão ativa relendo `shadow/<hex>.json` e `generations/<hex>/graph.json`; eventos antigos com payload embutido continuam reproduzíveis a partir do jsonl. Ficheiros em falta falham fechado.
 - **D-05 (Separação de certeza — invariantes TCG):**
   - `derived_edges` exigem `rule_id`, `rule_version` e `evidence_event_ids` verificados;
   - `possible_edges` representam candidatos de duplicação, relação ou contradição e jamais são promovidas automaticamente por score ou repetição (eco);
@@ -29,7 +29,7 @@ O artigo *Do agents need to sleep?* (Haber & Tononi, 2026) propõe a hipótese t
 - **D-07 (Modo default `off` e `shadow` sem efeitos colaterais):** O modo padrão do produto é `off`. O comando `memory sleep --mode shadow` grava apenas em `.conversation-esaa/memory/shadow/` e `.conversation-esaa/memory/generations/`, sem alterar `activity.jsonl`, `handoff.md`, `state.md`, `decisions.md`, `tasks.json` ou `topics.json`.
 - **D-08 (Promoção explícita, Stale-Check e Rollback):**
   - `memory accept <proposal_id>` revalida o watermark do snapshot contra o head atual do workspace; se houver qualquer evento novo relevante no ledger, falha fechado com `STALE_PROPOSAL`;
-  - quando válido, grava evento canônico `memory.consolidation.accepted` contendo metadados, digests e payload consolidado suficiente para reconstrução determinística no `project`/`verify`;
+  - quando válido, grava evento canônico `memory.consolidation.accepted` contendo metadados, digests e referências `digest_path.v1` (`proposal_path`, `graph_path`) para reconstrução determinística no `project`/`verify` sem serializar `graph`/`proposal`/`active_view` no jsonl;
   - `memory rollback <generation_id>` emite evento canônico `memory.consolidation.rolled_back` restaurando a geração ativa anterior sem deletar histórico.
 - **D-09 (Invariante Zero-Token):** `sync`, `project`, `verify`, `context`, `search`, `pack` e todo o ciclo determinístico `memory` operam com **zero chamadas de LLM e zero rede**. Eventos `memory.*` são excluídos da extração de evidências conversacionais e do corpus RAG para evitar ciclos de auto-reforço.
 - **D-10 (Avaliação empírica):** Comparar braços A (baseline v1.3.1), B (instructionist local `ADD/UPDATE/DELETE/NOOP`), C (selectionist Memory-TCG RRR) e D (ablações) sobre fixtures sintéticas com ground truth congelado e múltiplas seeds.

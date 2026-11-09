@@ -1,0 +1,13 @@
+{
+  "after_sha256": "9e73a5071eba1d851e84b92ce2fd682c23df7a427eeb9727c6e281d440f53393",
+  "artifact_id": "ART-9e73a5071eba1d851e84b92ce2fd682c23df7a427eeb9727c6e281d440f53393",
+  "artifact_sha256": "4788f26413cb372885be1e9241b0f34ad256c1ebf816ab3e181333cb3ffeb972",
+  "before_sha256": null,
+  "bytes": 1103,
+  "content": "import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';\nimport { tmpdir } from 'node:os';\nimport path from 'node:path';\nimport { buildScaledScenario } from './benchmark.js';\nimport { runRrrCycle } from '../../src/memory/core/renormalize.js';\nimport { buildActiveViewFromProposal, cmdContext } from '../../src/memory/adapter/cli.js';\nconst s=buildScaledScenario(50);const r=runRrrCycle(s.factsBundle,{seed:11,budget:'all',mode:'shadow'});const active=buildActiveViewFromProposal(r.proposal,r.graph);\nconst tmp=mkdtempSync(path.join(tmpdir(),'art07-synthetic-'));try {const dir=path.join(tmp,'.conversation-esaa/memory');mkdirSync(dir,{recursive:true});writeFileSync(path.join(dir,'active.json'),JSON.stringify(active));for (const budgetChars of [3200,4000,20000]){const c=cmdContext(tmp,{budgetChars});console.log(JSON.stringify({facts:s.factsBundle.facts.length,budgetChars,status:c.status,decisions:c.retained_decisions?.length,conflicts:c.unresolved_conflicts?.length,omitted:c.omitted_memory_ids?.length,chars:c.markdown?.length}));}}finally{rmSync(tmp,{recursive:true,force:true})}\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/art07-context-probe.js",
+  "source_path": "tests/memory/art07-context-probe.js",
+  "ts": "2026-11-09T02:30:01Z"
+}

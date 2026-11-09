@@ -4,8 +4,8 @@
     "esaa_version": "0.4.x",
     "generated_by": "esaa.project",
     "source_event_store": ".roadmap/activity.jsonl",
-    "last_event_seq": 1272,
-    "updated_at": "2026-11-08T15:38:36Z"
+    "last_event_seq": 1874,
+    "updated_at": "2026-11-09T17:06:17Z"
   },
   "issues": [
     {
@@ -487,6 +487,78 @@
         "created_event_seq": 782,
         "resolved_event_seq": 914
       }
+    },
+    {
+      "issue_id": "ISS-FIX132-PS01-IDENTITY",
+      "status": "open",
+      "severity": "medium",
+      "title": "Identidade de mensagem Cursor ausente na captura ao vivo",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "Sem identificador estável não é possível distinguir retry de mensagens idênticas enviadas intencionalmente; também é necessário preservar a deduplicação com transcript.",
+        "repro_steps": [
+          "Enviar duas chamadas live idênticas na mesma sessão sem CursorSourceIndex: índice sequencial registra ambas, tanto no retry quanto em dois envios reais."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "FIX132-PS01",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 1574,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "ISS-FIX132-PS03-MIXED-LOCK",
+      "status": "open",
+      "severity": "medium",
+      "title": "Migração entre versões do protocolo de lock",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "A correção de lock órfão expõe corrida de unlink; arquivo de lock persistente não é interoperável com processos antigos, que podem pular indefinidamente ou removê-lo.",
+        "repro_steps": [
+          "Com lock persistente vazio, executar versão anterior com -SkipIfLocked; ela salta a operação. Com versão anterior sem essa opção, o arquivo pode ser removido ao liberar."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "FIX132-PS03",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 1498,
+        "resolved_event_seq": null
+      }
+    },
+    {
+      "issue_id": "ISS-FIX132-PS09-DEDUP",
+      "status": "open",
+      "severity": "medium",
+      "title": "Deduplicação de memória pode suprimir evidências",
+      "baseline_id": null,
+      "affected": {},
+      "evidence": {
+        "symptom": "O handoff pode truncar linhas ou encurtar IDs; descartar um item apenas pelo ID pode perder detalhes e gerar indicação falsa de nenhuma decisão.",
+        "repro_steps": [
+          "Gerar memória ativa grande com resumos longos e conflitos, produzir handoff com orçamento 3200 e pack com orçamento maior; comparar evidências e IDs."
+        ]
+      },
+      "resolution": null,
+      "links": {
+        "reported_by_task_id": "FIX132-PS09",
+        "fixes_task_id": null,
+        "hotfix_task_id": null
+      },
+      "timeline": {
+        "created_event_seq": 1590,
+        "resolved_event_seq": null
+      }
     }
   ],
   "indexes": {
@@ -497,7 +569,10 @@
         "CLOSE-T-2002",
         "CLOSE-T-2003",
         "CLOSE-T-2004",
-        "CLOSE-T-2005"
+        "CLOSE-T-2005",
+        "ISS-FIX132-PS01-IDENTITY",
+        "ISS-FIX132-PS03-MIXED-LOCK",
+        "ISS-FIX132-PS09-DEDUP"
       ]
     }
   }

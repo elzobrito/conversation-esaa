@@ -1,0 +1,13 @@
+{
+  "after_sha256": "ac785205f5d97970c4a7f8aef135c62cfda01985ba2000973008c823ccc01d2f",
+  "artifact_id": "ART-ac785205f5d97970c4a7f8aef135c62cfda01985ba2000973008c823ccc01d2f",
+  "artifact_sha256": "9ead05e9e114a719197e87eeb6fe4d73506560307102c05cd7d4f220d11bff27",
+  "before_sha256": "ac785205f5d97970c4a7f8aef135c62cfda01985ba2000973008c823ccc01d2f",
+  "bytes": 17,
+  "content": "tiktoken==0.12.0\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "tests/memory/requirements-evaluation.txt",
+  "source_path": "tests/memory/requirements-evaluation.txt",
+  "ts": "2026-11-08T22:08:17Z"
+}

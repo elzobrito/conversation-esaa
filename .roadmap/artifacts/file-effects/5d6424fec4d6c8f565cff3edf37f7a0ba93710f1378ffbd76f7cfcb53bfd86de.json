@@ -1,0 +1,13 @@
+{
+  "after_sha256": "d2e935bd9c8a3b2ec5d06e5aa7fd83d46b290bddd21baca54ff7db589b943787",
+  "artifact_id": "ART-d2e935bd9c8a3b2ec5d06e5aa7fd83d46b290bddd21baca54ff7db589b943787",
+  "artifact_sha256": "5d6424fec4d6c8f565cff3edf37f7a0ba93710f1378ffbd76f7cfcb53bfd86de",
+  "before_sha256": "3a2beef60b1502e4daa5cd8c9a71f848fee7ef093dac806e5dc5762b2f17bc96",
+  "bytes": 1043,
+  "content": "# Conversation ESAA — dados privados gerados (NAO COMMITAR). Ver PRIVACY.md.\n.conversation-esaa/activity.jsonl\n.conversation-esaa/sync-state.json\n.conversation-esaa/state.md\n.conversation-esaa/handoff.md\n.conversation-esaa/decisions.md\n.conversation-esaa/tasks.json\n.conversation-esaa/codex-watch.log\n.conversation-esaa/run/*.lock\n.conversation-esaa/run/test-battery-report.json\n# Optional rag-sqlite projection (v1.2) — fully reconstructible, private\n.conversation-esaa/rag/\n# Optional Memory-TCG / RRR consolidation store (ADR-013) — reconstructible, private\n.conversation-esaa/memory/\n.grok/\n.codex/\n.claude/settings.json\n.claude/settings.local.json\n.cursor/hooks.json\n.conversation-esaa/cursor-hook.log\n.conversation-esaa/run/cursor-injected.json\nThumbs.db\n.DS_Store\n.conversation-esaa/topics.md\n.conversation-esaa/topics.json\n.conversation-esaa/antigravity-hook.log\n.conversation-esaa/*.bak-*\n.conversation-esaa/*.tmp-*\n.conversation-esaa/run/\n\n# Arquivos temporários de configuração local do Claude\n.claude/.settings.json.tmp-*\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": ".gitignore",
+  "source_path": ".gitignore",
+  "ts": "2026-11-09T02:38:04Z"
+}

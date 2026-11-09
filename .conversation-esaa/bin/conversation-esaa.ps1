@@ -377,7 +377,7 @@ switch ($Command) {
         $cursorDir = Join-Path $ws '.cursor'
         New-Item -ItemType Directory -Force -Path $grokDir, $claudeDir, $agentsDir, $cursorDir | Out-Null
         $pwshExe = [string](Get-Command pwsh -ErrorAction Stop).Source
-        function Quote-HookPart([string]$Value) { return '"' + ($Value -replace '"', '"') + '"' }
+        function Quote-HookPart([string]$Value) { return '"' + ($Value -replace '"', '""') + '"' }
         $cmdGrok = "$(Quote-HookPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-HookPart $convCli) sync --agent grok --workspace $(Quote-HookPart $ws) --SkipIfLocked"
         $cmdGrokCompact = "$cmdGrok --Mode compact"
         $cmdClaude = "$(Quote-HookPart $pwshExe) -NoProfile -ExecutionPolicy Bypass -File $(Quote-HookPart $convCli) sync --agent claude --workspace $(Quote-HookPart $ws) --SkipIfLocked"

@@ -1,0 +1,13 @@
+{
+  "after_sha256": "fafae79d78ec9b55553a4e00f253c8bcbb13b15ab9538b188a7226ca4a8af808",
+  "artifact_id": "ART-fafae79d78ec9b55553a4e00f253c8bcbb13b15ab9538b188a7226ca4a8af808",
+  "artifact_sha256": "4c89f93166fef713afe653103676c7867a369fc51b7d7434492470b4cf1a258b",
+  "before_sha256": "fafae79d78ec9b55553a4e00f253c8bcbb13b15ab9538b188a7226ca4a8af808",
+  "bytes": 1741,
+  "content": "# D-01 — O ledger deve chegar ao Cloud Agent do Cursor?\n\n**Status:** decisão humana. Sem Passo C. Medido em árvore suja, HEAD `baea68d`.\n\n## Problema\n\n`verify` falha se `workspace_root` do evento ≠ raiz atual. `Get-WorkspaceEvents` descarta esses eventos. Hooks do Cursor gerados pelo bootstrap embutem **pwsh absoluto** e **`-WorkspaceRoot` absoluto**. `.cursor/hooks.json` está no `.gitignore`.\n\n## Fatos medidos (PS-05)\n\nWorkspace sintético + clone recursivo após um turno Cursor:\n\n- origem: `verify: ok`\n- clone: exit 1, `Event … belongs to another workspace: <origem>`\n- comando do hook: `\"/home/elzobrito/.local/opt/pwsh/pwsh\" … -WorkspaceRoot \"<origem>\"`\n- `.gitignore` do bootstrap ignora `activity.jsonl`, `handoff.md`, `state.md`, `.cursor/hooks.json`; **não** ignora `codex-watch.log`, `antigravity-hook.log`, `run/cursor-*.txt`, `*.bak-*`\n\nNão houve Windows nem Cloud Agent real nesta medição.\n\n## Opções\n\n| | Opção | Custo | Risco |\n|---|---|---|---|\n| **A** | Ledger só local. Remover do ADR-012 a promessa de pack no Cloud Agent. | Baixo (texto) | Cloud Agent continua sem continuidade |\n| **B** | `export-handoff` redigido e versionado, opt-in | Médio (comando + testes + PRIVACY) | vazamento se a redação falhar |\n| **C** | `relocate` com evento `workspace.relocated` (append-only); snapshot/verify honram a nova raiz | Alto (contrato + migrate + testes) | clone/CI passam; semântica de identidade do workspace muda |\n\n## Recomendação\n\n**A agora**, com **B** como trabalho futuro se o operador precisar levar handoff ao Cloud Agent. **C** só se houver caso real de mover o diretório sem rebootstrap.\n\nItens bloqueados: PS-05 (código). PS-17 cobre os buracos de `.gitignore` independentemente.\n",
+  "effect_scope": "workspace",
+  "encoding": "utf-8",
+  "path": "docs/qa/fix-v1.3.2/decisions/D-01-memo.md",
+  "source_path": "docs/qa/fix-v1.3.2/decisions/D-01-memo.md",
+  "ts": "2026-11-09T01:40:14Z"
+}

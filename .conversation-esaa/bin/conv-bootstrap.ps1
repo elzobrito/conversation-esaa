@@ -167,6 +167,67 @@ foreach ($engine in @(
     Add-Changed $target
 }
 
+function Get-MemoryEngineSource {
+    $bundled = Join-Path $PSScriptRoot 'memory'
+    if (Test-Path -LiteralPath (Join-Path $bundled 'adapter/cli.js')) {
+        return $bundled
+    }
+    $repoMemory = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'src/memory'
+    if (Test-Path -LiteralPath (Join-Path $repoMemory 'adapter/cli.js')) {
+        return $repoMemory
+    }
+    return $null
+}
+
+function Copy-MemoryEngine {
+    $source = Get-MemoryEngineSource
+    if (-not $source) {
+        [void]$result.warnings.Add('Memory-TCG engine source not found; bin/memory not installed')
+        return
+    }
+    $target = Join-Path $binDir 'memory'
+    $sourceFull = [System.IO.Path]::GetFullPath($source)
+    $targetFull = [System.IO.Path]::GetFullPath($target)
+    if ($sourceFull -eq $targetFull) {
+        Add-Preserved $target
+        return
+    }
+    if ($DryRun) {
+        Add-Changed $target
+        return
+    }
+    New-Dir $target
+    foreach ($file in @(Get-ChildItem -LiteralPath $source -Recurse -File)) {
+        $rel = $file.FullName.Substring($sourceFull.Length).TrimStart('\', '/')
+        $dest = Join-Path $target $rel
+        New-Dir (Split-Path -Parent $dest)
+        if ((Test-Path -LiteralPath $dest) -and -not $Force) {
+            $srcHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $file.FullName).Hash
+            $dstHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash
+            if ($srcHash -ne $dstHash) {
+                Add-Preserved $dest
+                continue
+            }
+        }
+        Copy-Item -LiteralPath $file.FullName -Destination $dest -Force
+        Add-Changed $dest
+    }
+    $moduleFile = Join-Path $target 'package.json'
+    $moduleContent = "{`"type`":`"module`"}`n"
+    if ((Test-Path -LiteralPath $moduleFile) -and -not $Force) {
+        $existing = [System.IO.File]::ReadAllText($moduleFile)
+        if ($existing -ne $moduleContent) {
+            Add-Preserved $moduleFile
+        } else {
+            Write-Utf8 $moduleFile $moduleContent
+        }
+    } else {
+        Write-Utf8 $moduleFile $moduleContent
+    }
+}
+
+Copy-MemoryEngine
+
 # Seed only absent private state. -Force intentionally has no effect here.
 $privateSeeds = [ordered]@{
     'activity.jsonl' = ''
@@ -194,7 +255,7 @@ foreach ($name in $privateSeeds.Keys) {
 
 $convCli = Join-Path $binDir 'conversation-esaa.ps1'
 function Quote-CommandPart([string]$Value) {
-    return '"' + ($Value -replace '"', '"') + '"'
+    return '"' + ($Value -replace '"', '""') + '"'
 }
 function Get-PwshExecutable {
     return [string](Get-Command pwsh -ErrorAction Stop).Source

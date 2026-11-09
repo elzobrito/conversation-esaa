@@ -325,6 +325,100 @@ function writeJsonPrivate(filePath, data, canonicalRoot) {
   hardenPrivatePath(filePath, false);
 }
 
+const ARTIFACT_ENCODING_DIGEST_PATH = "digest_path.v1";
+
+function defaultProposalRel(proposalId) {
+  return `.conversation-esaa/memory/shadow/${normalizeDigestHex(proposalId)}.json`;
+}
+
+function defaultGraphRel(generationId) {
+  return `.conversation-esaa/memory/generations/${normalizeDigestHex(generationId)}/graph.json`;
+}
+
+function hasEmbeddedObject(value) {
+  return Boolean(value) && typeof value === "object";
+}
+
+function resolveMemoryArtifactPath(canonicalRoot, rel, label, eventId) {
+  if (!rel || typeof rel !== "string") {
+    throw new MemoryTcgError(
+      "INTEGRITY_FAILURE",
+      `memory.consolidation.accepted event ${eventId} is missing ${label}`,
+    );
+  }
+  const normalized = rel.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (
+    path.isAbsolute(rel) ||
+    normalized.includes("..") ||
+    !normalized.startsWith(".conversation-esaa/memory/")
+  ) {
+    throw new MemoryTcgError(
+      "INTEGRITY_FAILURE",
+      `memory.consolidation.accepted event ${eventId} has unsafe ${label}: ${rel}`,
+    );
+  }
+  return path.join(canonicalRoot, ...normalized.split("/"));
+}
+
+export function loadAcceptedConsolidation(ev, canonicalRoot) {
+  const eventId = ev && ev.event_id ? ev.event_id : "(unknown)";
+  const fromFiles = { proposal: false, graph: false, activeView: false };
+
+  let proposal = hasEmbeddedObject(ev.proposal) ? ev.proposal : null;
+  if (!proposal) {
+    const rel = ev.proposal_path || (ev.proposal_id ? defaultProposalRel(ev.proposal_id) : null);
+    const abs = resolveMemoryArtifactPath(canonicalRoot, rel, "proposal_path", eventId);
+    if (!existsSync(abs)) {
+      throw new MemoryTcgError(
+        "INTEGRITY_FAILURE",
+        `memory.consolidation.accepted event ${eventId} is missing proposal file at ${rel}`,
+      );
+    }
+    proposal = readJsonChecked(abs, canonicalRoot);
+    fromFiles.proposal = true;
+  }
+  verifyProposalIntegrity(proposal);
+
+  let graph = hasEmbeddedObject(ev.graph) ? ev.graph : null;
+  if (!graph) {
+    const genId = ev.graph_generation_id || proposal.graph_generation_id;
+    const rel = ev.graph_path || (genId ? defaultGraphRel(genId) : null);
+    const abs = resolveMemoryArtifactPath(canonicalRoot, rel, "graph_path", eventId);
+    if (!existsSync(abs)) {
+      throw new MemoryTcgError(
+        "INTEGRITY_FAILURE",
+        `memory.consolidation.accepted event ${eventId} is missing graph file at ${rel}`,
+      );
+    }
+    graph = readJsonChecked(abs, canonicalRoot);
+    fromFiles.graph = true;
+  }
+  verifyGraphIntegrity(graph);
+  const expectedGen = ev.graph_generation_id || proposal.graph_generation_id;
+  if (expectedGen && graph.generation_id !== expectedGen) {
+    throw new MemoryTcgError(
+      "INTEGRITY_FAILURE",
+      `memory.consolidation.accepted event ${eventId} graph generation_id mismatch`,
+    );
+  }
+
+  let activeView = hasEmbeddedObject(ev.active_view) ? ev.active_view : null;
+  if (!activeView) {
+    activeView = buildActiveViewFromProposal(proposal, graph, null);
+    fromFiles.activeView = true;
+    if (ev.active_digest && activeView.active_digest !== ev.active_digest) {
+      throw new MemoryTcgError(
+        "INTEGRITY_FAILURE",
+        `memory.consolidation.accepted event ${eventId} active_digest mismatch versus rebuilt view`,
+      );
+    }
+  } else {
+    verifyActiveViewIntegrity(activeView);
+  }
+
+  return { proposal, graph, activeView, fromFiles };
+}
+
 function appendRunTelemetry(logsDir, canonicalRoot, entry) {
   const logFile = path.join(logsDir, "runs.jsonl");
   assertNoSymlinkChain(logFile, canonicalRoot);
@@ -574,12 +668,13 @@ export function cmdInspect(workspaceRoot, proposalIdInput, options = {}) {
     const prefix = normalizeDigestHex(requested);
     memoryEvents = scanMemoryLedgerEvents(canonicalRoot);
     const matches = memoryEvents.filter((event) => event.event === "memory.consolidation.accepted" &&
-      event.proposal && normalizeDigestHex(event.proposal_id).startsWith(prefix));
+      event.proposal_id && normalizeDigestHex(event.proposal_id).startsWith(prefix));
     const ids = new Set(matches.map((event) => event.proposal_id));
     if (ids.size > 1) throw new MemoryTcgError("AMBIGUOUS_ID", `Multiple ledger proposals match: ${requested}`);
     if (!matches.length) throw error;
-    proposal = matches.at(-1).proposal;
-    source = "ledger";
+    const loaded = loadAcceptedConsolidation(matches.at(-1), canonicalRoot);
+    proposal = loaded.proposal;
+    source = loaded.fromFiles.proposal ? "path" : "ledger";
   }
   verifyProposalIntegrity(proposal);
   memoryEvents ||= scanMemoryLedgerEvents(canonicalRoot);
@@ -768,9 +863,9 @@ export function cmdPrepareAccept(workspaceRoot, proposalIdInput) {
         ? manifest.active_generation_id
         : null,
     active_digest: activeView.active_digest,
-    active_view: activeView,
-    proposal,
-    graph: graph.nodes.length <= 500 ? graph : null,
+    artifact_encoding: ARTIFACT_ENCODING_DIGEST_PATH,
+    proposal_path: defaultProposalRel(proposal.proposal_id),
+    graph_path: defaultGraphRel(proposal.graph_generation_id),
   };
 
   return {
@@ -913,26 +1008,25 @@ export function cmdReconstructFromLedger(workspaceRoot) {
 
   for (const ev of memoryEvents) {
     if (ev.event === "memory.consolidation.accepted") {
-      if (!ev.proposal || !ev.active_view) {
-        throw new MemoryTcgError(
-          "INTEGRITY_FAILURE",
-          `memory.consolidation.accepted event ${ev.event_id} is missing proposal or active_view payload`,
-        );
-      }
-      verifyProposalIntegrity(ev.proposal);
-      verifyActiveViewIntegrity(ev.active_view);
-      if (ev.graph) {
-        verifyGraphIntegrity(ev.graph);
-        const genHex = normalizeDigestHex(ev.graph.generation_id);
+      const loaded = loadAcceptedConsolidation(ev, dirs.workspaceRoot);
+      if (hasEmbeddedObject(ev.graph)) {
+        const genHex = normalizeDigestHex(loaded.graph.generation_id);
         const graphPath = path.join(dirs.generationsDir, genHex, "graph.json");
-        writeJsonPrivate(graphPath, ev.graph, dirs.workspaceRoot);
+        writeJsonPrivate(graphPath, loaded.graph, dirs.workspaceRoot);
       }
-      const propHex = normalizeDigestHex(ev.proposal.proposal_id);
-      const proposalPath = path.join(dirs.shadowDir, `${propHex}.json`);
-      writeJsonPrivate(proposalPath, ev.proposal, dirs.workspaceRoot);
-
-      acceptedEventsByGen.set(ev.graph_generation_id, ev);
-      currentActiveEvent = ev;
+      if (hasEmbeddedObject(ev.proposal)) {
+        const propHex = normalizeDigestHex(loaded.proposal.proposal_id);
+        const proposalPath = path.join(dirs.shadowDir, `${propHex}.json`);
+        writeJsonPrivate(proposalPath, loaded.proposal, dirs.workspaceRoot);
+      }
+      const hydrated = {
+        ...ev,
+        proposal: loaded.proposal,
+        graph: loaded.graph,
+        active_view: loaded.activeView,
+      };
+      acceptedEventsByGen.set(ev.graph_generation_id, hydrated);
+      currentActiveEvent = hydrated;
     } else if (ev.event === "memory.consolidation.rolled_back") {
       const restoredGen = ev.restored_generation_id || null;
       if (restoredGen === null) {
@@ -1093,6 +1187,7 @@ export function cmdVerify(workspaceRoot) {
     const knownAccepted = new Set();
     for (const ev of memoryEvents) {
       if (ev.event === "memory.consolidation.accepted") {
+        loadAcceptedConsolidation(ev, canonicalRoot);
         knownAccepted.add(ev.graph_generation_id);
         expectedGen = ev.graph_generation_id;
       } else if (ev.event === "memory.consolidation.rolled_back") {
