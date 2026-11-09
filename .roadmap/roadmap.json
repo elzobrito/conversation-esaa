@@ -7,11 +7,11 @@
     "run": {
       "run_id": "RUN-0001",
       "status": "success",
-      "last_event_seq": 1874,
-      "projection_hash_sha256": "cfb3ae49308938266e62e4c62b2b0e539dfe6f50e166c485ca8dfd75ce2ddd51",
+      "last_event_seq": 1880,
+      "projection_hash_sha256": "82d20784c1b9a8f56e8d49b89d20af10193cd76fa8319b592b19f5107f129af3",
       "verify_status": "ok"
     },
-    "updated_at": "2026-11-09T17:06:17Z"
+    "updated_at": "2026-11-09T17:08:28Z"
   },
   "project": {
     "name": "esaa-core",
@@ -5566,7 +5566,7 @@
       "task_kind": "impl",
       "title": "Commit e push FIX132 C e camera-ready do artigo RRR v1.3.1",
       "description": "Operador autorizou commit/push do conversation-esaa. O artigo canônico v1.3.1 já está em origin/fix-v1.3.2 (4856975). Esta tarefa versiona o trabalho FIX132 C ainda na working tree (append-only, digest_path, engine bundle, testes) e os artefatos camera-ready (reescrito.md, tex EN, avaliação, plano). Não incluir pycache, .mdstudio, all.md nem .roadmap/staging.",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [],
       "targets": [
         ".conversation-esaa/bin/",
@@ -5597,13 +5597,20 @@
       ],
       "required_review_mode": "release",
       "assigned_to": "agent-impl",
-      "started_at": "2026-11-09T17:06:17Z"
+      "started_at": "2026-11-09T17:06:17Z",
+      "verification": {
+        "checks": [
+          "git rev-parse HEAD == 8c712bf e origin/fix-v1.3.2 aponta para o mesmo SHA",
+          "python3 -m unittest tests.test-append-only tests.test-skip-if-locked-orphan tests.test-accept-digest-path tests.test-pack-decision-ids tests.test-quote-hook-part: 9 passed",
+          "git status deixa de fora pycache, documentacao-tecnica/.mdstudio e all.md"
+        ]
+      },
+      "completed_at": "2026-11-09T17:08:28Z"
     }
   ],
   "indexes": {
     "by_status": {
-      "done": 136,
-      "in_progress": 1,
+      "done": 137,
       "todo": 7
     },
     "by_kind": {
