@@ -2433,6 +2433,24 @@ function Invoke-Verify {
     $seen = @{}
     $allSeen = @{}
     $allEvents = [System.Collections.Generic.List[object]]::new()
+    # Match the historical verification semantics: a creation may appear anywhere
+    # in the ledger. Build this index once instead of reparsing the entire ledger
+    # for every task update or close.
+    $createdTaskIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::InvariantCultureIgnoreCase)
+    $createdTaskValues = [System.Collections.Generic.List[object]]::new()
+    $nonStringTaskValues = [System.Collections.Generic.List[object]]::new()
+    foreach ($taskLine in [System.IO.File]::ReadLines($Paths.Activity)) {
+        if ([string]::IsNullOrWhiteSpace($taskLine)) { continue }
+        try { $taskEvent = $taskLine | ConvertFrom-Json } catch { continue }
+        if ($null -ne $taskEvent -and 'event' -in $taskEvent.PSObject.Properties.Name -and $taskEvent.event -eq 'task.created' -and 'task_id' -in $taskEvent.PSObject.Properties.Name -and $null -ne $taskEvent.task_id) {
+            $createdTaskValues.Add($taskEvent.task_id)
+            if ($taskEvent.task_id -is [string]) {
+                [void]$createdTaskIds.Add($taskEvent.task_id)
+            } else {
+                $nonStringTaskValues.Add($taskEvent.task_id)
+            }
+        }
+    }
     $lineNo = 0
     foreach ($line in [System.IO.File]::ReadLines($Paths.Activity)) {
         $lineNo++
@@ -2519,14 +2537,15 @@ function Invoke-Verify {
             }
             if ($event.event -in @('task.updated', 'task.closed')) {
                 $priorCreated = $false
-                foreach ($line2 in [System.IO.File]::ReadLines($Paths.Activity)) {
-                    if ([string]::IsNullOrWhiteSpace($line2)) { continue }
-                    try {
-                        $e2 = $line2 | ConvertFrom-Json
-                    } catch { continue }
-                    if ($e2.event -eq 'task.created' -and $e2.task_id -eq $event.task_id) {
-                        $priorCreated = $true
-                        break
+                if ($event.task_id -is [string]) {
+                    $priorCreated = $createdTaskIds.Contains($event.task_id)
+                    $fallbackValues = $nonStringTaskValues
+                } else {
+                    $fallbackValues = $createdTaskValues
+                }
+                if (-not $priorCreated) {
+                    foreach ($taskValue in $fallbackValues) {
+                        if ($taskValue -eq $event.task_id) { $priorCreated = $true; break }
                     }
                 }
                 if (-not $priorCreated) {
