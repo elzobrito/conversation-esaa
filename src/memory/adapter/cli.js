@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   canonicalJson,
   ENGINE_VERSION,
@@ -1653,6 +1654,11 @@ function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
+if (process.argv[1]) {
+  const invokedPath = path.resolve(process.argv[1]);
+  let realInvokedPath = invokedPath;
+  try { realInvokedPath = realpathSync(invokedPath); } catch { /* main may be unavailable */ }
+  if (import.meta.url === pathToFileURL(invokedPath).href || import.meta.url === pathToFileURL(realInvokedPath).href) {
+    main();
+  }
 }
