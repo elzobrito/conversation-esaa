@@ -1264,7 +1264,9 @@ export function cmdContext(workspaceRoot, options = {}) {
       if (node) {
         if (
           node.topic_id &&
-          (activeTopicIds.has(node.topic_id) || node.topic_id)
+          (activeView.policy_version === "rrr-policy.v2"
+            ? activeTopicIds.has(node.topic_id)
+            : (activeTopicIds.has(node.topic_id) || node.topic_id))
         ) {
           linkedTopic = 1;
         }
