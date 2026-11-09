@@ -16,3 +16,12 @@ test('policy v2 ranks active topic conflicts before cold topics; v1 stays compat
  } finally {rmSync(root,{recursive:true,force:true});}
 });
 
+
+test('policy v2 deterministic proposal matches golden',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const {RRR_POLICY_VERSION,runRrrCycle}=await import('../../src/memory/core/renormalize.js');
+ const facts=[{id:'d1',kind:'decision',timestamp:'2026-01-01T00:00:00Z',topic_id:'TOP-A',time_bucket:'2026-01-01',summary:'Synthetic decision',content_digest:sha256Prefixed('d1'),authority:'explicit_decision',epistemic_status:'verified_explicit',validity_status:'active',evidence_event_ids:['d1']}];
+ const bundle={schema_version:'memory-tcg.facts.v1',workspace_id:sha256Prefixed('ws'),source_snapshot_id:sha256Prefixed('snapshot'),watermark_event_id:'d1',normalizer_version:'1.1.0',facts,relations:[]};
+ const result=runRrrCycle(bundle,{seed:42,budget:'all'});const golden=JSON.parse(readFileSync(new URL('./fixtures/policy-v2-golden.json',import.meta.url),'utf8'));
+ assert.equal(RRR_POLICY_VERSION,'rrr-policy.v2');assert.equal(result.proposal.policy_version,golden.policy_version);assert.equal(result.graph.generation_id,golden.graph_generation_id);assert.equal(result.proposal.proposal_id,golden.proposal_id);
+});

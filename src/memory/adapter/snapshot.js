@@ -194,6 +194,11 @@ function extractConflictHint(event) {
 }
 
 export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
+  const normalizerVersion = options.normalizerVersion ?? NORMALIZER_VERSION;
+  if (!["1.0.0", NORMALIZER_VERSION].includes(normalizerVersion)) {
+    throw new MemoryTcgError("UNSUPPORTED_NORMALIZER", `Unsupported snapshot normalizer: ${normalizerVersion}`);
+  }
+  const legacyNormalizer = normalizerVersion === "1.0.0";
   if (!workspaceRoot || typeof workspaceRoot !== "string") {
     throw new MemoryTcgError("UNSAFE_PATH", "workspaceRoot is required");
   }
@@ -406,6 +411,7 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
         timestamp: ts,
         topic_id: directTopic,
         time_bucket: timeBucket,
+        ...(!legacyNormalizer && event.source && event.source_session_id ? { session_id: sha256Prefixed({ workspace: workspaceId, source: String(event.source), session: String(event.source_session_id) }) } : {}),
         actor: event.actor ? String(event.actor) : null,
         agent_id: event.agent_id ? String(event.agent_id) : null,
         summary: redactSensitiveText(String(event.summary || rawText.slice(0, 200))),
@@ -614,13 +620,14 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
   );
 
   const sourceSnapshotId = sha256Prefixed({
-    normalizer_version: NORMALIZER_VERSION,
+    normalizer_version: normalizerVersion,
     workspace_id: workspaceId,
     watermark_event_id: watermarkEventId,
     facts: facts.map((f) => ({
       id: f.id,
       kind: f.kind,
       content_digest: f.content_digest,
+      ...(f.session_id ? { session_id: f.session_id } : {}),
       validity_status: f.validity_status,
       evidence_event_ids: f.evidence_event_ids,
     })),
@@ -632,7 +639,7 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
     workspace_id: workspaceId,
     source_snapshot_id: sourceSnapshotId,
     watermark_event_id: watermarkEventId,
-    normalizer_version: NORMALIZER_VERSION,
+    normalizer_version: normalizerVersion,
     facts,
     relations: sortedRelations,
   };
@@ -654,8 +661,9 @@ export function verifySnapshotFreshness(
   workspaceRoot,
   expectedSnapshotId,
   expectedWatermarkEventId,
+  expectedNormalizerVersion = NORMALIZER_VERSION,
 ) {
-  const current = createWorkspaceSnapshot(workspaceRoot);
+  const current = createWorkspaceSnapshot(workspaceRoot, { normalizerVersion: expectedNormalizerVersion });
   if (
     current.factsBundle.source_snapshot_id !== expectedSnapshotId ||
     current.factsBundle.watermark_event_id !== expectedWatermarkEventId

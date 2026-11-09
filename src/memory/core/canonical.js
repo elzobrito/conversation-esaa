@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-export const NORMALIZER_VERSION = "1.0.0";
+export const NORMALIZER_VERSION = "1.1.0";
 export const ENGINE_VERSION = "0.1.0";
 
 export const ALLOWED_FACT_KINDS = new Set([
@@ -210,6 +210,9 @@ export function validateFactsBundle(bundle) {
         "UNSUPPORTED_FACT",
         `Fact '${fact.id}' must include at least one valid evidence_event_id`,
       );
+    }
+    if (fact.session_id !== undefined && !isSha256Prefixed(fact.session_id)) {
+      throw new MemoryTcgError("UNSUPPORTED_FACT", `Fact '${fact.id}' has invalid session_id`);
     }
     if (
       fact.content_digest !== undefined &&

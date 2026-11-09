@@ -734,6 +734,7 @@ export function cmdPrepareAccept(workspaceRoot, proposalIdInput) {
     canonicalRoot,
     proposal.snapshot_id,
     proposal.watermark_event_id,
+    proposal.provenance?.normalizer_version || "1.0.0",
   );
 
   const genHex = normalizeDigestHex(proposal.graph_generation_id);

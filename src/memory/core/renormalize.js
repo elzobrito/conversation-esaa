@@ -9,7 +9,7 @@ import { assertGraphInvariants, buildMemoryGraph } from "./graph.js";
 import { runRinging } from "./ringing.js";
 import { runResonance } from "./resonance.js";
 
-export const RRR_POLICY_VERSION = "rrr-policy.v1";
+export const RRR_POLICY_VERSION = "rrr-policy.v2";
 
 export const ALLOWED_PROPOSAL_ACTIONS = new Set([
   "retain",
@@ -456,7 +456,7 @@ export function runRenormalization(graph, options = {}) {
     actions,
     unresolved: sortedUnresolved,
     provenance: {
-      normalizer_version: NORMALIZER_VERSION,
+      normalizer_version: options.normalizer_version ?? NORMALIZER_VERSION,
       engine_version: ENGINE_VERSION,
     },
   };
@@ -548,6 +548,7 @@ export function runRrrCycle(factsBundle, options = {}) {
   const preliminaryProposal = runRenormalization(resonatedGraph, {
     workspace_id: factsBundle.workspace_id,
     watermark_event_id: factsBundle.watermark_event_id,
+    normalizer_version: factsBundle.normalizer_version,
     mode: options.mode || "shadow",
     sampling: ringingResult.sampling,
   });

@@ -186,6 +186,11 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "session_id": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Hashed source-scoped session identity, when available."
         }
       }
     },

@@ -95,6 +95,8 @@ Para informar o agente de uma operação de curadoria, use `--agent grok`, `--ag
 
 Em `memory context`, `--max-per-section N` limita cada grupo de itens a um inteiro positivo escolhido pelo operador, sujeito também a `--budget-chars`. Sem a opção, permanecem os limites automáticos existentes (4 para decisões e conflitos em memórias grandes com orçamento de até 5000 caracteres, e limites próprios para outros grupos).
 
+A política `rrr-policy.v2` considera a sessão de origem na detecção de possíveis conflitos e prioriza conflitos ligados a tópicos ativos no contexto. O identificador da sessão no grafo é um digest SHA-256 derivado do workspace, da fonte e do identificador de origem: é pseudônimo, não anonimização. A normalização passa a `1.1.0`; a visão ativa de gerações v1 aceitas continua reconstruível a partir dos eventos, e propostas v1 ainda atuais podem ser aceitas. A reconstrução de grafos v1 sem cópia embutida não foi demonstrada. Uma proposta v1 que dependa da antiga deduplicação de eventos Cursor com índices repetidos pode ser recusada como `STALE_PROPOSAL`; nesse caso crie um novo sonho, sem alterar o ledger.
+
 #### Como funciona o sonho (Ciclo RRR)
 
 1. **Snapshot imutável e Watermark:**

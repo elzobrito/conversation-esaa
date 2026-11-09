@@ -204,6 +204,7 @@ export function buildMemoryGraph(factsBundle, policyOverrides = {}) {
       id: fact.id,
       kind: fact.kind,
       topic_id: fact.topic_id ?? null,
+      ...(fact.session_id ? { session_id: fact.session_id } : {}),
       time_bucket:
         fact.time_bucket ??
         (typeof fact.timestamp === "string" && fact.timestamp.length >= 10
