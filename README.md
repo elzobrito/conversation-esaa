@@ -382,7 +382,8 @@ A bateria inclui as suítes sintéticas de memória quando os testes do reposit�
 | [PRIVACY.md](PRIVACY.md) | Modelo de privacidade e redação |
 | [RELEASE.md](RELEASE.md) | Notas da v1.3.1 e versões anteriores |
 | [ADR-013](docs/architecture/adr-013-memory-tcg-rrr.md) | Arquitetura do Memory-TCG e consolidação RRR |
-| [CONV-MTCG-BENCHMARK.md](docs/qa/CONV-MTCG-BENCHMARK.md) | Avaliação empírica comparativa (Baseline vs Instructionist vs Memory-TCG RRR) |
+| [Artigo RRR v1.3.1](documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md) | Avaliação sintética exploratória, comparadores e limitações; não reproduzida independentemente |
+| [CONV-MTCG-BENCHMARK.md](docs/qa/CONV-MTCG-BENCHMARK.md) | Benchmark inicial histórico; interpretações revistas no artigo |
 | `.conversation-esaa/plans/` | System design, ADRs, plano de implementação |
 
 

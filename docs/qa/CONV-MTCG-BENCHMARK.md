@@ -1,5 +1,8 @@
 # Relatório de Benchmark Comparativo — Memory-TCG / RRR (`CONV-MTCG-QA-013`)
 
+> **Registro histórico:** os números abaixo descrevem a fixture e os comparadores originais. A [revisão v1.3.1](../../documentacao-tecnica/DC-consolidacao-memoria-agentes-v1.3.1.md) inclui B′, limites de saída e ressalvas de atribuição; D1 corta fatos antes de formar o grafo e não isola o ringing do produto. A avaliação não foi reproduzida independentemente.
+
+
 **Data:** 2026-11-07  
 **Task ESAA:** `CONV-MTCG-QA-013`  
 **Modo de Revisão:** `functional`  
@@ -15,7 +18,7 @@ De acordo com o `ADR-013` (D-10) e com a análise crítica do artigo *Do agents 
 - **Braço B (`Instructionist ADD/UPDATE/DELETE`):** Consolidador local instructionist que sobrescreve o slot da chave (`conflict_key`) pelo evento mais recente (`UPDATE`/`DELETE`), perdendo histórico e permitindo que um eco tardio de agente sobrescreva uma decisão explícita anterior.
 - **Braço C (`Selectionist Memory-TCG + RRR`):** Ciclo completo **Ringing** (amostragem estratificada por `(topic_id, time_bucket)`), **Resonance** (consolidação de suporte independente e separação `derived_edges` vs `possible_edges` + `boundaries`) e **Renormalization** (`retain`, `mark_historical_explicit`, `group_exact_duplicates`, `deprioritize_in_active_view`, `flag_conflict`).
 - **Braço D (`Ablations`):**
-  - **D1 (`FIFO without Ringing`):** Truncagem FIFO simples no lugar da amostragem estratificada do Ringing.
+  - **D1 (`FIFO without Ringing`):** Truncagem FIFO dos fatos antes da construção do grafo; não substitui apenas o amostrador do produto.
   - **D2 (`Without Resonance`):** Executa Ringing + Renormalization sem a fase de Resonance.
 
 ---
@@ -64,13 +67,13 @@ De acordo com o `ADR-013` (D-10) e com a análise crítica do artigo *Do agents 
 
 ---
 
-## 4. Análise Crítica: Melhorias Comprovadas, Trade-offs e Limitações
+## 4. Análise histórica da fixture: resultados e limitações
 
 1. **Melhorias comprovadas do Braço C (`Memory-TCG + RRR`):**
    - **Eliminação de contaminação por decisões superadas e ecos (`HCC = 0.0000`, `CDA = 1.0000`):** Enquanto o Braço A mantém decisões antigas e atuais misturadas na janela das últimas 5 decisões (`HCC = 1.0` no canônico e `0.4` no escalado) e o Braço B permite que um turno/eco posterior (`E007`) sobrescreva uma decisão explícita (`decision:E006`), o Braço C preserva `decision:E006` como `retain` (`[ACTIVE]`) e classifica `decision:E002` como `mark_historical_explicit` (`[HISTORICAL / SUPERSEDED]`).
-   - **Papel demonstrado do Ringing (`C` vs `D1`):** Sob orçamento restrito (`budget = 28`), a truncagem FIFO sem Ringing (`D1`) perde as decisões dos tópicos `TOP-004` e `TOP-005` (`Raw Recall = 0.6000`), enquanto a amostragem estratificada por `(topic_id, time_bucket)` + retenção prioritária de decisões explícitas no Braço C mantém `CDA = 1.0000` e `Provenance Recall = 1.0000` nas 5 seeds.
+   - **Comparação histórica C versus D1 (atribuição corrigida):** O D1 desta avaliação trunca fatos por FIFO antes de construir o grafo; as decisões omitidas não chegam à renormalização. Os números da tabela são preservados, mas a diferença não demonstra o efeito isolado do Ringing no produto, que conserva decisões ativas presentes no grafo por regra.
    - **Papel demonstrado da Resonance (`C` vs `D2`):** Sem a fase de Resonance (`D2`), a acurácia de decisões explícitas (`CDA = 1.0`) é mantida pelo grafo base, mas a detecção de conflitos abertos entre episódios (`E008` vs `E009`) cai para `Conflict F1 = 0.0000`.
 2. **Trade-off e Regressão Documentada sob Sub-Amostragem Severa (`budget = 28` vs `budget = all`):**
    - No cenário de 50 eventos, quando o orçamento de amostragem do Ringing é reduzido para `budget = 28` (em vez de `budget = all`), `CDA` e `HCC` permanecem perfeitos (`1.0` e `0.0`), porém `Conflict F1` cai de `1.0000` (`budget = all`) para `0.0000` (`budget = 28`).
    - **Causa técnica:** Como a detecção de conflito entre episódios sem decisão (`T*-CONF-1` vs `T*-CONF-2`) é quadrática dentro da amostra selecionada pelo Ringing, ambos os episódios do par contraditório precisam ser amostrados simultaneamente no mesmo ciclo para que a aresta `possibly_contradicts` seja formada.
-   - **Recomendação operacional:** Para workspaces até `25.000` nós, o padrão recomendado para `memory sleep` é `--budget all` (custo de ~`8ms` para 50 fatos, zero tokens), reservando `--budget <N>` apenas para inspeções rápidas onde a prioridade é a preservação de decisões explícitas e cobertura inter-tópicos.
+   - **Limite operacional:** Os tempos medidos em 50 fatos não fundamentam uma recomendação para workspaces de até 25.000 nós. Dimensionamento e timeout exigem medição no ambiente de destino.
