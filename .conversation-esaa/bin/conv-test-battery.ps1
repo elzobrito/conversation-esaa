@@ -19,6 +19,7 @@ param(
     [string]$LabWorkspace,
     [switch]$SkipLab,
     [switch]$SkipEsaa,
+    [switch]$SkipMemory,
     [switch]$JsonReport
 )
 
@@ -100,6 +101,7 @@ function Assert-Lab {
 # --- Suite 1: integration (conv-test.ps1) --------------------------------
 Write-Output '== suite: integration =='
 $integrationOut = & pwsh -NoProfile -ExecutionPolicy Bypass -File $convTest -RepoRoot $RepoRoot 2>&1 | Out-String
+$integrationExit = $LASTEXITCODE
 $integrationPassed = 0
 $integrationFailed = 0
 if ($integrationOut -match 'conv-test:\s+(\d+)\s+passed,\s+(\d+)\s+failed') {
@@ -108,8 +110,41 @@ if ($integrationOut -match 'conv-test:\s+(\d+)\s+passed,\s+(\d+)\s+failed') {
 } else {
     $integrationFailed = 1
 }
+if ($integrationExit -ne 0 -and $integrationFailed -eq 0) { $integrationFailed++ }
 $integrationDetails = @($integrationOut -split "`n" | Where-Object { $_ -match '^\s*(PASS|FAIL)\s' })
+if ($integrationExit -ne 0 -and $integrationDetails.Count -eq 0) { $integrationDetails += "FAIL  integration exit=$integrationExit" }
 Add-SuiteResult -Name 'integration' -Passed $integrationPassed -Failed $integrationFailed -Details $integrationDetails
+
+# Memory-TCG E2E suites use synthetic workspaces only. Installed runtimes may
+# not ship the repository tests; make that missing coverage visible.
+$memoryTests = @('test-memory-shadow.ps1', 'test-memory-accept-replay.ps1', 'test-memory-read-path.ps1')
+$memoryPaths = @($memoryTests | ForEach-Object { Join-Path (Join-Path $RepoRoot 'tests') $_ })
+$memoryPresent = @($memoryPaths | Where-Object { Test-Path -LiteralPath $_ }).Count
+if ($SkipMemory -or $memoryPresent -eq 0) {
+    $reason = if ($SkipMemory) { 'operator requested' } else { 'repository tests not installed' }
+    Add-SuiteResult -Name 'memory_e2e' -Passed 0 -Failed 0 -Details @("SKIP  memory_e2e ($reason)")
+} elseif ($memoryPresent -ne $memoryPaths.Count) {
+    Add-SuiteResult -Name 'memory_e2e' -Passed 0 -Failed 1 -Details @('FAIL  memory_e2e: incomplete repository test suite')
+} else {
+    Write-Output '== suite: memory_e2e =='
+    $memoryPassed = 0
+    $memoryFailed = 0
+    $memoryDetails = [System.Collections.Generic.List[string]]::new()
+    foreach ($testPath in $memoryPaths) {
+        $output = & pwsh -NoProfile -ExecutionPolicy Bypass -File $testPath 2>&1 | Out-String
+        $exitCode = $LASTEXITCODE
+        if ($output -match 'Summary:\s+(\d+)\s+passed,\s+(\d+)\s+failed') {
+            $memoryPassed += [int]$Matches[1]
+            $failedCount = [int]$Matches[2]
+            $memoryFailed += $failedCount
+            if ($exitCode -ne 0 -and $failedCount -eq 0) { $memoryFailed++ }
+        } else { $memoryFailed++ }
+        if ($exitCode -eq 0 -and $output -match 'Summary:\s+\d+\s+passed,\s+0\s+failed') {
+            $memoryDetails.Add("PASS  $([IO.Path]::GetFileName($testPath))")
+        } else { $memoryDetails.Add("FAIL  $([IO.Path]::GetFileName($testPath)) (exit=$exitCode)") }
+    }
+    Add-SuiteResult -Name 'memory_e2e' -Passed $memoryPassed -Failed $memoryFailed -Details @($memoryDetails)
+}
 
 # --- Suite 2: lab_smoke (activity real) ------------------------------------
 $labPassed = 0

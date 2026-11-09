@@ -368,6 +368,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test.p
 pwsh -NoProfile -ExecutionPolicy Bypass -File .conversation-esaa\bin\conv-test-battery.ps1 -SkipLab -SkipEsaa
 ```
 
+A bateria inclui as suítes sintéticas de memória quando os testes do repositório estão disponíveis; em instalações sem esses arquivos, informa `SKIP memory_e2e`. Use `-SkipMemory` para omiti-las explicitamente.
+
 ---
 
 ## Documentação
