@@ -320,7 +320,15 @@ Merge-Gitignore -Path $gitignore -Entries @(
     '.agents/hooks.json',
     '.cursor/hooks.json',
     '.conversation-esaa/cursor-hook.log',
-    '.conversation-esaa/run/cursor-injected.json'
+    '.conversation-esaa/codex-watch.log',
+    '.conversation-esaa/antigravity-hook.log',
+    '.conversation-esaa/decisions.md',
+    '.conversation-esaa/tasks.json',
+    '.conversation-esaa/topics.md',
+    '.conversation-esaa/topics.json',
+    '.conversation-esaa/*.bak-*',
+    '.conversation-esaa/*.tmp-*',
+    '.conversation-esaa/run/'
 )
 
 if (-not $DryRun -and -not (Test-Path -LiteralPath (Join-Path $esaaDir 'topics.json'))) {
