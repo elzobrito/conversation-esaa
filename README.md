@@ -240,6 +240,8 @@ Depois: adicione o projeto em `~/.grok/trusted-hook-projects` e recarregue `/hoo
 
 **Claude Code** — o bootstrap cria `.claude/settings.json`. Reabra a sessão e aprove os hooks.
 
+Ao executar `enable-hooks` para Claude, mantenha outras edições de `settings.json` suspensas. O comando preserva configurações existentes e verifica alterações antes de substituir o arquivo, mas essa verificação não é uma transação com outros escritores. No Unix, a preservação de permissões exige runtime .NET com `File.GetUnixFileMode` e `File.SetUnixFileMode`; Windows não foi validado para essa alteração.
+
 **Codex** — sem hook nativo; use o watcher:
 
 ```powershell

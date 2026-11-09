@@ -383,19 +383,94 @@ switch ($Command) {
             Write-Output 'enable-hooks: wrote .grok/hooks/conversation-esaa.json'
         }
         if ($Agent -eq 'claude') {
-            $claudeCfg = [ordered]@{
-                hooks = [ordered]@{
-                    UserPromptSubmit = @(@{ hooks = @(@{ type = 'command'; command = $cmdClaude; timeout = 20 }) })
-                    Stop             = @(@{ hooks = @(@{ type = 'command'; command = $cmdClaude; timeout = 30 }) })
-                    PreCompact       = @(@{ hooks = @(@{ type = 'command'; command = $cmdClaudeCompact; timeout = 30 }) })
-                }
+            $claudePath = Join-Path $claudeDir 'settings.json'
+            $claudeCfg = [ordered]@{}
+            $originalBytes = $null
+            if (Test-Path -LiteralPath $claudePath) {
+                $item = Get-Item -LiteralPath $claudePath -Force
+                if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Claude settings symlinks are not supported for enable-hooks' }
+                $originalBytes = [IO.File]::ReadAllBytes($claudePath)
+                $claudeCfg = ([Text.Encoding]::UTF8.GetString($originalBytes).TrimStart([char]0xFEFF)) | ConvertFrom-Json -AsHashtable
+                if ($claudeCfg -isnot [System.Collections.IDictionary]) { throw 'Claude settings must be a JSON object' }
             }
-            [System.IO.File]::WriteAllText(
-                (Join-Path $claudeDir 'settings.json'),
-                (($claudeCfg | ConvertTo-Json -Depth 8) + "`n"),
-                [System.Text.UTF8Encoding]::new($false)
-            )
-            Write-Output 'enable-hooks: wrote .claude/settings.json'
+            if (-not $claudeCfg.Contains('hooks')) { $claudeCfg['hooks'] = [ordered]@{} }
+            if ($claudeCfg['hooks'] -isnot [System.Collections.IDictionary]) { throw 'Claude settings hooks must be a JSON object' }
+            function Test-CanonicalClaudeHook([string]$CommandText, [string]$EventName) {
+                if ([string]::IsNullOrWhiteSpace($CommandText)) { return $false }
+                $tokens = $null; $parseErrors = $null
+                $ast = [Management.Automation.Language.Parser]::ParseInput("& " + $CommandText, [ref]$tokens, [ref]$parseErrors)
+                if (@($parseErrors).Count -ne 0 -or @($ast.EndBlock.Statements).Count -ne 1) { return $false }
+                $statement = $ast.EndBlock.Statements[0]
+                if ($statement -isnot [Management.Automation.Language.PipelineAst] -or @($statement.PipelineElements).Count -ne 1) { return $false }
+                $cmd = $statement.PipelineElements[0]
+                if ($cmd -isnot [Management.Automation.Language.CommandAst] -or @($cmd.Redirections).Count -gt 0) { return $false }
+                $parts = [System.Collections.Generic.List[string]]::new()
+                foreach ($element in $cmd.CommandElements) {
+                    if ($element -is [Management.Automation.Language.StringConstantExpressionAst]) { $parts.Add([string]$element.Value) }
+                    elseif ($element -is [Management.Automation.Language.CommandParameterAst] -and $null -eq $element.Argument) { $parts.Add('-' + $element.ParameterName) }
+                    else { return $false }
+                }
+                if ($parts.Count -lt 12) { return $false }
+                $program = [IO.Path]::GetFileName($parts[0].Replace('\', '/'))
+                if ($program -notin @('pwsh','pwsh.exe')) { return $false }
+                if ($parts[1] -ine '-NoProfile' -or $parts[2] -ine '-ExecutionPolicy' -or $parts[3] -ine 'Bypass' -or $parts[4] -ine '-File' -or $parts[6] -ine 'sync' -or $parts[7] -ine '--agent' -or $parts[8] -ine 'claude' -or $parts[9] -ine '--workspace') { return $false }
+                $pathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+                try {
+                    if (-not [string]::Equals([IO.Path]::GetFullPath($parts[5]), [IO.Path]::GetFullPath($convCli), $pathComparison)) { return $false }
+                    if (-not [string]::Equals([IO.Path]::GetFullPath($parts[10]), [IO.Path]::GetFullPath($ws), $pathComparison)) { return $false }
+                } catch { return $false }
+                $tail = @($parts | Select-Object -Skip 11) -join ' '
+                if ($EventName -eq 'PreCompact') { return $tail -ieq '--SkipIfLocked --Mode compact' -or $tail -ieq '--Mode compact --SkipIfLocked' }
+                return $tail -ieq '--SkipIfLocked'
+            }
+            foreach ($spec in @(
+                @{ Event = 'UserPromptSubmit'; Command = $cmdClaude; Timeout = 20 },
+                @{ Event = 'Stop'; Command = $cmdClaude; Timeout = 30 },
+                @{ Event = 'PreCompact'; Command = $cmdClaudeCompact; Timeout = 30 }
+            )) {
+                $eventName = $spec.Event
+                $groups = [System.Collections.Generic.List[object]]::new()
+                if ($claudeCfg['hooks'].Contains($eventName)) {
+                    $originalGroups = $claudeCfg['hooks'][$eventName]
+                    if ($originalGroups -isnot [array]) { throw "Claude hooks $eventName must be an array" }
+                    foreach ($group in $originalGroups) {
+                        if ($group -isnot [System.Collections.IDictionary] -or -not $group.Contains('hooks') -or $group['hooks'] -isnot [array]) { throw "Claude hooks $eventName contains an invalid group" }
+                        $remaining = [System.Collections.Generic.List[object]]::new()
+                        foreach ($hook in $group['hooks']) {
+                            if ($hook -isnot [System.Collections.IDictionary]) { throw "Claude hooks $eventName contains an invalid hook" }
+                            $command = if ($hook.Contains('command')) { [string]$hook['command'] } else { '' }
+                            # Only replace commands exactly generated by this
+                            # runtime. Preserve wrappers and ambiguous commands.
+                            $isOurs = Test-CanonicalClaudeHook -CommandText $command -EventName $eventName
+                            if ($isOurs) {
+                                $extraGroupKeys = @($group.Keys | Where-Object { $_ -ne 'hooks' })
+                                $extraHookKeys = @($hook.Keys | Where-Object { $_ -notin @('type', 'command', 'timeout') })
+                                if ($extraGroupKeys.Count -gt 0 -or $extraHookKeys.Count -gt 0 -or $hook['type'] -ne 'command' -or $hook['timeout'] -ne $spec.Timeout) {
+                                    throw "Claude hook $eventName has customized metadata; resolve it before enabling hooks"
+                                }
+                            } else { $remaining.Add($hook) }
+                        }
+                        if ($remaining.Count -gt 0 -or $group['hooks'].Count -eq 0) { $group['hooks'] = @($remaining); $groups.Add($group) }
+                    }
+                }
+                $groups.Add(@{ hooks = @(@{ type = 'command'; command = $spec.Command; timeout = $spec.Timeout }) })
+                $claudeCfg['hooks'][$eventName] = @($groups)
+            }
+            $claudeJsonText = ($claudeCfg | ConvertTo-Json -Depth 100 -WarningAction Stop) + "`n"
+            $tempPath = Join-Path $claudeDir ('.settings.json.tmp-' + [guid]::NewGuid().ToString('N'))
+            try {
+                [IO.File]::WriteAllText($tempPath, $claudeJsonText, [Text.UTF8Encoding]::new($false))
+                if ($null -ne $originalBytes) {
+                    if (-not (Test-Path -LiteralPath $claudePath)) { throw 'Claude settings changed concurrently' }
+                    $currentBytes = [IO.File]::ReadAllBytes($claudePath)
+                    if (-not [System.Linq.Enumerable]::SequenceEqual[byte]($originalBytes, $currentBytes)) { throw 'Claude settings changed concurrently' }
+                    if (-not $IsWindows) { [IO.File]::SetUnixFileMode($tempPath, [IO.File]::GetUnixFileMode($claudePath)) }
+                } elseif (Test-Path -LiteralPath $claudePath) { throw 'Claude settings changed concurrently' }
+                [IO.File]::Move($tempPath, $claudePath, $true)
+            } finally {
+                if (Test-Path -LiteralPath $tempPath) { Remove-Item -LiteralPath $tempPath -Force }
+            }
+            Write-Output 'enable-hooks: merged .claude/settings.json'
         }
         if ($Agent -eq 'grok' -and $Trust) {
             $grokHome = if ($env:GROK_HOME) { $env:GROK_HOME } else { Join-Path $HOME '.grok' }
