@@ -1,7 +1,7 @@
 ﻿#requires -Version 7.0
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('sync-grok', 'sync-codex', 'sync-claude', 'sync-antigravity', 'sync-cursor', 'project', 'verify', 'context', 'decide', 'task', 'topic', 'pack', 'memory-accept', 'memory-rollback')]
+    [ValidateSet('sync-grok', 'sync-codex', 'find-codex-rollout', 'sync-claude', 'sync-antigravity', 'sync-cursor', 'project', 'verify', 'context', 'decide', 'task', 'topic', 'pack', 'memory-accept', 'memory-rollback')]
     [string]$Command,
 
     [string]$WorkspaceRoot,
@@ -714,41 +714,81 @@ function Invoke-SyncGrok {
     return $imported
 }
 
+function Test-CodexWorkspaceMatch {
+    param([string]$Candidate, [string]$WorkspaceRoot)
+    if ([string]::IsNullOrWhiteSpace($Candidate)) { return $false }
+    # A symlink before '..' can change physical traversal; reject ambiguity.
+    if ($Candidate -match '(^|[\\/])\.\.([\\/]|$)') { return $false }
+    if (-not [System.IO.Path]::IsPathFullyQualified($Candidate)) { return $false }
+    try {
+        $Candidate = [System.IO.Path]::GetFullPath($Candidate)
+        $WorkspaceRoot = [System.IO.Path]::GetFullPath($WorkspaceRoot)
+    } catch { return $false }
+    # Resolve existing paths to account for symlinks. Preserve the string when
+    # testing metadata from a different platform where the path cannot exist.
+    try { $Candidate = (Resolve-Path -LiteralPath $Candidate -ErrorAction Stop).Path } catch { }
+    try { $WorkspaceRoot = (Resolve-Path -LiteralPath $WorkspaceRoot -ErrorAction Stop).Path } catch { }
+    $candidateTrimmed = $Candidate.TrimEnd([char[]]@('/', '\'))
+    $rootTrimmed = $WorkspaceRoot.TrimEnd([char[]]@('/', '\'))
+    if (-not $candidateTrimmed) { $candidateTrimmed = $Candidate }
+    if (-not $rootTrimmed) { $rootTrimmed = $WorkspaceRoot }
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if ([string]::Equals($candidateTrimmed, $rootTrimmed, $comparison)) { return $true }
+    $homeRoot = $HOME
+    try { $homeRoot = (Resolve-Path -LiteralPath $HOME -ErrorAction Stop).Path } catch { }
+    $homeTrimmed = $homeRoot.TrimEnd([char[]]@('/', '\'))
+    if (-not $homeTrimmed) { $homeTrimmed = $homeRoot }
+    if ([string]::Equals($rootTrimmed, $homeTrimmed, $comparison)) {
+        $prefix = $rootTrimmed + [System.IO.Path]::DirectorySeparatorChar
+        if (-not $candidateTrimmed.StartsWith($prefix, $comparison)) { return $false }
+        # Unknown paths and symlinked ancestors cannot prove that a lexical
+        # descendant is physically inside HOME; fail closed for global capture.
+        $current = $candidateTrimmed
+        while (-not [string]::Equals($current, $rootTrimmed, $comparison)) {
+            try { $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop } catch { return $false }
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
+            $parent = [System.IO.Path]::GetDirectoryName($current)
+            if ([string]::IsNullOrEmpty($parent) -or $parent -eq $current) { return $false }
+            $current = $parent
+        }
+        return $true
+    }
+    return $false
+}
+
 function Find-LatestCodexRollout {
     param([string]$WorkspaceRoot)
     $base = Join-Path $HOME '.codex\sessions'
     if (-not (Test-Path -LiteralPath $base)) { return $null }
-
     $preferred = $null
     $preferredTime = [datetime]::MinValue
-    $fallback = $null
-    $fallbackTime = [datetime]::MinValue
 
     Get-ChildItem -Path $base -Recurse -Filter 'rollout-*.jsonl' -File -ErrorAction SilentlyContinue |
         ForEach-Object {
             $matchesWorkspace = $false
             try {
-                $head = @(Get-Content -LiteralPath $_.FullName -TotalCount 5 -Encoding UTF8)
-                $joined = ($head -join "`n")
-                if ($joined -match [regex]::Escape($WorkspaceRoot)) {
-                    $matchesWorkspace = $true
+                foreach ($line in @(Get-Content -LiteralPath $_.FullName -TotalCount 5 -Encoding UTF8)) {
+                    try { $entry = $line | ConvertFrom-Json } catch { continue }
+                    if ($null -eq $entry -or 'type' -notin $entry.PSObject.Properties.Name -or $entry.type -ne 'session_meta' -or 'payload' -notin $entry.PSObject.Properties.Name -or $null -eq $entry.payload) { continue }
+                    $payload = $entry.payload
+                    $roots = [System.Collections.Generic.List[string]]::new()
+                    if ('cwd' -in $payload.PSObject.Properties.Name -and $payload.cwd -is [string]) { $roots.Add($payload.cwd) }
+                    if ('runtime_workspace_roots' -in $payload.PSObject.Properties.Name) {
+                        foreach ($root in @($payload.runtime_workspace_roots)) { if ($root -is [string]) { $roots.Add($root) } }
+                    }
+                    foreach ($root in $roots) {
+                        if (Test-CodexWorkspaceMatch -Candidate $root -WorkspaceRoot $WorkspaceRoot) { $matchesWorkspace = $true; break }
+                    }
+                    if ($matchesWorkspace) { break }
                 }
-            } catch {
-                $matchesWorkspace = $false
-            }
-
+            } catch { $matchesWorkspace = $false }
             if ($matchesWorkspace -and $_.LastWriteTime -gt $preferredTime) {
                 $preferred = $_.FullName
                 $preferredTime = $_.LastWriteTime
             }
-            if ($_.LastWriteTime -gt $fallbackTime) {
-                $fallback = $_.FullName
-                $fallbackTime = $_.LastWriteTime
-            }
         }
-
-    if ($preferred) { return $preferred }
-    return $fallback
+    # Never select an unrelated workspace when metadata does not match.
+    return $preferred
 }
 
 function Invoke-SyncCodex {
@@ -2705,6 +2745,7 @@ function Invoke-RagScheduleIfEnabled {
 }
 
 switch ($Command) {
+    'find-codex-rollout' { Find-LatestCodexRollout -WorkspaceRoot $paths.Root }
     'sync-grok' {
         Invoke-WithPipelineLock -WorkspaceRoot $paths.Root -CommandName $Command -TimeoutSeconds $LockTimeoutSeconds -Body {
             Repair-ActivityContract $paths.Activity

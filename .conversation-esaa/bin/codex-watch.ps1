@@ -13,41 +13,6 @@ function Resolve-WorkspaceRoot {
     return (Resolve-Path -LiteralPath (Split-Path -Parent $scriptDir)).Path
 }
 
-function Find-LatestCodexRollout {
-    param([string]$Root)
-    $base = Join-Path $HOME '.codex\sessions'
-    if (-not (Test-Path -LiteralPath $base)) { return $null }
-
-    $preferred = $null
-    $preferredTime = [datetime]::MinValue
-    $fallback = $null
-    $fallbackTime = [datetime]::MinValue
-
-    Get-ChildItem -Path $base -Recurse -Filter 'rollout-*.jsonl' -File -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            $matchesWorkspace = $false
-            try {
-                $head = @(Get-Content -LiteralPath $_.FullName -TotalCount 8 -Encoding UTF8)
-                if (($head -join "`n") -match [regex]::Escape($Root)) {
-                    $matchesWorkspace = $true
-                }
-            } catch {
-                $matchesWorkspace = $false
-            }
-
-            if ($matchesWorkspace -and $_.LastWriteTime -gt $preferredTime) {
-                $preferred = $_.FullName
-                $preferredTime = $_.LastWriteTime
-            }
-            if ($_.LastWriteTime -gt $fallbackTime) {
-                $fallback = $_.FullName
-                $fallbackTime = $_.LastWriteTime
-            }
-        }
-
-    if ($preferred) { return $preferred }
-    return $fallback
-}
 
 $root = Resolve-WorkspaceRoot
 $syncScript = Join-Path $root '.conversation-esaa\bin\conv-sync.ps1'
@@ -66,17 +31,19 @@ $lastLength = -1L
 
 while ($true) {
     try {
-        $rollout = Find-LatestCodexRollout -Root $root
+        $selection = @(& pwsh -NoProfile -ExecutionPolicy Bypass -File $syncScript find-codex-rollout -WorkspaceRoot $root)
+        if ($LASTEXITCODE -ne 0) { throw "rollout selection failed ($LASTEXITCODE)" }
+        $rollout = if ($selection.Count -gt 0) { [string]$selection[-1] } else { $null }
         if ($rollout -and (Test-Path -LiteralPath $rollout)) {
             $item = Get-Item -LiteralPath $rollout
             $changed = ($rollout -ne $lastPath) -or ($item.LastWriteTime -ne $lastWrite) -or ($item.Length -ne $lastLength)
             if ($changed) {
+                & pwsh -NoProfile -ExecutionPolicy Bypass -File $syncScript sync-codex -WorkspaceRoot $root -CodexSessionPath $rollout |
+                    Out-File -LiteralPath $logPath -Encoding utf8 -Append
+                if ($LASTEXITCODE -ne 0) { throw "sync failed ($LASTEXITCODE)" }
                 $lastPath = $rollout
                 $lastWrite = $item.LastWriteTime
                 $lastLength = $item.Length
-
-                & pwsh -NoProfile -ExecutionPolicy Bypass -File $syncScript sync-codex -WorkspaceRoot $root |
-                    Out-File -LiteralPath $logPath -Encoding utf8 -Append
             }
         }
     } catch {

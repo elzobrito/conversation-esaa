@@ -248,6 +248,8 @@ pwsh -NoProfile -ExecutionPolicy Bypass -File $cli enable-hooks --agent codex --
 pwsh -NoProfile -ExecutionPolicy Bypass -File "$root\.conversation-esaa\bin\codex-watch.ps1" -WorkspaceRoot $root
 ```
 
+A seleção automática lê o `cwd` ou as raízes de workspace nos metadados da sessão e não usa um rollout de outro projeto como fallback. Para o workspace global da home, aceita projetos existentes dentro dela; caminhos relativos, com `..` ou links simbólicos abaixo da home não são selecionados automaticamente. Informe `-CodexSessionPath` quando for necessário escolher uma sessão explicitamente. Windows e caminhos UNC não foram validados nesta alteração.
+
 **Google Antigravity** — o bootstrap mescla `conversation-esaa` em
 `.agents/hooks.json`. Reinicie a CLI/IDE depois da instalação. Para ativar ou
 reparar manualmente:
