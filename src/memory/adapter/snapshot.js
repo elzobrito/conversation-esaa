@@ -271,7 +271,10 @@ export function createWorkspaceSnapshot(workspaceRoot, options = {}) {
       event.source_index !== null &&
       event.actor;
     if (hasSourceIdentity) {
-      const key = `${event.source}|${event.source_session_id}|${event.source_index}|${event.actor}`;
+      // Legacy live Cursor hooks reused source indexes for distinct messages.
+      const key = event.source === "cursor" && event.source_path === "cursor-hook" && event.event_id
+        ? `cursor-hook|${event.event_id}`
+        : `${event.source}|${event.source_session_id}|${event.source_index}|${event.actor}`;
       if (seenSourceTurns.has(key)) continue;
       seenSourceTurns.add(key);
     }

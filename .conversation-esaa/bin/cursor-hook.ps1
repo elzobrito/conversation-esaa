@@ -111,6 +111,7 @@ function Invoke-CursorSync {
         [string]$Text,
         [string]$SessionId,
         [string]$TranscriptPath,
+        [string]$GenerationId,
         [int]$SourceIndex = -1
     )
     $cli = Join-Path $Workspace '.conversation-esaa\bin\conversation-esaa.ps1'
@@ -120,6 +121,7 @@ function Invoke-CursorSync {
         'sync', '--agent', 'cursor', '--workspace', $Workspace, '--SkipIfLocked'
     )
     if ($SessionId) { $args += '-CursorSessionId', $SessionId }
+    if ($GenerationId) { $args += '-CursorGenerationId', $GenerationId }
     if ($Role -and $Text) {
         $args += '-CursorRole', $Role, '-CursorPromptStdin'
     }
@@ -154,6 +156,7 @@ try {
         $conversationId = [string](Get-PayloadProperty $payload 'session_id')
     }
     $transcript = [string](Get-PayloadProperty $payload 'transcript_path')
+    $generationId = [string](Get-PayloadProperty $payload 'generation_id')
 
     switch ($eventName) {
         'sessionStart' {
@@ -169,7 +172,8 @@ try {
                     -Workspace $workspace `
                     -Role 'user' `
                     -Text $prompt `
-                    -SessionId $conversationId
+                    -SessionId $conversationId `
+                    -GenerationId $generationId
             }
             $result['continue'] = $true
             if ($conversationId -and -not (Test-AlreadyInjected -Workspace $workspace -ConversationId $conversationId)) {
@@ -187,7 +191,8 @@ try {
                     -Workspace $workspace `
                     -Role 'assistant' `
                     -Text $text `
-                    -SessionId $conversationId
+                    -SessionId $conversationId `
+                    -GenerationId $generationId
             }
             Write-HookLog $workspace "afterAgentResponse capture conversationId=$conversationId"
         }

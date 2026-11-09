@@ -79,7 +79,8 @@ Event fields (same contract as grok/claude/codex/antigravity):
 - assistant: `actor=assistant`, `agent_id=cursor`
 - `workspace_root` required
 - `source_session_id` = `conversation_id` (fallback `session_id`)
-- `source_index` is a transcript index when supplied from a transcript; live-message identity and cross-source deduplication have outstanding limitations (PS-01).
+- `source_index` is a transcript index for transcript imports; for live hooks without an explicit index, it is allocated under the existing pipeline lock.
+- `source_generation_id` records the Cursor generation when provided; it is not an individual message ID. Ambiguous live deliveries are retained, so retries and mixed live/transcript capture can produce duplicates. Explicit stable live indices deduplicate reimports, including legacy hook IDs. The lock-release race in PS-03 remains open.
 - skip empty / whitespace-only text
 
 `sync --agent cursor` maps to `sync-cursor` in `conv-sync.ps1`. The hook

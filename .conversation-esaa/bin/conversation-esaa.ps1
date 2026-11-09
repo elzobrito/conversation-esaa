@@ -21,6 +21,7 @@ param(
     [ValidateSet('user', 'assistant')]
     [string]$CursorRole,
     [int]$CursorSourceIndex = -1,
+    [string]$CursorGenerationId,
     [int]$BudgetTokens = 0,
     [int]$BudgetChars = 0,
     [Nullable[int]]$MaxPerSection = $null,
@@ -350,6 +351,7 @@ switch ($Command) {
         if ($CursorPrompt) { $extra += '-CursorPrompt', $CursorPrompt }
         if ($CursorRole) { $extra += '-CursorRole', $CursorRole }
         if ($CursorSourceIndex -ge 0) { $extra += '-CursorSourceIndex', "$CursorSourceIndex" }
+        if ($CursorGenerationId) { $extra += '-CursorGenerationId', $CursorGenerationId }
         Invoke-ConvSyncCli -SyncCommand $map[$Agent] -Extra $extra -PipeStdin:$CursorPromptStdin -StdinText $promptInput
     }
     'project' { Invoke-ConvSyncCli -SyncCommand 'project' }

@@ -17,6 +17,7 @@ param(
     [ValidateSet('user', 'assistant')]
     [string]$CursorRole,
     [int]$CursorSourceIndex = -1,
+    [string]$CursorGenerationId,
     [int]$BudgetTokens = 0,
     [int]$BudgetChars = 0,
     [ValidateSet('normal', 'compact')]
@@ -600,6 +601,7 @@ function Import-Message {
         [string]$Actor,
         [string]$Text,
         [string]$EventIdText = $null,
+        [string]$SourceGenerationId = $null,
         [string]$AgentId = $null,
         [string]$SourceTimestamp = $null,
         [string]$EventName = 'conversation_turn'
@@ -627,6 +629,7 @@ function Import-Message {
         text = $Text
     }
 
+    if ($SourceGenerationId) { $record['source_generation_id'] = $SourceGenerationId }
     Append-ActivityEvent $record $Paths.Activity
     $SyncState.processed_event_ids += $eventId
     return $true
@@ -1018,7 +1021,32 @@ function Invoke-SyncCursor {
 
     if ($CursorRole -and -not [string]::IsNullOrWhiteSpace($CursorPrompt)) {
         $sourceIndex = if ($CursorSourceIndex -ge 0) { $CursorSourceIndex } else {
-            if ($CursorRole -eq 'user') { 0 } else { 1 }
+            # No native message ID: preserve each delivery; a retry may duplicate.
+            $highestIndex = -1
+            foreach ($prior in @(Read-ActivityEvents $Paths.Activity)) {
+                if (('source' -in $prior.PSObject.Properties.Name) -and $prior.source -eq 'cursor' -and
+                    ('source_session_id' -in $prior.PSObject.Properties.Name) -and $prior.source_session_id -eq $sessionId -and
+                    ('source_index' -in $prior.PSObject.Properties.Name) -and $null -ne $prior.source_index) {
+                    $indexValue = 0
+                    if ([int]::TryParse([string]$prior.source_index, [ref]$indexValue) -and $indexValue -gt $highestIndex) { $highestIndex = $indexValue }
+                }
+            }
+            if ($highestIndex -eq [int]::MaxValue) { throw 'Cursor source_index exhausted' }
+            $highestIndex + 1
+        }
+        if ($CursorSourceIndex -ge 0) {
+            # Explicit coordinates may refer to a legacy hook ID.
+            $legacyId = Compute-EventId 'cursor' $sessionId $sourceIndex $CursorRole $CursorPrompt.Trim()
+            if ($SyncState.processed_event_ids -contains $legacyId) {
+                $legacyHook = @(Read-ActivityEvents $Paths.Activity | Where-Object {
+                    ('event_id' -in $_.PSObject.Properties.Name) -and $_.event_id -eq $legacyId -and
+                    ('source_path' -in $_.PSObject.Properties.Name) -and $_.source_path -eq 'cursor-hook'
+                }).Count -gt 0
+                if ($legacyHook) {
+                    Write-Output "sync-cursor: imported 0 new event(s) from $sessionId"
+                    return 0
+                }
+            }
         }
         $added = Import-Message `
             -Paths $Paths `
@@ -1027,8 +1055,10 @@ function Invoke-SyncCursor {
             -SessionId $sessionId `
             -SourcePath 'cursor-hook' `
             -SourceIndex $sourceIndex `
+            -SourceGenerationId $CursorGenerationId `
             -Actor $(if ($CursorRole -eq 'user') { 'user' } else { 'assistant' }) `
             -Text $CursorPrompt.Trim() `
+            -EventIdText ("cursor-hook|" + $CursorPrompt.Trim()) `
             -AgentId $(if ($CursorRole -eq 'assistant') { 'cursor' } else { $null }) `
             -EventName $(if ($Mode -eq 'compact') { 'pre_compact_sync' } else { 'conversation_turn' })
         if ($added) { $imported++ }
@@ -1351,7 +1381,11 @@ function Get-WorkspaceEvents {
             ('source_index' -in $event.PSObject.Properties.Name) -and ($null -ne $event.source_index) -and
             ('actor' -in $event.PSObject.Properties.Name) -and $event.actor
         if ($hasSourceIdentity) {
-            $key = "$($event.source)|$($event.source_session_id)|$($event.source_index)|$($event.actor)"
+            $key = if ($event.source -eq 'cursor' -and
+                ('source_path' -in $event.PSObject.Properties.Name) -and $event.source_path -eq 'cursor-hook' -and
+                ('event_id' -in $event.PSObject.Properties.Name) -and $event.event_id) {
+                "cursor-hook|$($event.event_id)"
+            } else { "$($event.source)|$($event.source_session_id)|$($event.source_index)|$($event.actor)" }
             if ($seenSourceTurns.ContainsKey($key)) { continue }
             $seenSourceTurns[$key] = $true
         }

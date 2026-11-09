@@ -271,6 +271,7 @@ ledger e a configuração local de hooks não são transportados automaticamente
 para um clone. A continuidade entre workspaces ou na nuvem não é garantida.
 `sessionStart` e `pack` só lêem o ledger — não gravam em `activity.jsonl`.
 A captura do texto do Cursor usa stdin entre processos, inclusive para mensagens longas. A interface `sync` também aceita `-CursorRole` e `-CursorPromptStdin`; não combine essa opção com `-CursorPrompt`. Como nas versões anteriores, espaços nas extremidades do texto são removidos na importação.
+Quando o hook não fornece índice de mensagem, cada entrega é preservada: retries podem criar duplicatas, inclusive para respostas iguais da mesma geração. O `generation_id`, quando disponível, é registrado como metadado, mas não identifica cada resposta individual. Capturas por hook e por transcript sem identidade compartilhada podem coexistir como duplicatas; importações com índice explícito continuam deduplicadas. Eventos antigos diferentes que reutilizavam índices 0/1 voltam a aparecer nas projeções e no snapshot, sem reescrever o ledger. A atribuição de índices ocorre sob o lock existente; a revisão da corrida de liberação desse lock permanece aberta.
 
 ```powershell
 node src/cli.js install --workspace $root --agent cursor --non-interactive
