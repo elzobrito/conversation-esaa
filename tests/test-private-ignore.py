@@ -14,4 +14,6 @@ class IgnoreTest(unittest.TestCase):
     with self.subTest(name=name):
      r=subprocess.run(['git','-C',tmp,'check-ignore','-q','--no-index',f'.conversation-esaa/{name}'])
      self.assertEqual(r.returncode,0)
+   r=subprocess.run(['git','-C',tmp,'check-ignore','-q','--no-index','.claude/.settings.json.tmp-synthetic'])
+   self.assertEqual(r.returncode,0)
 if __name__=='__main__':unittest.main()

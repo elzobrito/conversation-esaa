@@ -317,6 +317,7 @@ Merge-Gitignore -Path $gitignore -Entries @(
     '.conversation-esaa/vendor/',
     '.claude/settings.json',
     '.claude/settings.local.json',
+    '.claude/.settings.json.tmp-*',
     '.agents/hooks.json',
     '.cursor/hooks.json',
     '.conversation-esaa/cursor-hook.log',
