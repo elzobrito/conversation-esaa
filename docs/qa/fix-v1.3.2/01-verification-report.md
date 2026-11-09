@@ -1,0 +1,154 @@
+# FIX132 Fase 1 — Relatório de verificação (E-01)
+
+Gate **G1**. Somente leitura. Nenhuma correção aplicada. Fase 2 bloqueada até decisão humana.
+
+## Metadados E-01 (referência = árvore suja)
+
+| Campo | Valor |
+|---|---|
+| Data | 2026-11-09 |
+| HEAD short | `baea68d` |
+| HEAD full | `baea68d92ec2ab2885e938ea521d50878ffcd766` |
+| `conv-sync.ps1` | `b5034666aa349f62625ce7ab1f43f8257dfb989947f8adad6855a31df25e6caf` |
+| `src/memory/adapter/cli.js` | `31f89e0e7a2b4f14ae12e5ad797eff5af746ba213411ff82bdff27e08eac00de` |
+| Artigo v1.3 | `3bd6cc0007fdcf50f66f73e21e89718bb86ce6545e194a93dce087e1f032e53a` |
+| Ledger real | `2bd12689fc24b8acb4b9911735283a5bfabc23588b80cff0e97209218e2a58a2` (17394 linhas, **inalterado** desde W0) |
+| Worktree HEAD | `/tmp/fix132-head-clean` (0 caminhos sujos) |
+| Árvore suja | não stashed (~67 caminhos) |
+
+## BASELINE-RED-01 (antes de PS-01/09/18)
+
+HEAD limpo: `conv-test.ps1` **112 pass / 0 fail**. Árvore suja: **111 pass / 1 fail** (`handoff_includes_recent_events`).
+
+Causa: `Invoke-TopicCommand` na árvore suja grava `agent_id = $CuratorAgent` (default `unknown`); HEAD grava `'grok'`. O teste cria tópico sem `-Agent`. Handoff: `assistant (unknown) — Resumo do assunto de teste`.
+
+- Mesma causa que PS-01? **Não.**
+- Mesma causa que PS-09? **Não.**
+- Correção nesta fase: **proibida**. Item próprio no G1, vermelho → verde.
+
+Detalhe: `evidence/BASELINE-RED-01/report.md`.
+
+## Tabela de vereditos
+
+Ação G1: **C** = Passo C após aprovação; **D** = só decisão humana; **texto** = correção de artigo/docs após G1; **—** = não corrigir agora.
+
+| ID | Veredito | Ação proposta | Notas |
+|---|---|---|---|
+| BASELINE-RED-01 | CONFIRMADO (árvore suja) | C (item próprio) | HEAD verde; não misturar com PS-01/09 |
+| PS-01 | CONFIRMADO | C | ledger Cursor 3+2; context 1+1; `source_index` 0/1 |
+| PS-02 | CONFIRMADO | C | match Windows `\\` False; fallback pega rollout alheio |
+| PS-03 | CONFIRMADO | C | lock órfão + `-SkipIfLocked` → `pipeline lock busy` |
+| PS-04 | CONFIRMADO (decide) | C | ledger cresce com exit≠0; accept: ordem no fonte, runtime INCONCLUSIVO |
+| PS-05 | DECISÃO | D-01 | clone quebra `verify`; hooks com pwsh/workspace absolutos |
+| PS-06 | CONFIRMADO | C | 200k chars: `fail_open` / argument list too long |
+| PS-07 | MEDIÇÃO | C | sync-cursor N=1000 mediana **29,3 s > 10 s**; N=20k não necessário |
+| PS-08 | CONFIRMADO | C | `sync-*` reescreve ledger sem backup; `project` não dispara o reparo |
+| PS-09 | CONFIRMADO | C | 5 `decision:` IDs aparecem 2× no pack |
+| PS-10 | CONFIRMADO | C | bootstrap skip; `enable-hooks` apaga settings Claude; npm usa JS adapters |
+| PS-11 | CONFIRMADO | C | `GROK_WORKSPACE_ROOT=B` faz o script de A ler B |
+| PS-12 | CONFIRMADO | C | fallback `/home/elzobrito/...`; bootstrap PS sem `bin/memory/`; lifecycle **protege** modified |
+| PS-13 | CONFIRMADO | C | engine ausente + evento memory → `verify: ok` |
+| PS-14 | CONFIRMADO (construção) | C opcional | mesmo payload → mesmo `event_id`; risco prático baixo |
+| PS-15 | CONFIRMADO | C | `context --before` no 1º evento devolve 2 itens (`0..-1`) |
+| PS-16 | INCONCLUSIVO (Windows) | C (Linux no-op) | `-replace '"','"'` é no-op; Windows não medido |
+| PS-17 | CONFIRMADO | C | faltam `codex-watch.log`, `antigravity-hook.log`, `run/cursor-*.txt`, `*.bak-*`, `*.tmp-*` |
+| PS-18 | CONFIRMADO | C (pista E) | `conv-test*.ps1` sem sonhar/accept/rollback; testes Node existem |
+| JS-01 | CONFIRMADO (Linux) / INCONCLUSIVO (Windows) | C | path com espaço/acento: stdout vazio exit 0 |
+| JS-02 | CONFIRMADO | D-02 | `\|\| node.topic_id` anula tópico ativo |
+| JS-03 | CONFIRMADO | D-02 | nós sem `session_id`; expressão sempre falsa; efeito observável se injectado |
+| JS-04 | CONFIRMADO (limiar) | D-03 | accept 480 fatos = **3,35 MiB** ≫ 256 KiB |
+| JS-05 | CONFIRMADO | C | `npm test` não corre `tests/memory/*.test.js` (15 passam no glob) |
+| JS-06 | CONFIRMADO | D-04 | cap 4/secção e 200 chars com store >20 e budget ≤5000 |
+| DOC-01 | CONFIRMADO | texto | ADR-013/README ainda `Conflict F1 = 1.0` / CDA instructionist 0 |
+| DOC-02 | CONFIRMADO | texto; schema = D-05 | `actor = 'assistant'` fixo; `$CuratorAgent` sujo não é o conserto |
+| ART-01 | CONFIRMADO | texto | produto retém toda decisão ativa; D1 perde no FIFO do harness |
+| ART-02 | CONFIRMADO | texto | 480/4096 \|C−D1\|=0,440 fora da exceção do Resumo |
+| ART-03 | CONFIRMADO | texto | CQ corta revocação em 5/9 combos; Resumo omite o custo |
+| ART-04 | CONFIRMADO (texto) | texto | D2 só na Tabela 1; “todas” vale para decisões, não para F1 |
+| ART-05 | CONFIRMADO | texto | precisão CQ em 48 fatos 0,571 / 0,444 ≠ 1,000 |
+| ART-06 | CONFIRMADO | texto | “antes da filtragem” só na Conclusão; uniformizar pré/pós-corte |
+| ART-07 | INCONCLUSIVO | texto mínimo | accept pequeno medido; 480 fatos produto não rodado; CN ≠ pack/handoff 3200 |
+| ART-08 | CONFIRMADO | texto | 48 nenhum limiar; 480 >50/>200/>250; 1920 também >500 |
+| ART-09 | CONFIRMADO | texto | IDs hasheiam o caminho; métricas coincidem |
+| ART-10 | BLOQUEADO | após G1 | não produzir v1.3.1 nesta fase |
+
+## Contagens
+
+- CONFIRMADO (incl. construção / limiar / texto): 32 IDs + BASELINE-RED-01
+- NÃO CONFIRMADO: **0** (parada §6.2 não aplica)
+- INCONCLUSIVO: ART-07; metades Windows de JS-01 e PS-16
+- DECISÃO / MEDIÇÃO: PS-05, PS-07, JS-02, JS-03, JS-04, JS-06
+- BLOQUEADO: ART-10
+
+## Itens que **não** devem entrar em W2 sem G1
+
+1. **BASELINE-RED-01** — item próprio vermelho→verde (E-01.6).
+2. **PS-05 / D-01**, **JS-02/JS-03 / D-02**, **JS-04 / D-03**, **JS-06 / D-04**, **DOC-02 schema / D-05**.
+3. **ART-10** e qualquer patch de produto.
+
+## ART-01 (decisivo para o artigo)
+
+Produto `renormalize.js`:
+
+```js
+if (!sampledSet.has(node.id) && node.kind !== "decision") { continue; }
+if (node.kind === "decision" && node.validity_status === "active") {
+  actions.push({ action: "retain", ... });
+}
+```
+
+D1 no harness (`v12-worker.js` / `benchmark.js`): `facts.slice(0, budget)` **antes** de `buildMemoryGraph`. Decisões fora da amostra nunca entram no grafo.
+
+Cópia, seed 11, 48 fatos, budget 26: **C = 1,00; D1 = 0,40**. Ringing do produto no mesmo budget retém 5/5. A frase “a amostragem estratificada retém as decisões antes do corte” **atribui ao ringing um efeito do harness**.
+
+## ART-02…05 (medianas, 5 seeds, JSON v13)
+
+| fatos | tok | C dr | D1 dr | \|Δ\| | CQ dr | C−CQ |
+|---:|---:|---:|---:|---:|---:|---:|
+| 48 | 512 | 1,000 | 0,400 | 0,600 | 1,000 | 0 |
+| 48 | 1024 | 1,000 | 0,400 | 0,600 | 1,000 | 0 |
+| 48 | 4096 | 1,000 | 0,400 | 0,600 | 1,000 | 0 |
+| 480 | 512 | 0,220 | 0,200 | 0,020 | 0,180 | 0,040 |
+| 480 | 1024 | 0,440 | 0,420 | 0,020 | 0,340 | 0,100 |
+| 480 | 4096 | 1,000 | 0,560 | **0,440** | 1,000 | 0 |
+| 1920 | 512 | 0,055 | 0,055 | 0 | 0,045 | 0,010 |
+| 1920 | 1024 | 0,110 | 0,105 | 0,005 | 0,085 | 0,025 |
+| 1920 | 4096 | 0,445 | 0,415 | 0,030 | 0,355 | 0,090 |
+
+D2 dr = C dr nas 9 combinações. D2 F1 de conflitos = 0 (C não).
+
+## PS-07 (medição parcial)
+
+| N | project med | verify med | sync-cursor med | pack med |
+|---:|---:|---:|---:|---:|
+| 1 000 | 4,43 s | 19,6 s | **29,3 s** | 3,32 s |
+| 5 000 | 8,31 s | ~68,7 s (2/3) | (em curso) | (em curso) |
+| 20 000 | não corrido | | | |
+
+Limiar (a) do plano: sync-cursor a 20 000 > 10 s. Já a 1 000 a mediana é 29 s. Passo C justificado. Limiar (b) t(20k)/t(5k)>8: não medido; 5k/1k verify ≈ 3,5.
+
+## Memorandos de decisão
+
+- `docs/qa/fix-v1.3.2/decisions/D-01-memo.md` — Cloud Agent / ledger por caminho
+- `docs/qa/fix-v1.3.2/decisions/D-02-memo.md` — bump de política JS-02/JS-03
+- `docs/qa/fix-v1.3.2/decisions/D-03-memo.md` — tamanho do evento `accept`
+- `docs/qa/fix-v1.3.2/decisions/D-04-memo.md` — teto 4/200 no `context`
+- D-05 (schema `curated_by`) não tem Passo V próprio; DOC-02 confirma o `actor` fixo
+
+## R4
+
+Ledger `/home/elzobrito/.conversation-esaa/activity.jsonl` SHA-256 idêntico a W0.
+
+## O que esta fase não fez
+
+- Passo C, patches, testes vermelho→verde
+- Artigo v1.3.1 (`ART-10`)
+- Commit / push / bump / npm / `RELEASE.md`
+- Correção de BASELINE-RED-01
+- Windows (PS-02 dinâmico de produção, JS-01 path `C:\`, PS-03 FileShare, PS-16 cmd.exe)
+
+## Pedido ao humano (G1)
+
+1. Aprovar o conjunto CONFIRMADO que entra em W2a/W2b (e o item próprio BASELINE-RED-01).
+2. Decidir D-01…D-04 (e D-05 se quiser schema).
+3. Autorizar Fase 2 só depois disso. Sem Fase 2 nesta resposta.

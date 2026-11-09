@@ -1,0 +1,341 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{microtype}
+\usepackage{booktabs,longtable,array}
+\usepackage{setspace}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black,unicode=true,
+  pdftitle={When Agents Need to Consolidate Memories: What RRR Consolidation Explains, and What It Does Not, in Conversation ESAA},pdfauthor={Elzo Brito dos Santos Filho},pdflang={en-US}]{hyperref}
+\DeclareUnicodeCharacter{2032}{\ensuremath{^{\prime}}}
+\setstretch{1.08}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
+\emergencystretch=3em
+\setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
+\renewcommand{\arraystretch}{1.12}
+
+\title{\textbf{When Agents Need to Consolidate Memories: What RRR Consolidation Explains, and What It Does Not, in Conversation ESAA}\\[0.8em]
+  }
+\author{Elzo Brito dos Santos Filho\\[0.3em]
+  \small Centro Paula Souza\\ CGTIC}
+\date{elzo.santos@cps.sp.gov.br\\[0.3em]}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Language-model agents can share conversational history across sessions, but persistence does not guarantee retrieval of current decisions and their provenance. This engineering study presents Memory-TCG, a Conversation ESAA extension inspired by ringing, resonance and renormalization (RRR), and an exploratory synthetic evaluation comparing chronological retrieval, two simplified baselines (B, recency-aware, and B\ensuremath{^{\prime}}, authority-aware), full RRR, and variants under three output budgets. With 480 facts and 1,024 tokens, full RRR recalled 0.44 of current decisions, versus 0.06 for chronological retrieval and 0.58 for the oracle ceiling; with 4,096 tokens it recalled all of them. B\ensuremath{^{\prime}} and the no-resonance variant matched full RRR in decision recall across all nine scale--budget combinations, as expected when the active decision set and the adapter ordering are the same. The isolated contribution of ringing to decisions was not measured: comparator D1 cuts facts before the graph is built, and the product retains active decisions by rule. Before the output limit, full-RRR conflict F1 was 0.615 at all three scales; after it, at 480 facts and 1,024 tokens, it was 0.000. Reserving 20\% of the budget for conflicts raised that F1 to 0.431 in that scenario, at the cost of lowering decision recall from 0.44 to 0.34, and to 0.930 at 4,096 tokens without decision loss. Fixtures are repetitive, comparators are simplified, and the evaluation was not independently replicated; the results support an engineering analysis, not a claim of selectionist superiority.
+\par\medskip\noindent\textbf{Keywords:} artificial intelligence agents; conversational memory; event sourcing; memory consolidation; RRR; traceability.
+\end{abstract}
+
+\section{Introduction}\label{sec:1}
+The use of heterogeneous agents in the same body of work requires continuity across sessions and tools. A decision made in one conversation may not be present in the next context window; an old summary may survive after a decision has changed; and a repetition produced by another agent may be mistaken for new evidence. Persisting the text is necessary to recover the history, but selecting what to present remains a distinct problem.
+
+ESAA establishes the separation between agent intentions and state mutations carried out by an orchestrator \cite{ref3}. ESAA-Conversational addresses continuity through a local event history and handoff projections \cite{ref1}. Its focus is recording and making conversational state available across agents. Haber and Tononi \cite{ref2}, in turn, discuss the cost of plasticity in systems that learn continuously and propose an analogy with memory consolidation during sleep. The authors put forward, as a testable hypothesis, that a selectionist approach to consolidation may outperform instructionist alternatives as memory grows and becomes interconnected.
+
+This paper investigates the following question: \textbf{how can an RRR-inspired consolidation be integrated into a shared conversational memory, preserving provenance and exposing the limits of automatic decisions, and which components explain the gains?} The answer is presented as an engineering study of Memory-TCG, a component of Conversation ESAA. The contributions are: (i) a mapping between the phases proposed in \cite{ref2} and operations implemented over the history of \cite{ref1}; (ii) an architecture with inspectable proposals, explicit promotion, and reconstruction from events; and (iii) an exploratory evaluation with ablations and an authority-aware baseline, which delimits what the results do and do not allow us to attribute to each component.
+
+The term \emph{sonhar} (``to dream'') denotes, here, a consolidation command. It does not describe subjective experience, consciousness, or biological sleep in an agent.
+
+\section{Background and Related Work}\label{sec:2}
+\subsection{Event-Based Conversational Continuity}\label{sec:2.1}
+In \cite{ref1}, visible turns are captured by adapters and normalized into an append-only history. Projections such as \texttt{handoff.md}, \texttt{state.md}, decisions, and tasks allow an agent to resume work without direct access to another agent's internal session. Mechanical capture is separated from the explicit curation of decisions and tasks. The case study in \cite{ref1} reports 570 laboratory events and describes public version 1.1.0; it does not evaluate the Memory-TCG extension presented in this paper.
+
+This model provides a central property: the view presented to an agent can be regenerated from source records. In the Conversation ESAA examined here, however, this property has an operational exception: a repair routine for the event contract, in the PowerShell synchronization path, rewrites \texttt{activity.\allowbreak{}jsonl} in its entirety, without a backup, when it finds synchronized events lacking \texttt{agent\_id} or \texttt{workspace\_\allowbreak{}root}, and writes the current \texttt{workspace\_\allowbreak{}root} into them. Furthermore, an append-only history does not by itself resolve the distinction between current and obsolete information. Nor does it guarantee that a token-limited view includes all relevant evidence.
+
+\subsection{Other Memory Systems}\label{sec:2.2}
+MemGPT \cite{ref4} organizes memory in tiers to extend the effective context of models. Generative Agents \cite{ref5} keeps records of experiences and synthesizes reflections that feed planning. Mem0 \cite{ref6} proposes extraction, update, and retrieval of conversational memories; baselines B and B\ensuremath{^{\prime}} in this work are merely local simplifications inspired by that class of update policies, without running Mem0. Sleep-time Compute \cite{ref7} moves model processing to before queries; Memory-TCG differs in running its cycle offline, without model calls. The synaptic homeostasis hypothesis of Tononi and Cirelli \cite{ref8} provides the biological context for the discussion in \cite{ref2}, without implying functional equivalence between brain and software.
+
+\subsection{The RRR Hypothesis}\label{sec:2.3}
+Haber and Tononi \cite{ref2} describe RRR as a selectionist perspective on consolidation: circuits are sampled (\emph{ringing}), their coherence or recurrence dynamics are evaluated (\emph{resonance}), and connections are selectively weakened or preserved (\emph{renormalization}). For digital systems, the authors suggest possibilities such as traversing memory traces outside an active query, assessing semantic alignment, and reducing redundancy. These suggestions do not constitute a single executable specification.
+
+The paper also predicts that selectionist logic may have advantages over instructionist strategies, in which an explicit operation updates each memory. This prediction is an empirical hypothesis, not a result demonstrated by the engineering study presented here. The implementation examined uses programmed policies and is therefore not a complete realization of the selectionist competition described in \cite{ref2}.
+
+\section{Architecture and Implementation}\label{sec:3}
+\subsection{From Conversation to Graph}\label{sec:3.1}
+Conversation ESAA keeps \texttt{activity.\allowbreak{}jsonl} as the canonical source of conversational events. The file is designed to be append-only, with the operational exception described in Section\nobreakspace{}\ref{sec:2.1}. An adapter creates a snapshot of the workspace, identifies its event watermark, and normalizes records into facts. The Memory-TCG core builds a graph with episodes, decisions, topics, and tasks. Each node retains evidence identifiers; derived relations require an identifiable rule and origin.
+
+The graph distinguishes derived relations from possible relations. An explicitly recorded replacement can support marking a decision as historical. A lexical association or a contradiction suggested by a heuristic remains a candidate; its score does not automatically turn it into a verified fact. This separation reduces the risk of converting textual similarity or repetition into authority.
+
+\subsection{Mapping the Three Phases}\label{sec:3.2}
+\begin{center}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{5.9cm}}
+\toprule
+\textbf{Phase} & \textbf{Implementation in Memory-TCG} & \textbf{Limit of the correspondence} \\
+\midrule
+\emph{Ringing} & Sampling by topic and time window, with a reproducible seed and a configurable budget; the traversal follows graph relations. & The procedure is a deterministic sampling policy, not a reproduction of spontaneous neural activity. \\[2pt]
+\emph{Resonance} & Identification of exact duplicates, lexical overlap, candidate relations, and some structured conflicts. & Lexical similarity does not guarantee semantic equivalence; conflicts outside the rules may go unnoticed. \\[2pt]
+\emph{Renormalization} & Proposal of retention, grouping of duplicates, deprioritization, historical marking, and conflict flagging. & Selection follows explicit rules; it does not necessarily generate high-level abstractions or demonstrate emergent competition. \\[2pt]
+\bottomrule
+\end{tabular}
+\end{center}
+The cycle runs offline, without language-model calls and without mandatory embeddings. With the same input, policy, and seed, execution is designed to produce reproducible output. Deprioritization acts on the active view; it does not physically remove events from the history. In the evaluated policy, the complete graph is built before sampling, and renormalization retains active decisions even when they are not among the sampled nodes. The workspace identity incorporates its canonical path: the same content in another directory may generate different identifiers, even if the metrics coincide.
+
+The numerical results in this paper were obtained with Conversation ESAA v1.3.1, the Memory-TCG engine 0.1.0, and the policy \texttt{rrr-\allowbreak{}policy.\allowbreak{}v1}.
+
+\subsection{Isolation, Promotion, and Attribution}\label{sec:3.3}
+In \emph{shadow} mode, consolidation generates a proposal that can be inspected before it changes active memory. On promotion, the system compares the proposal's watermark with the current state; if the history has advanced, a stale proposal is refused. An acceptance generates an auditable event and materializes the active view. Rollback records another transition, preserving the history and allowing reconstruction by replay.
+
+Curated events record \texttt{actor: assistant}, including when triggered by an operator; the field does not prove authorship. The declared identity is carried in \texttt{agent\_id} and classified by \texttt{agent\_\allowbreak{}id\_\allowbreak{}source} as \texttt{declared} or \texttt{unknown}. The absence of identity is represented as unknown, and the declaration does not authenticate the executor. In historical events, some identities were filled with values hard-coded in the program; for that reason, at query time, some older records are marked \texttt{legacy\_\allowbreak{}unverified} without rewriting the history, and should not be used in isolation as proof of authorship. Accepted proposals can be inspected from the canonical event when their \emph{shadow} file is unavailable; a proposal not found in either source remains a documentation gap.
+
+\section{Evaluation Method}\label{sec:4}
+\subsection{Scenarios and Arms}\label{sec:4.1}
+We used synthetic fixtures with 48, 480, and 1,920 facts, containing current and superseded decisions, echoes, duplicates, and conflicts. Seeds 11, 29, 42, 73, and 101 change the sampling and do not represent five independent datasets. The arms are:
+
+\begin{itemize}\setlength{\itemsep}{1pt}
+\item \textbf{A} --- chronological window;
+\item \textbf{B} --- simplified local policy that keeps the most recent event per topic and key, without distinguishing a decision from an echo;
+\item \textbf{B\ensuremath{^{\prime}}} --- simplified local policy that keeps the most recent explicit decision per topic and key and does not allow an echo to replace it; it receives the same structured keys and evidence as the fixtures and does not detect conflicts;
+\item \textbf{C} --- full RRR with common ordering;
+\item \textbf{CP} --- RRR with partial sampling of 56\%;
+\item \textbf{CN} --- full RRR reproducing the production \texttt{cmdContext} order;
+\item \textbf{D1} --- harness comparator that cuts facts by FIFO before building the graph; it is not an isolated substitution of the sampler in the product path;
+\item \textbf{D2} --- RRR without \emph{resonance};
+\item \textbf{CQ} --- same candidates as C, with 20\% of the budget reserved for conflicts in the canonical proposal order (\texttt{conflict\_id}).
+\end{itemize}
+The common adapter serializes active decisions first, in lexical order of identifier, then the remaining active items, and finally the candidate conflicts. Because the order of decisions is the same in all arms, arms that expose the same set of active decisions coincide in recall under the same budget. This limits what the ties in Section\nobreakspace{}\ref{sec:5} can show: they indicate that the active set is the same, not that the policies are equivalent under other orderings or other data.
+
+CN extracts the complete order of the production read path, including inactive items that consume budget, but uses the same standardized JSON serialization as the other arms. It is a rehearsal of the production order, not of the exact Markdown output. Conflict candidates include pairs from \texttt{proposal.\allowbreak{}unresolved}, including possible contradictions; false positives are counted. CQ does not change the consolidation: only the policy for fitting items under the limit. The implementation does not export a per-conflict confidence score; the order used is that of the proposal.
+
+\subsection{Budget and Oracle}\label{sec:4.2}
+Each arm runs in a separate Node process. Limits of 512, 1,024, and 4,096 \texttt{cl100k\_base} tokens apply (\texttt{tiktoken} 0.12.0). Cost is the sum of the tokens of separately encoded JSON records, including line breaks and excluding chat-protocol overhead. After an item that does not fit, the adapter continues examining the remaining ones.
+
+The oracle knows the current decisions and orders their records, with an empty provenance field, by lowest cost. Since each decision has unit value and costs are additive, it obtains the maximum number of decisions of that format under the budget. The oracle is deterministic and does not depend on the seed. We verified that, in these data, no representation emitted for a true decision costs less than the oracle's. The ceiling is conditioned on the serialization and on the fixture: it is not a ceiling for conflicts, provenance preservation, or combined objectives.
+
+\subsection{Metrics and Reproduction}\label{sec:4.3}
+We report decision recall before and after truncation; precision, recall, and F1 for conflicts; and historical contamination, defined as the fraction of the ground truth's obsolete records displayed as active. Conflict precision is undefined when there are no predictions. Global provenance recall tracks decision recall exactly, because each decision carries its own evidence, and for that reason it does not appear in Table\nobreakspace{}\ref{tab:1}.
+
+We report values across the five seeds as median [minimum, maximum]. \texttt{elapsed\_ms}, peak RSS, individual data, and output cost are in the artifacts. The scripts were run twice; at the same workspace path, the deterministic fields and output hashes coincided; time and RSS were excluded from that comparison.
+
+An additional set of six pairs went through the real adapter without supplied conflict keys: three contradictory pairs and three negative ones. It was produced by the same team and is small. The artifact repository \cite{ref9} (commit \texttt{6a2ac1f9e1\allowbreak{}966403603b\allowbreak{}2f972453d1\allowbreak{}2cdbbea3c3}) contains code, synthetic data, commands, and the report \texttt{CONV-\allowbreak{}RRR-\allowbreak{}V13-\allowbreak{}OUTPUT.\allowbreak{}json} (schema \texttt{conv-\allowbreak{}rrr.\allowbreak{}v13.\allowbreak{}v1}), including B\ensuremath{^{\prime}}, the additional metrics, and the CQ quota. The \texttt{memory context} probe and the node counts described in Section\nobreakspace{}\ref{sec:6} are not part of that commit. The evaluation was not independently replicated.
+
+\begin{quote}\small \textbf{Note.} Conditional provenance is the fraction of expected evidence IDs present within the returned true decisions, undefined when no true decision is returned. We also record the fraction of those decisions that carry all of their evidence.\end{quote}
+
+\section{Results}\label{sec:5}
+\subsection{Separating Consolidation from Output}\label{sec:5.1}
+Before the output limit, C, CN, B\ensuremath{^{\prime}}, and D2 retained all current decisions at the three scales (recall 1.000 in all seeds); D1 retained 0.40 at 48 facts and 0.56 at 480 and 1,920 facts. The conflict F1 of C and CN before truncation was 0.615 at \textbf{all three scales}, in the same proportion: 4 true and 5 false positives at 48 facts, 40 and 50 at 480, 160 and 200 at 1,920 (precision 0.444, recall 1.000). After truncation, the conflict F1 of C is 0.000 at the 480- and 1,920-fact scales under 1,024 tokens (Table\nobreakspace{}\ref{tab:1}). The identical post-truncation recall values of C and CP also do not establish that they produced the same consolidation: before truncation, CP differs in conflicts (Table\nobreakspace{}\ref{tab:3}). Conditional provenance was 1.000 in all cases in which it is defined and, in this design, does not discriminate between arms.
+
+{\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{>{\raggedleft\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{1.0cm}>{\raggedleft\arraybackslash}p{2.3cm}>{\raggedleft\arraybackslash}p{2.3cm}>{\raggedleft\arraybackslash}p{2.3cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{2.3cm}}
+\caption{Output under 1,024 tokens (identical values across the five seeds)}\label{tab:1}\\
+\toprule
+\textbf{Facts} & \textbf{Arm} & \textbf{Decision recall} & \textbf{Conflict precision} & \textbf{Conflict recall} & \textbf{Conflict F1} & \textbf{Historical contamination} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Facts} & \textbf{Arm} & \textbf{Decision recall} & \textbf{Conflict precision} & \textbf{Conflict recall} & \textbf{Conflict F1} & \textbf{Historical contamination} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+48 & A & 0.600 & --- & 0.000 & 0.000 & 0.400 \\
+48 & B & 0.000 & --- & 0.000 & 0.000 & 0.500 \\
+48 & B\ensuremath{^{\prime}} & 1.000 & --- & 0.000 & 0.000 & 0.000 \\
+48 & C & 1.000 & 0.444 & 1.000 & 0.615 & 0.000 \\
+48 & CP & 1.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
+48 & CN & 1.000 & 0.444 & 1.000 & 0.615 & 0.000 \\
+48 & D1 & 0.400 & 0.500 & 0.500 & 0.500 & 0.100 \\
+48 & D2 & 1.000 & --- & 0.000 & 0.000 & 0.000 \\
+\midrule
+480 & A & 0.060 & --- & 0.000 & 0.000 & 0.040 \\
+480 & B & 0.000 & --- & 0.000 & 0.000 & 0.140 \\
+480 & B\ensuremath{^{\prime}} & 0.440 & --- & 0.000 & 0.000 & 0.000 \\
+480 & C & 0.440 & --- & 0.000 & 0.000 & 0.000 \\
+480 & CP & 0.440 & --- & 0.000 & 0.000 & 0.000 \\
+480 & CN & 0.440 & --- & 0.000 & 0.000 & 0.000 \\
+480 & D1 & 0.420 & 1.000 & 0.025 & 0.049 & 0.010 \\
+480 & D2 & 0.440 & --- & 0.000 & 0.000 & 0.000 \\
+\midrule
+1920 & A & 0.025 & --- & 0.000 & 0.000 & 0.020 \\
+1920 & B & 0.000 & --- & 0.000 & 0.000 & 0.037 \\
+1920 & B\ensuremath{^{\prime}} & 0.110 & --- & 0.000 & 0.000 & 0.000 \\
+1920 & C & 0.110 & --- & 0.000 & 0.000 & 0.000 \\
+1920 & CP & 0.110 & --- & 0.000 & 0.000 & 0.000 \\
+1920 & CN & 0.110 & --- & 0.000 & 0.000 & 0.000 \\
+1920 & D1 & 0.105 & 1.000 & 0.006 & 0.012 & 0.003 \\
+1920 & D2 & 0.110 & --- & 0.000 & 0.000 & 0.000 \\
+\end{longtable}
+}
+{\footnotesize\noindent ``---'': precision undefined (no conflict returned).\par}
+
+The between-seed intervals in Table\nobreakspace{}\ref{tab:1} are degenerate: after truncation, the five seeds produced exactly the same values. This holds for the displayed metrics and for these data; the evaluation does not show that the seed is irrelevant in other fixtures or configurations. Before truncation, conflict detection in the partial arm varied across seeds (Table\nobreakspace{}\ref{tab:3}).
+
+{\small
+\begin{table}[htbp]\centering
+\setlength{\tabcolsep}{4pt}
+\caption{Decision recall by budget and oracle ceiling}\label{tab:2}
+\begin{tabular}{>{\raggedleft\arraybackslash}p{1.1cm}>{\raggedleft\arraybackslash}p{1.3cm}>{\raggedleft\arraybackslash}p{2.0cm}>{\raggedleft\arraybackslash}p{2.3cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedleft\arraybackslash}p{2.4cm}>{\raggedleft\arraybackslash}p{3.0cm}}
+\toprule
+\textbf{Facts} & \textbf{Tokens} & \textbf{C: common order} & \textbf{CN: production order} & \textbf{B\ensuremath{^{\prime}}} & \textbf{D2: no \emph{resonance}} & \textbf{Decision oracle (deterministic)} \\
+\midrule
+48 & 512 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
+48 & 1024 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
+48 & 4096 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
+\midrule
+480 & 512 & 0.220 & 0.220 & 0.220 & 0.220 & 0.280 \\
+480 & 1024 & 0.440 & 0.440 & 0.440 & 0.440 & 0.580 \\
+480 & 4096 & 1.000 & 1.000 & 1.000 & 1.000 & 1.000 \\
+\midrule
+1920 & 512 & 0.055 & 0.055 & 0.055 & 0.055 & 0.070 \\
+1920 & 1024 & 0.110 & 0.110 & 0.110 & 0.110 & 0.145 \\
+1920 & 4096 & 0.445 & 0.445 & 0.445 & 0.445 & 0.585 \\
+\bottomrule
+\end{tabular}
+\end{table}
+}
+With 480 facts and 1,024 tokens, C and CN recalled 0.44 of the decisions, against 0.06 for A: about 7.3 times the chronological baseline's value in this fixture, and approximately 76\% of the conditioned oracle ceiling (0.58). The distance to the oracle does not indicate a retention failure, since all decisions were retained before truncation; it reflects the adapter's lexical ordering, which does not prioritize lower-cost decisions, and the fact that the oracle emits records with empty provenance. With 4,096 tokens, at 480 facts, C, CN, B\ensuremath{^{\prime}}, and D2 recalled all decisions, reaching the oracle. D2 coincides with C in decision recall in all nine combinations (Table\nobreakspace{}\ref{tab:2}). The oracle neither preserves evidence nor evaluates conflicts.
+
+{\small
+\begin{table}[htbp]\centering
+\setlength{\tabcolsep}{4pt}
+\caption{Conflict F1 of CP before truncation, by seed}\label{tab:3}
+\begin{tabular}{rrrrrrr}
+\toprule
+\textbf{Facts} & \textbf{Seed 11} & \textbf{Seed 29} & \textbf{Seed 42} & \textbf{Seed 73} & \textbf{Seed 101} & \textbf{Median} \\
+\midrule
+48 & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 & 0.000 \\
+\midrule
+480 & 0.033 & 0.000 & 0.152 & 0.033 & 0.031 & 0.033 \\
+\midrule
+1920 & 0.047 & 0.023 & 0.081 & 0.008 & 0.039 & 0.039 \\
+\bottomrule
+\end{tabular}
+\end{table}
+}
+In CP, decision recall before truncation was 1.000 in all seeds; only conflict detection varied.
+
+\subsection{What the Ablations and B\texorpdfstring{\ensuremath{^{\prime}}}{'} Allow Us to Attribute}\label{sec:5.2}
+Variant D2 isolates the absence of \emph{resonance} in this design. D1 uses a cut that precedes the graph and therefore does not isolate the product's \emph{ringing}.
+
+\begin{itemize}\setlength{\itemsep}{1pt}
+\item D2 (without \emph{resonance}) coincides with C in \textbf{decision recall} across all nine scale--budget combinations (Table\nobreakspace{}\ref{tab:2}). This coincidence does not extend to conflict F1, which is 0.000 for D2.
+\item D1 applies FIFO before building the graph and retains, before output truncation, 0.40 of the decisions at 48 facts and 0.56 at 480 and 1,920, against 1.000 for C. After truncation, the difference is 0.60 at 48 facts (all budgets) and 0.44 at 480 facts and 4,096 tokens; in the remaining 480- and 1,920-fact combinations, it does not exceed 0.03. Because the facts discarded by D1 never enter the graph, these differences do not identify the isolated contribution of the product's sampler.
+\item B\ensuremath{^{\prime}}, which runs none of the three phases and only prevents an echo from replacing the explicit decision, coincides with C in all nine combinations of Table\nobreakspace{}\ref{tab:2}.
+\end{itemize}
+The coincidences among C, CN, B\ensuremath{^{\prime}}, and D2 must be read with the caveat of Section\nobreakspace{}\ref{sec:4.1}: the adapter orders decisions in the same way for all arms, and a recall coincidence under that order shows that the set of active decisions is the same, not that the policies are equivalent. What the data support is more restricted: in these fixtures, with explicit keys, an authority-aware rule (B\ensuremath{^{\prime}}) produces the same set of active decisions as full RRR. The product retains active decisions in the graph by rule, and D1 does not measure the isolated contribution of \emph{ringing}. D2 has a conflict F1 of 0.000 before and after truncation, whereas C reaches 0.615 before truncation; this difference is restricted to the design and the metrics tested.
+
+Table\nobreakspace{}\ref{tab:3} offers a hint about \emph{ringing} that does not pass through decisions. CP, which differs from C only in the sampled fraction (56\%), kept decision recall before truncation at 1.000, but reduced conflict F1 from 0.615 (C) to 0.000 at 48 facts and to medians of 0.033 at 480 facts and 0.039 at 1,920 facts. This is compatible with an effect of sampling on the detection of conflicts and episodes, and not on decisions, which the product retains by rule. The result was not isolated by an ablation in the product path, and it remains a hypothesis.
+
+\subsection{Conflicts Under a Budget}\label{sec:5.3}
+{\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{>{\raggedleft\arraybackslash}p{1.0cm}>{\raggedleft\arraybackslash}p{1.2cm}>{\raggedright\arraybackslash}p{1.1cm}>{\raggedleft\arraybackslash}p{1.65cm}>{\raggedleft\arraybackslash}p{1.45cm}>{\raggedleft\arraybackslash}p{0.9cm}>{\raggedleft\arraybackslash}p{0.7cm}>{\raggedleft\arraybackslash}p{0.7cm}>{\raggedleft\arraybackslash}p{0.7cm}>{\raggedleft\arraybackslash}p{1.35cm}>{\raggedleft\arraybackslash}p{1.7cm}}
+\caption{Conflict precision, recall, and F1 by budget (identical values across the five seeds)}\label{tab:4}\\
+\toprule
+\textbf{Facts} & \textbf{Tokens} & \textbf{Arm} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{Tokens used} & \textbf{Decision recall} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Facts} & \textbf{Tokens} & \textbf{Arm} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{TP} & \textbf{FP} & \textbf{FN} & \textbf{Tokens used} & \textbf{Decision recall} \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+48 & 512 & C & 0.800 & 1.000 & 0.889 & 4 & 1 & 0 & 512 & 1.000 \\
+48 & 1024 & C & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 572 & 1.000 \\
+48 & 4096 & C & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 572 & 1.000 \\
+48 & 512 & CN & 0.375 & 0.750 & 0.500 & 3 & 5 & 1 & 504 & 1.000 \\
+48 & 1024 & CN & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 892 & 1.000 \\
+48 & 4096 & CN & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 892 & 1.000 \\
+48 & 512 & D1 & 0.500 & 0.500 & 0.500 & 2 & 2 & 2 & 276 & 0.400 \\
+48 & 1024 & D1 & 0.500 & 0.500 & 0.500 & 2 & 2 & 2 & 276 & 0.400 \\
+48 & 4096 & D1 & 0.500 & 0.500 & 0.500 & 2 & 2 & 2 & 276 & 0.400 \\
+48 & 512 & CQ & 0.571 & 1.000 & 0.727 & 4 & 3 & 0 & 503 & 1.000 \\
+48 & 1024 & CQ & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 572 & 1.000 \\
+48 & 4096 & CQ & 0.444 & 1.000 & 0.615 & 4 & 5 & 0 & 572 & 1.000 \\
+\midrule
+480 & 512 & C & --- & 0.000 & 0.000 & 0 & 0 & 40 & 506 & 0.220 \\
+480 & 1024 & C & --- & 0.000 & 0.000 & 0 & 0 & 40 & 1,012 & 0.440 \\
+480 & 4096 & C & --- & 0.000 & 0.000 & 0 & 0 & 40 & 4,094 & 1.000 \\
+480 & 512 & CN & --- & 0.000 & 0.000 & 0 & 0 & 40 & 506 & 0.220 \\
+480 & 1024 & CN & --- & 0.000 & 0.000 & 0 & 0 & 40 & 1,012 & 0.440 \\
+480 & 4096 & CN & --- & 0.000 & 0.000 & 0 & 0 & 40 & 4,086 & 1.000 \\
+480 & 512 & D1 & --- & 0.000 & 0.000 & 0 & 0 & 40 & 500 & 0.200 \\
+480 & 1024 & D1 & 1.000 & 0.025 & 0.049 & 1 & 0 & 39 & 1,024 & 0.420 \\
+480 & 4096 & D1 & 0.468 & 0.550 & 0.506 & 22 & 25 & 18 & 4,089 & 0.560 \\
+480 & 512 & CQ & 1.000 & 0.125 & 0.222 & 5 & 0 & 35 & 504 & 0.180 \\
+480 & 1024 & CQ & 1.000 & 0.275 & 0.431 & 11 & 0 & 29 & 1,019 & 0.340 \\
+480 & 4096 & CQ & 0.870 & 1.000 & 0.930 & 40 & 6 & 0 & 4,085 & 1.000 \\
+\midrule
+1920 & 512 & C & --- & 0.000 & 0.000 & 0 & 0 & 160 & 506 & 0.055 \\
+1920 & 1024 & C & --- & 0.000 & 0.000 & 0 & 0 & 160 & 1,012 & 0.110 \\
+1920 & 4096 & C & --- & 0.000 & 0.000 & 0 & 0 & 160 & 4,094 & 0.445 \\
+1920 & 512 & CN & --- & 0.000 & 0.000 & 0 & 0 & 160 & 506 & 0.055 \\
+1920 & 1024 & CN & --- & 0.000 & 0.000 & 0 & 0 & 160 & 1,012 & 0.110 \\
+1920 & 4096 & CN & --- & 0.000 & 0.000 & 0 & 0 & 160 & 4,094 & 0.445 \\
+1920 & 512 & D1 & --- & 0.000 & 0.000 & 0 & 0 & 160 & 506 & 0.055 \\
+1920 & 1024 & D1 & 1.000 & 0.006 & 0.012 & 1 & 0 & 159 & 1,024 & 0.105 \\
+1920 & 4096 & D1 & --- & 0.000 & 0.000 & 0 & 0 & 160 & 4,093 & 0.415 \\
+1920 & 512 & CQ & 1.000 & 0.031 & 0.061 & 5 & 0 & 155 & 504 & 0.045 \\
+1920 & 1024 & CQ & 1.000 & 0.069 & 0.129 & 11 & 0 & 149 & 1,019 & 0.085 \\
+1920 & 4096 & CQ & 1.000 & 0.288 & 0.447 & 46 & 0 & 114 & 4,094 & 0.355 \\
+\end{longtable}
+}
+{\footnotesize\noindent ``---'': precision undefined (no conflict returned). CQ applies a 20\% conflict quota to C.\par}
+
+\textbf{F1 drops as the budget increases, if the entire conflict queue fits.} At 48 facts, C retains, with 512 tokens, 4 true conflicts and 1 false positive (precision 0.800, recall 1.000, F1 0.889); with 1,024 tokens, the same 4 true and 5 false positives (precision 0.444, recall 1.000, F1 0.615). The larger budget adds no true conflicts; it merely lets in \texttt{unresolved} candidates that are false positives. In this scenario, the head of the queue contains the four true conflicts and one false positive; the observation does not establish a universal ordering.
+
+\textbf{Conflicts disappear after truncation at the larger scales, under the ordering that places them last.} At 480 facts, C keeps 50 decisions and 72 active episodes; with 4,096 tokens, these items consume 4,094 tokens and no conflict fits, even though decision recall is 1.000 (Table\nobreakspace{}\ref{tab:4}). D1, whose active view is smaller (28 decisions and 50 episodes), leaves room and reaches F1 0.506 (precision 0.468, recall 0.550) in the same scenario. D1's advantage in conflicts after truncation is an effect of order and budget, not of better detection: before truncation, D1's F1 (0.500) is lower than C's (0.615).
+
+\textbf{The 20\% quota (CQ) recovers conflicts without changing the consolidation.} With 480 facts and 4,096 tokens, CQ keeps decision recall at 1.000 and raises conflict F1 from 0.000 to 0.930 (40 true and 6 false positives, precision 0.870): the cut falls on episodes, not on decisions, because the serialization of active items already places decisions first. With 1,024 tokens, F1 rises from 0.000 to 0.431 (11 true and 0 false positives, precision 1.000), and decision recall falls from 0.440 to 0.340. With 512 tokens, the pattern repeats on a smaller scale (F1 0.222, precision 1.000; decision recall 0.180 against 0.220). At 1,920 facts and 4,096 tokens, CQ obtains F1 0.447 (46 true and 0 false positives) and decision recall 0.355, against 0.445 for C. Overall, the quota reduces decision recall in five of the nine scale--budget combinations. It trades episodes---and, under a tight budget, some decisions---for conflicts that were at the head of the queue. At 48 facts and 512 tokens, CQ is worse than C (F1 0.727 against 0.889), because the budget already accommodated the true conflicts and the quota brings forward false positives.
+
+\textbf{C and CN.} The two orderings produce the same decision recall in all scenarios because both serialize active decisions first; the inactive items that CN adds come after them. The difference appears only in what follows: at 48 facts and 512 tokens, CN spends budget on topics and subjects before conflicts and retains 3 true and 5 false positives (F1 0.500), against 0.889 for C. With 1,024 tokens, the budget fits everything and both reach 0.615. Equal decision counts do not imply that the same decisions are chosen in all cases.
+
+\subsection{Why B Returns Zero}\label{sec:5.4}
+In each topic of the scaled fixture, B keeps the most recent event for each key. The later episodic echo replaces the authoritative decision: this is why B returns zero current decisions \textbf{even before the output limit}, and its historical contamination after the limit reaches 0.140 at 480 facts and 1,024 tokens. The behavior follows from the baseline's design, which favors recency; B\ensuremath{^{\prime}} corrects exactly this point and comes to coincide with C.
+
+\subsection{Adversarial Pairs}\label{sec:5.5}
+The five seeds produced identical results on the six pairs without supplied conflict keys: one true positive, two false negatives, three true negatives, and no false positives. Conflict precision, recall, and F1 were, respectively, 1.000, 0.333, and 0.500. The retention-period and TLS conflicts went unnoticed. The small set, produced by the same team, serves only to demonstrate concrete failures \cite{ref9}.
+
+\subsection{Functional Evidence}\label{sec:5.6}
+Automated Node tests exercised \emph{shadow} mode, rejection of a stale proposal, promotion, rollback, replay, recovery of a proposal from the ledger, topic queries, the B\ensuremath{^{\prime}} baseline, and installation in an isolated environment. The PowerShell layer that connects the memory commands to the ledger has no automated tests for dreaming, acceptance, and rollback; the properties listed above therefore come from the engine and installer tests. These tests do not prove an update of the global installation nor independent review.
+
+\section{Discussion and Threats to Validity}\label{sec:6}
+Memory-TCG shows that it is possible to integrate the three stages named in RRR into a shared conversational memory without replacing the source history. The snapshot and the watermark make it possible to evaluate a stable version of the memory; explicit promotion makes changes to the active view auditable; and the separation between verified and candidate edges prevents a lexical suggestion from automatically becoming an authoritative decision.
+
+\textbf{What explains the results.} Decision recall under a budget in this experiment is compatible with \textbf{authority-based filtering} in the active view when keys are explicit: B\ensuremath{^{\prime}} obtains the same recall as full RRR at all scales. Because the adapter orders decisions identically for all arms, this result shows that the sets of active decisions coincide, not that the policies are equivalent under other orderings. D1's FIFO comparator excludes facts before the graph is built, whereas the product path retains active decisions by rule; the isolated contribution of \emph{ringing} to decisions was not measured. Removing \emph{resonance} did not change decision recall, but it did change conflict detection before truncation; at the larger scales, this difference does not appear after truncation when conflicts are serialized after the active items.
+
+\textbf{What remains for \emph{ringing}.} Because the product retains active decisions by rule, the open question about \emph{ringing} concerns conflicts and episodes, not decisions. Table\nobreakspace{}\ref{tab:3} is compatible with an effect of the sampled fraction on conflict detection, but does not isolate it. The missing ablation is to replace only the sampler in the product path, preserving the complete graph, and to measure conflicts and episodes.
+
+\textbf{Conflict quota.} With 480 facts and 4,096 tokens, the 20\% quota keeps decision recall at 1.000 and raises conflict F1 from 0.000 to 0.930 (Table\nobreakspace{}\ref{tab:4}). In the scenarios with 480 facts and 512 or 1,024 tokens and in those with 1,920 facts, it recovers conflicts with precision 1.000 and reduces decision recall; this precision does not generalize to the 48-fact scenarios. The ordering used is that of the proposal (\texttt{conflict\_id}), not an exported confidence score; at 48 facts and 512 tokens, precision was 0.800 for C and 0.571 for CQ, which does not show that the head of the queue is always the best. An explicit confidence field remains untested.
+
+\textbf{The prediction of \cite{ref2} was not tested.} The coincidence between B\ensuremath{^{\prime}} and C neither refutes nor confirms the selectionist hypothesis: the fixtures provide structured keys and explicit replacement relations, a condition under which an instructionist rule is sufficient by construction. The advantage predicted in \cite{ref2} concerns large, interconnected memories without explicit keys, which this design does not represent. Moreover, the evaluated implementation is deterministic and rule-based, not a selectionist competition.
+
+\textbf{Partial correspondence with \cite{ref2}.} Reproducible sampling replaces open stochastic exploration; resonance uses rules and lexical overlap, not a general assessment of meaning; and renormalization is a selection determined by policy. These choices favor inspection and replay, but they do not show that relevance emerges from competition among memories. The study also does not measure changes in a model's weights or continual learning of its parameters.
+
+\textbf{Threats to validity.} The scaled fixtures repeat patterns and supply structured conflict keys, which probably explains the equality of pre-truncation F1 across scales and the degenerate between-seed intervals; the set without keys has only six pairs. The common adapter, by ordering decisions by identifier, produces coincidences between arms that do not generalize to other orderings. The token limit is real for the chosen tokenizer, but other models may use different tokenizers and windows. The oracle computes only a ceiling for decisions, with no provenance cost. B and B\ensuremath{^{\prime}} are simplified local baselines; neither represents Mem0 or complete instructionist systems. The five seeds should not be treated as five independent samples of real tasks. The conditional provenance metric was 1.000 whenever defined and does not discriminate between arms in this design. CQ uses the canonical proposal order, not a learned score. The same team designed, executed, and reviewed the evaluation.
+
+The case of continuity between agents is observational and is in Appendix\nobreakspace{}\ref{sec:A}. The authorship of an old promotion is not verifiable, and the three-identity test is synthetic. Real data and conversational excerpts require human privacy review before disclosure.
+
+\textbf{Scale and policy regimes.} The policy's scale thresholds change the path executed. In the fixtures, each fact becomes an episode or decision node; topics and tasks are not included in these counts. The 48-fact scale produces 48 nodes (38 episodes and 10 decisions) and does not exceed the 50-node threshold, nor the 200-node threshold, nor the 250-episode lexical window. The 480-fact scale produces 480 nodes (380 episodes and 100 decisions) and exceeds the 50- and 200-node thresholds and the 250-episode window. The 1,920-fact scale produces 1,920 nodes (1,520 episodes and 400 decisions) and also triggers compaction above 500 nodes, without reducing the graph in that fixture. The comparison across scales therefore mixes size with a change of regime.
+
+\textbf{Product output in a synthetic probe.} An additional synthetic probe with 480 facts built an active view with the adapter and queried \texttt{memory context}, without a real acceptance and without \texttt{pack}. With a requested budget of 3,200 characters, the output displayed 4 of the 50 current decisions (0.08) and 4 conflicts, and 295 items were omitted. The final Markdown had 3,235 characters, including the omission notice, i.e., 35 characters above the requested budget. This probe is not comparable to arm CN: it uses characters and Markdown, whereas CN uses tokens and standardized JSON serialization, and its numbers are not direct measurements of the production Markdown. The probe and the node counts above are not part of the artifacts in \cite{ref9}.
+
+Future evaluations should include independent and more diverse datasets, conflicts expressed without keys, interconnected memories without explicit replacement relations---the regime in which \cite{ref2} predicts a selectionist advantage---, the ablation of the sampler in the product path, a per-conflict confidence score, measurement of the production Markdown output, and properly configured external baselines. Independent replication and an evaluation on real tasks would be necessary to support more general conclusions. The absence of a conflict marker or a successful structural check does not prove that the whole memory is free of contradictions.
+
+\section{Conclusion}\label{sec:7}
+Conversation ESAA provides the foundation of continuity and traceability; Memory-TCG adds an offline consolidation inspired by the three RRR phases. The combination makes it possible to generate, inspect, accept, and revert an active view without erasing the source events. This is an operational implementation of an \textbf{engineering mapping} between the ideas of the two papers, with explicit differences from the selectionist hypothesis.
+
+In the scenarios evaluated, full RRR retained all current decisions before truncation and, under 1,024 tokens at 480 facts, recalled 0.44 of them---about 7.3 times the chronological window---reaching complete recall with 4,096 tokens. B\ensuremath{^{\prime}} and the variant without \emph{resonance} coincided with full RRR in decision recall, which, under the adapter's common ordering, indicates that the set of active decisions is the same; it does not indicate equivalence between the policies. The isolated contribution of \emph{ringing} to decisions was not measured, and the product retains active decisions by rule. \emph{Resonance} improves conflict detection before truncation, but, with the ordering that places conflicts last, they are discarded by the budget at the larger scales. Reserving 20\% of the budget for the conflict queue recovers these pairs---at 480 facts and 4,096 tokens, without losing decisions; in five of the nine combinations, the quota reduces decision recall. In a synthetic probe of \texttt{memory context} with 3,200 characters, the product's output displayed 4 of the 50 current decisions, which suggests that measuring the production Markdown output is the next necessary step. The adversarial cases revealed undetected contradictions. These findings justify investigating memory consolidation as a component of multi-agent systems and, specifically, ordering under a budget, without concluding that the hypothesis of Haber and Tononi was tested or proven, or that agents have the experience of dreaming.
+
+\appendix
+\section{Observed Continuity}\label{sec:A}
+In one real use, a handoff decision was recorded, an accepted generation retained it, and a second agent reported having read the decision and the generation. The evidence shows a sequence of sharing, but the authorship field of the historical promotion does not allow its executor to be identified with certainty. In another curated topic, three events were explicitly linked; the previously consulted active generation preceded those links. An additional isolated test reproduced the handoff among three declared identities. This test validates the flow with synthetic data; it does not prove an execution controlled by three real models.
+
+\begin{thebibliography}{99}
+\bibitem{ref1} SANTOS FILHO, Elzo Brito dos. \textbf{ESAA-Conversational: An Event-Sourced Memory Layer for Continuity, Handoff, and Curation Across Heterogeneous LLM Coding Agents}. \href{https://arxiv.org/abs/2606.23752v1}{arXiv:2606.23752v1}, 2026. DOI: \href{https://doi.org/10.48550/arXiv.2606.23752}{10.48550/arXiv.2606.23752}.
+\bibitem{ref2} HABER, Ido; TONONI, Giulio. \textbf{Do agents need to sleep?} \href{https://arxiv.org/abs/2611.02216v2}{arXiv:2611.02216v2}, 2026. DOI: \href{https://doi.org/10.48550/arXiv.2611.02216}{10.48550/arXiv.2611.02216}.
+\bibitem{ref3} SANTOS FILHO, Elzo Brito dos. \textbf{ESAA: Event Sourcing for Autonomous Agents in LLM-Based Software Engineering}. \href{https://arxiv.org/abs/2602.23193v1}{arXiv:2602.23193v1}, 2026.
+\bibitem{ref4} PACKER, Charles et al. \textbf{MemGPT: Towards LLMs as Operating Systems}. \href{https://arxiv.org/abs/2310.08560v2}{arXiv:2310.08560v2}, 2024.
+\bibitem{ref5} PARK, Joon Sung et al. \textbf{Generative Agents: Interactive Simulacra of Human Behavior}. \href{https://arxiv.org/abs/2304.03442v2}{arXiv:2304.03442v2}, 2023.
+\bibitem{ref6} CHHIKARA, Prateek et al. \textbf{Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory}. \href{https://arxiv.org/abs/2504.19413v1}{arXiv:2504.19413v1}, 2025.
+\bibitem{ref7} LIN, Kevin et al. \textbf{Sleep-time Compute: Beyond Inference Scaling at Test-time}. \href{https://arxiv.org/abs/2504.13171v1}{arXiv:2504.13171v1}, 2025.
+\bibitem{ref8} TONONI, Giulio; CIRELLI, Chiara. \textbf{Sleep and the price of plasticity: from synaptic and cellular homeostasis to memory consolidation and integration}. \emph{Neuron}, vol. 81, no. 1, pp. 12--34, 2014. \href{https://doi.org/10.1016/j.neuron.2013.12.025}{DOI: 10.1016/j.neuron.2013.12.025}.
+\bibitem{ref9} SANTOS FILHO, Elzo Brito dos. \textbf{RRR Memory Consolidation: Synthetic Evaluation Artifacts}. Code and synthetic data, commit \texttt{6a2ac1f9e1\allowbreak{}966403603b\allowbreak{}2f972453d1\allowbreak{}2cdbbea3c3}, 2026. \href{https://github.com/elzobrito/conversation-esaa-rrr-artifacts/tree/6a2ac1f9e1966403603b2f972453d12cdbbea3c3}{Public repository and reproduction instructions}.
+\end{thebibliography}
+\end{document}

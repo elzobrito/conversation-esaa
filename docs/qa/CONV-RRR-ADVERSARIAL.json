@@ -1,0 +1,250 @@
+{
+  "schema": "conv-rrr.adversarial.v1",
+  "cases": [
+    {
+      "topic": "TOP-001",
+      "expected": true,
+      "texts": [
+        "O banco principal é PostgreSQL",
+        "O banco principal é MySQL"
+      ]
+    },
+    {
+      "topic": "TOP-002",
+      "expected": false,
+      "texts": [
+        "O banco principal é PostgreSQL",
+        "O banco principal é postgres"
+      ]
+    },
+    {
+      "topic": "TOP-003",
+      "expected": true,
+      "texts": [
+        "Os registros são conservados por 30 dias",
+        "O prazo de retenção é de 60 dias"
+      ]
+    },
+    {
+      "topic": "TOP-004",
+      "expected": false,
+      "texts": [
+        "O banco principal é MySQL",
+        "O banco principal é MySQL"
+      ]
+    },
+    {
+      "topic": "TOP-005",
+      "expected": true,
+      "texts": [
+        "A conexão usa TLS 1.2",
+        "Exigir TLS 1.3 para todas as conexões"
+      ]
+    },
+    {
+      "topic": "TOP-006",
+      "expected": false,
+      "texts": [
+        "O banco isolado está em manutenção",
+        "O banco é um serviço interno"
+      ]
+    }
+  ],
+  "runs": [
+    {
+      "seed": 11,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "tn": 3,
+      "evaluated": [
+        {
+          "topic": "TOP-001",
+          "expected": true,
+          "detected": true
+        },
+        {
+          "topic": "TOP-002",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-003",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-004",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-005",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-006",
+          "expected": false,
+          "detected": false
+        }
+      ]
+    },
+    {
+      "seed": 29,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "tn": 3,
+      "evaluated": [
+        {
+          "topic": "TOP-001",
+          "expected": true,
+          "detected": true
+        },
+        {
+          "topic": "TOP-002",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-003",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-004",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-005",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-006",
+          "expected": false,
+          "detected": false
+        }
+      ]
+    },
+    {
+      "seed": 42,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "tn": 3,
+      "evaluated": [
+        {
+          "topic": "TOP-001",
+          "expected": true,
+          "detected": true
+        },
+        {
+          "topic": "TOP-002",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-003",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-004",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-005",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-006",
+          "expected": false,
+          "detected": false
+        }
+      ]
+    },
+    {
+      "seed": 73,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "tn": 3,
+      "evaluated": [
+        {
+          "topic": "TOP-001",
+          "expected": true,
+          "detected": true
+        },
+        {
+          "topic": "TOP-002",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-003",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-004",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-005",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-006",
+          "expected": false,
+          "detected": false
+        }
+      ]
+    },
+    {
+      "seed": 101,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "tn": 3,
+      "evaluated": [
+        {
+          "topic": "TOP-001",
+          "expected": true,
+          "detected": true
+        },
+        {
+          "topic": "TOP-002",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-003",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-004",
+          "expected": false,
+          "detected": false
+        },
+        {
+          "topic": "TOP-005",
+          "expected": true,
+          "detected": false
+        },
+        {
+          "topic": "TOP-006",
+          "expected": false,
+          "detected": false
+        }
+      ]
+    }
+  ]
+}
